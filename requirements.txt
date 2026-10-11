@@ -1,0 +1,10 @@
+easyocr>=1.7.1
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-dotenv>=1.0.0
+httpx[http2]>=0.27.0
+playwright>=1.40.0
+# 任意: pip install playwright-stealth するとブラウザ指紋対策を追加で適用する

@@ -1,0 +1,696 @@
+"""判定結果を表示するローカル Web ダッシュボード。"""
+
+from __future__ import annotations
+
+import html
+import json
+import os
+import threading
+import time
+from collections import Counter
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+
+from src.analyzer.judgment import DEFAULT_OUTPUT_DIR, PROJECT_ROOT, judge_all
+from src.analyzer.overrides import OverrideError
+from src.dashboard.admin import clear_master_edit, inspection_rows, list_master_rows, save_master_edit
+from src.dashboard.hall_admin import HallAdminError, hall_status_index, list_hall_rows, set_hall_enabled
+from src.dashboard.auth import MASTER_PANEL_PREFIX
+from src.dashboard.auth import auth_middleware
+from src.dashboard.auth import master_unlock_post
+from src.scraper.pace import public_http_detail
+from src.dashboard.events import JST
+from src.dashboard.events import EventError
+from src.dashboard.events import create_event
+from src.dashboard.events import delete_event
+from src.dashboard.events import events_for_date
+from src.dashboard.events import events_on_dates
+from src.dashboard.events import events_updated_at
+from src.dashboard.events import group_joint_picks
+from src.dashboard.events import list_events
+from src.dashboard.events import target_options
+from src.dashboard.events import today_jst
+from src.dashboard.events import update_event
+from src.dashboard.auth import login_get
+from src.dashboard.auth import login_post
+from src.dashboard.auth import logout
+from src.dashboard.stripe_billing import WebhookError
+from src.dashboard.stripe_billing import checkout_redirect_url
+from src.dashboard.stripe_billing import handle_webhook
+from src.dashboard.stripe_billing import render_thanks
+from src.dashboard.watch import build_watch_payload
+from src.scraper.site7 import _load_dotenv
+
+_load_dotenv(PROJECT_ROOT / ".env")
+from src.pipeline import run_source
+from src.scraper.halls import AREA_PRESETS, PREFECTURE_LABELS, area_presets, configured_halls, hall_area_index, hall_groups, hall_locale_index, load_halls, load_halls_config, prefectures
+
+DASHBOARD_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = DASHBOARD_DIR / "templates"
+STATIC_DIR = DASHBOARD_DIR / "static"
+MASTER_PANEL_PATH = MASTER_PANEL_PREFIX
+
+
+@asynccontextmanager
+async def _lifespan(_app):
+    from src.scraper.x_monitor import ensure_background_monitor
+
+    ensure_background_monitor()
+    yield
+
+
+app = FastAPI(title="全台系判定ダッシュボード", lifespan=_lifespan)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.exception_handler(HTTPException)
+async def masked_http_error(_request: Request, exc: HTTPException) -> JSONResponse:
+    return JSONResponse(
+        {"detail": public_http_detail(exc.detail)},
+        status_code=exc.status_code,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def masked_validation_error(_request: Request, _exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(
+        {"detail": "送信形式が正しくありません"},
+        status_code=422,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.exception_handler(Exception)
+async def masked_unexpected_error(_request: Request, exc: Exception) -> JSONResponse:
+    print(f"dashboard error: {type(exc).__name__}", flush=True)
+    return JSONResponse(
+        {"detail": "処理に失敗しました。しばらくしてから再度お試しください。"},
+        status_code=500,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _fresh_halls() -> list[str]:
+    load_halls_config.cache_clear()
+    return configured_halls()
+
+
+def _row_hall_name(row: dict) -> str:
+    return str(row.get("hall_name") or row.get("hall") or "").strip()
+
+
+def _recount_judgment(payload: dict) -> None:
+    machines = [row for row in (payload.get("machines") or []) if isinstance(row, dict)]
+    results = [row for row in (payload.get("results") or []) if isinstance(row, dict)]
+    counted = machines or results
+    payload["machines"] = machines
+    payload["results"] = results
+    payload["machine_count"] = len(machines)
+    payload["unit_count"] = len(results)
+    payload["count"] = len(machines) or len(results)
+    payload["all_high_count"] = sum(1 for row in counted if row.get("is_all_high"))
+    payload["high_56_count"] = sum(
+        1 for row in counted if row.get("is_high_56") or row.get("status") == "HIGH_56"
+    )
+    payload["high_base_count"] = sum(
+        1 for row in counted if row.get("is_high_base") or row.get("status") == "HIGH_BASE"
+    )
+    payload["early_alert_count"] = sum(
+        1 for row in counted if row.get("is_early_alert") or row.get("status") == "EARLY_ALERT"
+    )
+
+
+def _apply_hall_catalog(payload: dict) -> None:
+    """利用者画面の店舗一覧・都道府県カウント・取得状況。取得元は含めない。"""
+    from src.scraper.halls import scrape_groups_only
+
+    halls = _fresh_halls()
+    payload["configured_halls"] = halls
+    merged = list(dict.fromkeys([*halls, *(payload.get("halls") or [])]))
+    if scrape_groups_only():
+        allowed = set(halls)
+        payload["halls"] = [name for name in merged if name in allowed]
+        for key in ("machines", "results"):
+            rows = payload.get(key)
+            if isinstance(rows, list):
+                payload[key] = [
+                    row for row in rows
+                    if isinstance(row, dict) and _row_hall_name(row) in allowed
+                ]
+        _recount_judgment(payload)
+    else:
+        payload["halls"] = merged
+    payload["hall_groups"] = hall_groups()
+    payload["hall_areas"] = hall_area_index()
+    payload["hall_locales"] = hall_locale_index()
+    payload["prefectures"] = prefectures(include_disabled=False)
+    payload["area_presets"] = area_presets(include_disabled=False)
+    _attach_user_catalog(payload)
+
+
+def _empty_payload() -> dict:
+    payload = {
+        "judged_at": None,
+        "fetched_at": None,
+        "count": 0,
+        "all_high_count": 0,
+        "high_56_count": 0,
+        "high_base_count": 0,
+        "early_alert_count": 0,
+        "machine_count": 0,
+        "unit_count": 0,
+        "machines": [],
+        "results": [],
+    }
+    _apply_hall_catalog(payload)
+    return _with_events(payload)
+
+
+@app.middleware("http")
+async def disable_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path in ("/", MASTER_PANEL_PATH, "/login", "/thanks", "/lp", "/static/app.js", "/static/admin.js", "/static/halls.js", "/static/admin.css", "/static/styles.css") or request.url.path.startswith(f"{MASTER_PANEL_PATH}/") or request.url.path.startswith("/api/") or request.url.path.startswith("/legal/"):
+        response.headers["Cache-Control"] = "no-store"
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
+    return response
+
+
+@app.middleware("http")
+async def require_dashboard_login(request: Request, call_next):
+    return await auth_middleware(request, call_next)
+
+
+def _html(name: str) -> FileResponse:
+    return FileResponse(TEMPLATES_DIR / name, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/login")
+async def login_page(request: Request) -> Response:
+    return await login_get(request)
+
+
+@app.post("/login")
+async def login_submit(request: Request) -> Response:
+    return await login_post(request)
+
+
+@app.post("/logout")
+async def logout_page(request: Request) -> Response:
+    return await logout(request)
+
+
+@app.post(f"{MASTER_PANEL_PATH}/unlock")
+async def master_unlock(request: Request) -> Response:
+    return await master_unlock_post(request)
+
+
+@app.get("/")
+def index() -> FileResponse:
+    return _html("index.html")
+
+
+@app.get(MASTER_PANEL_PATH)
+def admin_page() -> FileResponse:
+    return _html("admin.html")
+
+
+@app.get(f"{MASTER_PANEL_PATH}/halls")
+def halls_admin_page() -> FileResponse:
+    return _html("halls.html")
+
+
+@app.get(f"{MASTER_PANEL_PATH}/hall-rows")
+def halls_admin_rows() -> dict[str, Any]:
+    return list_hall_rows()
+
+
+@app.patch(f"{MASTER_PANEL_PATH}/hall-rows/{{hall_id}}")
+async def halls_admin_toggle(hall_id: str, request: Request) -> dict[str, Any]:
+    payload = await _read_json_object(request)
+    if "enabled" not in payload:
+        raise HTTPException(status_code=400, detail="有効か無効かを指定してください")
+    try:
+        return set_hall_enabled(hall_id, bool(payload.get("enabled")))
+    except HallAdminError as exc:
+        status = 404 if "登録されて" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+
+def _short_prefecture(label: str) -> str:
+    if label == "北海道":
+        return label
+    for suffix in ("都", "府", "県"):
+        if label.endswith(suffix) and len(label) > len(suffix):
+            return label[: -len(suffix)]
+    return label
+
+
+def _area_labels() -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for item in AREA_PRESETS:
+        for area_id in item.get("areas") or []:
+            labels[str(area_id)] = str(item.get("label") or area_id)
+    return labels
+
+
+def _landing_coverage() -> dict[str, str]:
+    """LPの対応ホールは、2店舗以上ある都道府県だけをその場で組む。"""
+    halls = load_halls()
+    area_labels = _area_labels()
+    by_pref = Counter(hall.prefecture for hall in halls if hall.prefecture)
+    shown = [(key, count) for key, count in by_pref.items() if count >= 2]
+    shown.sort(key=lambda item: (-item[1], PREFECTURE_LABELS.get(item[0], item[0])))
+    shown_halls = [hall for hall in halls if by_pref.get(hall.prefecture, 0) >= 2]
+    blocks: list[str] = []
+    for key, count in shown:
+        label = _short_prefecture(PREFECTURE_LABELS.get(key, key))
+        rows = sorted((hall for hall in halls if hall.prefecture == key), key=lambda hall: hall.name)
+        items: list[str] = []
+        for hall in rows:
+            area = area_labels.get(hall.area, "")
+            area_html = f"<small>{html.escape(area)}</small>" if area else ""
+            items.append(f"<li><span>{html.escape(hall.name)}</span>{area_html}</li>")
+        blocks.append(
+            f'<details class="pref-acc" data-pref="{html.escape(label)}">'
+            f"<summary><span>{html.escape(label)}</span><b>{count}</b></summary>"
+            f"<ul>{''.join(items)}</ul></details>"
+        )
+    return {
+        "__HALL_COUNT__": str(len(shown_halls)),
+        "__PREF_COUNT__": str(len(shown)),
+        "__HALL_MODAL__": "".join(blocks),
+    }
+
+
+@app.get("/health")
+def health() -> JSONResponse:
+    return JSONResponse({"ok": True})
+
+
+@app.get("/lp")
+def landing_page() -> HTMLResponse:
+    body = (TEMPLATES_DIR / "landing.html").read_text(encoding="utf-8")
+    for key, value in _landing_coverage().items():
+        body = body.replace(key, value)
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/lp-checkout")
+def lp_checkout(request: Request) -> Response:
+    url = checkout_redirect_url(request)
+    if not url:
+        return HTMLResponse(
+            "決済画面は準備中です。",
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+    return RedirectResponse(url, status_code=303)
+
+
+@app.get("/thanks")
+def thanks_page(session_id: str = "") -> HTMLResponse:
+    return render_thanks(session_id)
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request) -> JSONResponse:
+    try:
+        handle_webhook(await request.body(), request.headers.get("stripe-signature") or "")
+    except WebhookError as exc:
+        return JSONResponse(
+            {"detail": exc.public_detail},
+            status_code=exc.status_code,
+            headers={"Cache-Control": "no-store"},
+        )
+    return JSONResponse({"ok": True}, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/legal/terms")
+def legal_terms() -> FileResponse:
+    return _html("legal-terms.html")
+
+
+@app.get("/legal/tokusho")
+def legal_tokusho() -> FileResponse:
+    return _html("legal-tokusho.html")
+
+
+@app.get("/legal/privacy")
+def legal_privacy() -> FileResponse:
+    return _html("legal-privacy.html")
+
+
+@app.post("/api/lp-inquiry")
+async def create_lp_inquiry(request: Request) -> dict[str, Any]:
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="送信内容を読み取れませんでした") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="送信形式が正しくありません")
+    name = str(payload.get("name") or "").strip()
+    email = str(payload.get("email") or "").strip()
+    if not name or not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="お名前とメールアドレスを入力してください")
+    if not payload.get("agree"):
+        raise HTTPException(status_code=400, detail="利用規約への同意が必要です")
+    record = {
+        "received_at": datetime.now(timezone.utc).isoformat(),
+        "name": name,
+        "email": email,
+        "area": str(payload.get("area") or "").strip(),
+        "message": str(payload.get("message") or "").strip(),
+    }
+    out_dir = PROJECT_ROOT / "data"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / "lp_inquiries.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return {"ok": True}
+
+
+@app.get("/api/hall-catalog")
+def hall_catalog() -> dict:
+    """店舗数と取得状況だけを返す。判定結果の大きなJSONを待たずに画面を出す。"""
+    payload: dict[str, Any] = {}
+    _apply_hall_catalog(payload)
+    return payload
+
+
+_JUDGMENT_CACHE: tuple[float, float, float, dict] | None = None
+_JUDGMENT_LOCK = threading.Lock()
+
+
+def _events_mtime() -> float:
+    from src.dashboard.events import EVENTS_PATH
+
+    try:
+        return EVENTS_PATH.stat().st_mtime if EVENTS_PATH.is_file() else 0.0
+    except OSError:
+        return 0.0
+
+
+@app.get("/api/judgments")
+def get_judgments() -> dict:
+    global _JUDGMENT_CACHE
+    latest = DEFAULT_OUTPUT_DIR / "latest.json"
+    if not latest.is_file():
+        return _empty_payload()
+    try:
+        mtime = latest.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    events_mtime = _events_mtime()
+    with _JUDGMENT_LOCK:
+        cached = _JUDGMENT_CACHE
+        if cached and cached[0] == mtime and cached[1] == events_mtime and time.monotonic() - cached[2] < 60:
+            return cached[3]
+        payload = _build_judgments(latest)
+        _JUDGMENT_CACHE = (mtime, events_mtime, time.monotonic(), payload)
+        return payload
+
+
+def _build_judgments(latest) -> dict:
+    payload = json.loads(latest.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return _empty_payload()
+    payload.setdefault("results", [])
+    payload.setdefault("machines", payload.get("machines") or [])
+    results = payload.get("results") or []
+    if isinstance(results, list) and results:
+        from src.analyzer.extras import hall_digit_summaries
+
+        payload["hall_digit_summaries"] = hall_digit_summaries(results)
+    payload.setdefault("machine_count", len(payload.get("machines") or []))
+    payload.setdefault("unit_count", len(payload.get("results") or []))
+    payload.setdefault("count", payload.get("machine_count") or len(payload.get("results") or []))
+    payload.setdefault("all_high_count", sum(1 for r in (payload.get("machines") or payload["results"]) if r.get("is_all_high")))
+    payload.setdefault("high_56_count", sum(1 for r in (payload.get("machines") or payload["results"]) if r.get("is_high_56") or r.get("status") == "HIGH_56"))
+    payload.setdefault("high_base_count", sum(1 for r in (payload.get("machines") or payload["results"]) if r.get("is_high_base") or r.get("status") == "HIGH_BASE"))
+    payload.setdefault("early_alert_count", sum(1 for r in (payload.get("machines") or payload["results"]) if r.get("is_early_alert") or r.get("status") == "EARLY_ALERT"))
+    payload.setdefault("halls", [])
+    _apply_hall_catalog(payload)
+    if not payload.get("fetched_at"):
+        incoming = PROJECT_ROOT / "data" / "site7" / "incoming.json"
+        if incoming.is_file():
+            try:
+                incoming_payload = json.loads(incoming.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                incoming_payload = {}
+            if isinstance(incoming_payload, dict):
+                payload["fetched_at"] = incoming_payload.get("fetched_at")
+    return _with_events(payload)
+
+
+def _attach_user_catalog(payload: dict) -> None:
+    """利用者画面用の対応店舗数と、取得状況の表示名。取得元の種別は出さない。"""
+    prefs = payload.get("prefectures") or []
+    payload["enabled_hall_count"] = sum(int(item.get("hall_count") or 0) for item in prefs if isinstance(item, dict))
+    payload["hall_status"] = hall_status_index()
+
+
+def _with_events(payload: dict) -> dict:
+    """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
+    today = today_jst()
+    tomorrow = (datetime.now(JST).date() + timedelta(days=1)).isoformat()
+    try:
+        today_events = events_for_date(today)
+        upcoming = events_on_dates([today, tomorrow])
+        updated_at = events_updated_at()
+    except EventError:
+        today_events = []
+        upcoming = []
+        updated_at = None
+    payload["events"] = today_events
+    payload["upcoming_events"] = upcoming
+    payload["events_date"] = today
+    payload["tomorrow_date"] = tomorrow
+    payload["events_updated_at"] = updated_at
+    payload["group_joint_picks"] = group_joint_picks(payload.get("machines") or [], today_events)
+    return payload
+
+
+def _x_monitor_status() -> dict:
+    try:
+        from src.scraper.x_monitor import monitor_status
+
+        return monitor_status()
+    except Exception:
+        return {}
+
+
+def _event_error(exc: EventError) -> HTTPException:
+    missing = "見つかりません" in str(exc)
+    return HTTPException(status_code=404 if missing else 400, detail=str(exc))
+
+
+@app.get("/api/watch-config")
+def get_watch_config() -> dict:
+    return build_watch_payload()
+
+
+@app.get(f"{MASTER_PANEL_PATH}/masters")
+def admin_masters() -> dict[str, Any]:
+    return list_master_rows()
+
+
+@app.put(f"{MASTER_PANEL_PATH}/masters/{{machine_id}}")
+async def admin_save_master(machine_id: str, request: Request) -> dict[str, Any]:
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="保存内容を読み取れませんでした") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="保存形式が正しくありません")
+    try:
+        return save_master_edit(machine_id, payload)
+    except OverrideError as exc:
+        status = 404 if "登録されて" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+
+@app.delete(f"{MASTER_PANEL_PATH}/masters/{{machine_id}}")
+def admin_clear_master(machine_id: str) -> dict[str, Any]:
+    try:
+        return clear_master_edit(machine_id)
+    except OverrideError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get(f"{MASTER_PANEL_PATH}/inspection")
+def admin_inspection() -> dict[str, Any]:
+    return inspection_rows()
+
+
+@app.get(f"{MASTER_PANEL_PATH}/events")
+def admin_events() -> dict[str, Any]:
+    try:
+        return {
+            "today": today_jst(),
+            "updated_at": events_updated_at(),
+            "events": list_events(),
+            "targets": target_options(),
+            "x_monitor": _x_monitor_status(),
+        }
+    except EventError as exc:
+        raise _event_error(exc) from exc
+
+
+@app.post(f"{MASTER_PANEL_PATH}/events")
+async def admin_create_event(request: Request) -> dict[str, Any]:
+    payload = await _read_json_object(request)
+    try:
+        return create_event(payload)
+    except EventError as exc:
+        raise _event_error(exc) from exc
+
+
+@app.put(f"{MASTER_PANEL_PATH}/events/{{event_id}}")
+async def admin_update_event(event_id: str, request: Request) -> dict[str, Any]:
+    payload = await _read_json_object(request)
+    try:
+        return update_event(event_id, payload)
+    except EventError as exc:
+        raise _event_error(exc) from exc
+
+
+@app.delete(f"{MASTER_PANEL_PATH}/events/{{event_id}}")
+def admin_delete_event(event_id: str) -> dict[str, Any]:
+    try:
+        delete_event(event_id)
+    except EventError as exc:
+        raise _event_error(exc) from exc
+    return {"ok": True}
+
+
+@app.post(f"{MASTER_PANEL_PATH}/rejudge")
+def admin_rejudge() -> dict[str, Any]:
+    result = rerun_judgment()
+    return {
+        "ok": True,
+        "judged_at": result.get("judged_at"),
+        "fetched_at": result.get("fetched_at"),
+        "machine_count": result.get("machine_count"),
+        "all_high_count": result.get("all_high_count"),
+        "high_56_count": result.get("high_56_count"),
+        "high_base_count": result.get("high_base_count"),
+    }
+
+
+@app.post("/api/judge")
+def rerun_judgment() -> dict:
+    incoming = PROJECT_ROOT / "data" / "site7" / "incoming.json"
+    if incoming.is_file():
+        result = run_source("site7", input_path=incoming)["judgment"]
+    else:
+        result = judge_all()
+    if not isinstance(result, dict):
+        result = {}
+    return _with_events(result)
+
+
+async def _read_json_object(request: Request) -> dict[str, Any]:
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="保存内容を読み取れませんでした") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="保存形式が正しくありません")
+    return payload
+
+
+def _lan_ip() -> str | None:
+    import socket
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(("8.8.8.8", 80))
+        ip = sock.getsockname()[0]
+        sock.close()
+    except OSError:
+        return None
+    return ip if ip and not ip.startswith("127.") else None
+
+
+def print_phone_access_banner(port: int, public_url: str | None = None) -> None:
+    """同じWi-Fiと、回線外から開くURLをターミナルに出す。"""
+    lan_ip = _lan_ip()
+    local = f"http://127.0.0.1:{port}/"
+    phone = f"http://{lan_ip}:{port}/" if lan_ip else None
+    bold = "\033[1m"
+    gold = "\033[1;93m"
+    reset = "\033[0m"
+    bar = "█" * 68
+    print()
+    print(f"{gold}{bold}{bar}{reset}")
+    print(f"{gold}{bold}  スロ極 ／ ダッシュボード{reset}")
+    print(f"{gold}{bold}{bar}{reset}")
+    print()
+    if public_url:
+        print(f"{gold}{bold}  Wi-Fi外のスマホ（4G/5G）{reset}")
+        print()
+        print(f"{gold}{bold}      {public_url}{reset}")
+        print()
+        print("  同じリンクを Discord に送ります。タップするとブラウザで開けます。")
+        print()
+    print("  紹介ページ /lp は誰でも開けます。データ画面はライセンスキーが必要です。")
+    print("  運営用の閲覧パスワードは DASHBOARD_PASSWORD です。初期値のまま決済連携を入れると、そのパスワードは使えなくなります。")
+    if not (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip():
+        print("  STRIPE_WEBHOOK_SECRET が未設定です。決済後の自動有効化はまだ動きません。")
+    elif not ((os.environ.get("STRIPE_PRICE_ID") or "").strip() or (os.environ.get("STRIPE_CHECKOUT_URL") or "").strip()):
+        print("  決済画面の行き先が未設定です。STRIPE_PRICE_ID か STRIPE_CHECKOUT_URL を入れてください。")
+    print()
+    if phone:
+        print(f"{bold}  同じWi-Fi: {phone}{reset}")
+    print(f"{bold}  PC用: {local}{reset}")
+    print()
+    print(f"{gold}{bold}{bar}{reset}")
+    print()
+
+
+def main() -> None:
+    import os
+    import uvicorn
+
+    from src.run_gate import exit_if_halted
+    from src.tunnel import announce_public_url, ensure_public_url, tunnel_enabled
+
+    on_render = (os.environ.get("RENDER") or "").strip().lower() in {"1", "true", "yes"}
+    if on_render:
+        os.environ["TUNNEL_ENABLED"] = "0"
+    else:
+        exit_if_halted("ダッシュボードと外部公開")
+
+    host = os.environ.get("DASHBOARD_HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT") or os.environ.get("DASHBOARD_PORT") or "8000")
+    public_url = None
+    if tunnel_enabled():
+        try:
+            public_url, created = ensure_public_url(port)
+            if created:
+                announce_public_url(public_url)
+        except Exception as exc:
+            print(f"外部公開トンネルを開始できませんでした: {exc}", flush=True)
+    print_phone_access_banner(port, public_url)
+    uvicorn.run("src.dashboard.app:app", host=host, port=port, reload=False)
+
+
+if __name__ == "__main__":
+    main()

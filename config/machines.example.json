@@ -1,0 +1,66 @@
+{
+  "version": "2.0",
+  "description": "機種マスター。Aタイプは BIG/REG/合算、AT/ART機は初当たり（1/N）を設定別に持つ。",
+  "schema": {
+    "type": "A または AT",
+    "hit_source": "互換用。判定は target_count を使う。",
+    "target_count": "bonus | st_at | cz",
+    "setting_4": "設定4の対象確率 1/N（target_count と同じ軸）",
+    "setting_5": "設定5の対象確率 1/N",
+    "setting_6": "設定6の対象確率 1/N",
+    "settings": {
+      "A": { "synthetic": "合算 1/N", "rb": "REG 1/N", "bb": "BIG 1/N（任意）" },
+      "AT": { "first_hit": "AT/ART初当たり 1/N" }
+    }
+  },
+  "machines": [
+    {
+      "id": "example-juggler",
+      "name": "サンプルジャグラー",
+      "type": "A",
+      "series": "ジャグラー",
+      "aliases": ["サンプルジャグラー"],
+      "published": {
+        "synthetic": { "6": 127.5 },
+        "rb": { "6": 255.0 },
+        "comment": "設定6の合算・REG"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "settings": {
+          "6": { "synthetic": 127.5, "rb": 255.0 },
+          "5": { "synthetic": 136.5, "rb": 273.1 },
+          "4": { "synthetic": 147.6, "rb": 321.3 }
+        }
+      }
+    },
+    {
+      "id": "example-at",
+      "name": "サンプルAT",
+      "type": "AT",
+      "target_count": "cz",
+      "setting_4": 258.8,
+      "setting_5": 235.7,
+      "setting_6": 222.9,
+      "hit_source": "rb",
+      "series": "スマスロ",
+      "aliases": ["サンプルAT"],
+      "published": {
+        "first_hit": { "1": 299.8, "6": 222.9 },
+        "comment": "初当りはデータサイトのRB回数"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "settings": {
+          "6": { "first_hit": 222.9 },
+          "5": { "first_hit": 235.7 },
+          "4": { "first_hit": 258.8 },
+          "2": { "first_hit": 295.5 },
+          "1": { "first_hit": 299.8 }
+        }
+      }
+    }
+  ]
+}

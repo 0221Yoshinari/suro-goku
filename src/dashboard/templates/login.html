@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ログイン | スロ極</title>
+    <link rel="stylesheet" href="/static/styles.css?v=57" />
+  </head>
+  <body class="login-body">
+    <main class="login-card">
+      <p class="eyebrow">スロ極</p>
+      <h1>ダッシュボードにログイン</h1>
+      <p class="login-lead">ライセンスキー、または運営用パスワードを入力してください。</p>
+      __ERROR__
+      <form method="post" action="/login" class="login-form">
+        <input type="hidden" name="next" value="__NEXT__" />
+        <label class="login-label" for="password">ライセンスキー / パスワード</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" autofocus required />
+        <button type="submit" class="primary">ログイン</button>
+      </form>
+      <p class="login-note">1つのライセンスキーは、同時に1台だけです。端末を変えるときは、先にログアウトしてください。</p>
+      <p class="login-links"><a href="/lp">申し込みはこちら</a></p>
+    </main>
+  </body>
+</html>

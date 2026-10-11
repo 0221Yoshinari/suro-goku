@@ -1,0 +1,13 @@
+{
+  "max_workers": 1,
+  "pause_min_sec": 8.0,
+  "pause_max_sec": 12.0,
+  "halls": [
+    {
+      "id": "example-hall",
+      "name": "店舗名",
+      "aliases": ["店舗名"],
+      "enabled": true,
+      "source": "site7"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "rotation": "round_robin",
+  "comment": "enabled を true にすると、endpoints の住宅用プロキシを取得通信へ順番に割り当てる。認証情報はこのファイルに書かず、username_env / password_env か SCRAPER_PROXY_* を使う。環境変数 SCRAPER_PROXY_SERVER か HOST+PORT があるときは、その1本がこの一覧より優先される。",
+  "endpoints": []
+}

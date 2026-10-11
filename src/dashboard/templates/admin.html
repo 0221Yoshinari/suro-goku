@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>機種マスター管理</title>
+    <link rel="stylesheet" href="/static/styles.css?v=56" />
+    <link rel="stylesheet" href="/static/admin.css?v=2" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <p class="eyebrow">パスワード保護された管理画面</p>
+        <h1>機種マスター管理</h1>
+      </div>
+      <div class="top-actions">
+        <a class="button-link" href="/master-panel-x7k3q9/halls">ホール管理</a>
+        <a class="button-link" href="/">ダッシュボード</a>
+        <button type="button" id="rejudge-btn" class="primary">保存した値で再判定</button>
+        <form method="post" action="/logout" class="logout-form">
+          <button type="submit">ログアウト</button>
+        </form>
+      </div>
+    </header>
+
+    <p id="admin-note" class="admin-note">
+      手修正はデータ上書きとして保存され、次の40分巡回と「再判定」で公表値より優先されます。
+    </p>
+    <p id="admin-status" class="admin-status" role="status"></p>
+    <p id="admin-error" class="error hidden" role="alert"></p>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <h2>イベント・取材</h2>
+        <p class="hint" id="event-summary">日付ごとの合同・取材・特定日を登録します。ダッシュボードの本日分に反映されます。</p>
+      </div>
+      <form id="event-form" class="event-form">
+        <input id="event-id" type="hidden" value="" />
+        <label>
+          日付
+          <input id="event-date" type="date" required />
+        </label>
+        <label>
+          対象ホール / 系列
+          <select id="event-target" required></select>
+        </label>
+        <label>
+          種別
+          <select id="event-type" required>
+            <option value="合同">合同</option>
+            <option value="取材">取材</option>
+            <option value="特定日">特定日</option>
+          </select>
+        </label>
+        <label>
+          イベント名
+          <input id="event-title" type="text" maxlength="80" placeholder="ワンダーランド全店合同" required />
+        </label>
+        <div class="event-actions">
+          <button type="submit" id="event-save" class="primary">登録</button>
+          <button type="button" id="event-cancel" class="hidden">キャンセル</button>
+        </div>
+      </form>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>種別</th>
+              <th>対象</th>
+              <th>イベント名</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="event-rows"></tbody>
+        </table>
+      </div>
+      <p id="event-empty" class="empty hidden">登録済みのイベントはありません。</p>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <h2>登録機種と理論値</h2>
+        <p class="hint" id="master-summary">機種を読み込み中…</p>
+      </div>
+      <div class="toolbar admin-toolbar">
+        <label class="search">
+          <span class="sr-only">機種名で検索</span>
+          <input id="master-search" type="search" placeholder="機種名・シリーズ" />
+        </label>
+        <div class="filters" role="group" aria-label="表示の絞り込み">
+          <button type="button" class="filter is-active" data-master-filter="all">すべて</button>
+          <button type="button" class="filter" data-master-filter="A">Aタイプ</button>
+          <button type="button" class="filter" data-master-filter="AT">AT機</button>
+          <button type="button" class="filter" data-master-filter="override">補正あり</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>機種</th>
+              <th>タイプ</th>
+              <th>初当り</th>
+              <th>設定6</th>
+              <th>全56</th>
+              <th>全456</th>
+              <th>REG 6</th>
+              <th>REG 56</th>
+              <th>REG 456</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="master-rows"></tbody>
+        </table>
+      </div>
+      <p id="master-empty" class="empty hidden">該当する機種はありません。</p>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <h2>検品・データチェック</h2>
+        <p class="hint" id="inspection-summary">直近の全6 / 全56 / 全456と、取得した実数を並べます。</p>
+      </div>
+      <div class="toolbar admin-toolbar">
+        <label class="search">
+          <span class="sr-only">検品の検索</span>
+          <input id="inspection-search" type="search" placeholder="店舗・機種名" />
+        </label>
+        <div class="filters" role="group" aria-label="判定ランク">
+          <button type="button" class="filter is-active" data-inspect-filter="all">すべて</button>
+          <button type="button" class="filter" data-inspect-filter="ALL_HIGH">全6</button>
+          <button type="button" class="filter" data-inspect-filter="HIGH_56">全56</button>
+          <button type="button" class="filter" data-inspect-filter="HIGH_BASE">全456</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>店舗</th>
+              <th>機種</th>
+              <th>判定</th>
+              <th>タイプ</th>
+              <th>対象</th>
+              <th>台数</th>
+              <th>通常G</th>
+              <th>BB</th>
+              <th>RB</th>
+              <th>実数</th>
+              <th>理論6</th>
+              <th>理論56</th>
+              <th>理論456</th>
+            </tr>
+          </thead>
+          <tbody id="inspection-rows"></tbody>
+        </table>
+      </div>
+      <p id="inspection-empty" class="empty hidden">この条件の判定結果はありません。</p>
+    </section>
+
+    <script src="/static/admin.js?v=5"></script>
+  </body>
+</html>

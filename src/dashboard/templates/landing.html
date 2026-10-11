@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070910" />
+    <title>スロ極｜全台系を、合同・末尾・取材で見極める</title>
+    <meta
+      name="description"
+      content="スロ極は、全台系判定に合同機種・あたり末尾・取材情報を重ねる解析ツールです。月額15,000円（税込）。申し込みはStripeの決済画面へ進みます。"
+    />
+    <meta name="robots" content="noindex,nofollow" />
+    <style>
+      :root {
+        --bg: #070910;
+        --card: #121722;
+        --line: rgba(232, 236, 255, 0.12);
+        --gold: #f3d37a;
+        --cyan: #3ee0ff;
+        --text: #f7f4ee;
+        --body: #ddd6c8;
+        --muted: #b7b0a3;
+        --danger: #ffb4b4;
+      }
+      * { box-sizing: border-box; }
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        scroll-behavior: smooth;
+      }
+      /* body に overflow-x: hidden / clip を付けると、iOS Safari でページ全体が真っ白になる。 */
+      body {
+        margin: 0;
+        max-width: 100%;
+        color: var(--text);
+        background:
+          radial-gradient(520px 240px at 80% -10%, rgba(62, 224, 255, 0.16), transparent 60%),
+          radial-gradient(480px 260px at 0% 0%, rgba(243, 211, 122, 0.16), transparent 55%),
+          var(--bg);
+        font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", YuGothic, sans-serif;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+      img, svg { max-width: 100%; height: auto; }
+      a { color: var(--gold); }
+      button, input { font: inherit; }
+      .wrap { width: min(1040px, calc(100% - 32px)); margin: 0 auto; }
+      h1, h2, h3 { line-height: 1.3; font-weight: 800; margin: 0 0 12px; }
+      h2 { font-size: clamp(26px, 6vw, 40px); }
+      p { margin: 0; }
+
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: rgba(7, 9, 16, 0.94);
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-inner {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .logo { display: block; }
+      .logo-nav { width: 112px; height: 36px; }
+      .logo-hero { width: min(280px, 78vw); height: auto; margin: 0 0 18px; filter: drop-shadow(0 0 12px rgba(62, 224, 255, 0.35)); }
+      .nav-cta, .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 0;
+        text-decoration: none;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .nav-cta, .btn-primary {
+        background: linear-gradient(180deg, #fff1c2, var(--gold) 45%, #c8962e);
+        color: #241a08;
+      }
+      .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+      .btn-primary { width: 100%; }
+      .kicker { margin: 0 0 8px; color: var(--cyan); font-size: 12px; font-weight: 800; letter-spacing: 0.16em; }
+      .hero { padding: 28px 0 8px; }
+      .hero h1 { font-size: clamp(32px, 9vw, 56px); letter-spacing: 0; }
+      .lead { max-width: 38rem; color: var(--body); }
+      .hero-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+      .proof, .signal, .steps, .versus, .offer { display: grid; gap: 10px; }
+      .proof { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 22px; }
+      .stat, .step, .price-card, .versus article, details.faq-item {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+      }
+      .stat { padding: 14px 8px; text-align: center; }
+      .stat b { display: block; font-size: clamp(26px, 7vw, 40px); line-height: 1; }
+      .stat span { color: var(--muted); font-size: 12px; }
+      .signal { margin-top: 18px; }
+      .signal-row { display: flex; flex-wrap: wrap; gap: 8px; }
+      .pill {
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(62, 224, 255, 0.4);
+        background: rgba(62, 224, 255, 0.08);
+        color: var(--cyan);
+        font-weight: 800;
+        font-size: 14px;
+      }
+      .signal strong {
+        display: block;
+        margin-top: 8px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(243, 211, 122, 0.1);
+        border: 1px solid rgba(243, 211, 122, 0.35);
+      }
+      section { padding: 48px 0; scroll-margin-top: 76px; }
+      .section-lead { margin-bottom: 18px; color: var(--body); max-width: 40rem; }
+      .steps { grid-template-columns: 1fr; }
+      .step { padding: 16px; }
+      .step-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+      .step-head h3 { margin: 0; font-size: 18px; }
+      .mark {
+        width: 42px;
+        height: 42px;
+        flex: none;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #071016;
+        background: linear-gradient(180deg, var(--cyan), #7cf0ff);
+        font-weight: 900;
+      }
+      .step p { color: var(--body); }
+      .example {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #0c111a;
+        color: var(--text);
+        font-size: 15px;
+      }
+      .example b { color: var(--gold); }
+      .mini { margin-top: 12px; }
+      .chips, .digits { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chip, .digits span {
+        min-width: 44px;
+        min-height: 36px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        text-align: center;
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .chip.on, .digits .on { color: #071016; background: var(--gold); border-color: transparent; }
+      .link-demo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; font-weight: 800; }
+      .link-demo i { color: var(--cyan); font-style: normal; }
+      .coverage-panel {
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(62, 224, 255, 0.08), transparent 40%),
+          var(--card);
+      }
+      .coverage-panel .proof { margin-top: 0; }
+      .note { margin-top: 12px; color: var(--muted); font-size: 13px; }
+      .versus article { padding: 14px; }
+      .versus h3 { margin: 0 0 8px; font-size: 15px; color: var(--muted); }
+      .versus .win { border-color: rgba(243, 211, 122, 0.5); }
+      .versus .win h3 { color: var(--gold); }
+      .meter { margin: 8px 0 14px; }
+      .meter-row { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; }
+      .bar { height: 10px; border-radius: 999px; background: #0c111a; overflow: hidden; }
+      .bar i { display: block; height: 100%; border-radius: inherit; background: #6d6456; }
+      .win .bar i { width: 22% !important; background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+      .offer { align-items: start; }
+      .price-card { padding: 18px; }
+      .price { font-size: 42px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
+      .price small { font-size: 15px; color: var(--muted); font-weight: 700; }
+      .price-card p { margin-top: 10px; color: var(--body); }
+      .consent { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; color: var(--body); font-size: 14px; }
+      .consent input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+      .form-msg { min-height: 1.4em; margin-top: 10px; }
+      .form-msg.err { color: var(--danger); }
+      .faq { display: grid; gap: 10px; }
+      .faq-item { padding: 14px 16px; }
+      summary { cursor: pointer; font-weight: 800; }
+      .faq-item p { margin-top: 8px; color: var(--body); }
+      footer { border-top: 1px solid var(--line); padding: 28px 0 calc(28px + env(safe-area-inset-bottom)); color: var(--muted); font-size: 13px; }
+      .foot-links { display: flex; flex-wrap: wrap; gap: 12px 16px; margin: 12px 0; }
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: rgba(0, 0, 0, 0.72);
+        display: grid;
+        align-items: end;
+        padding: 0;
+      }
+      .modal[hidden] { display: none; }
+      .modal-card {
+        width: min(720px, 100%);
+        margin: 0 auto;
+        max-height: calc(100vh - 12px);
+        max-height: calc(100dvh - 12px);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #10151f;
+        border: 1px solid var(--line);
+        border-radius: 18px 18px 0 0;
+        padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+      }
+      .modal-head, .pref-acc summary, .pref-acc li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .modal-head h2 { font-size: 22px; }
+      .icon-btn {
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--text);
+      }
+      .modal-card input[type="search"] {
+        width: 100%;
+        min-height: 48px;
+        margin: 8px 0 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #070910;
+        color: var(--text);
+        font-size: 16px;
+      }
+      .pref-acc { border-top: 1px solid var(--line); }
+      .pref-acc summary { min-height: 48px; font-weight: 800; }
+      .pref-acc summary b, .pref-acc small { color: var(--gold); }
+      .pref-acc ul { list-style: none; margin: 0; padding: 0 0 8px; }
+      .pref-acc li { padding: 8px 0; color: var(--body); font-weight: 500; }
+      .pref-acc li span { min-width: 0; }
+      .pref-acc small { color: var(--muted); font-size: 12px; flex: none; }
+      .empty-search { color: var(--muted); }
+
+      @media (min-width: 720px) {
+        .wrap { width: min(1040px, calc(100% - 64px)); }
+        .hero { padding-top: 48px; }
+        .hero-actions { flex-direction: row; }
+        .btn-primary { width: auto; min-width: 240px; }
+        .steps, .versus, .offer { grid-template-columns: 1fr 1fr; }
+        .modal { align-items: center; padding: 24px; }
+        .modal-card { border-radius: 18px; max-height: min(80vh, 760px); }
+      }
+      @media (max-width: 719px) {
+        .nav-cta { display: none; }
+        .meter-row { grid-template-columns: 6.2em 1fr; }
+        .meter-row em { grid-column: 1 / -1; color: var(--muted); font-style: normal; }
+        .pref-acc li { flex-direction: column; align-items: flex-start; gap: 2px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a href="#top" aria-label="スロ極">
+          <svg class="logo logo-nav" viewBox="0 0 220 64" role="img" aria-label="スロ極">
+            <defs>
+              <linearGradient id="navFill" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#fff6cf" />
+                <stop offset="0.5" stop-color="#f3d37a" />
+                <stop offset="1" stop-color="#3ee0ff" />
+              </linearGradient>
+            </defs>
+            <text x="0" y="46" fill="url(#navFill)" font-size="40" font-family="Hiragino Mincho ProN, Yu Mincho, serif" font-weight="700">スロ極</text>
+          </svg>
+        </a>
+        <a class="nav-cta checkout-cta" href="https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00">申し込む</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="wrap">
+          <svg class="logo logo-hero" viewBox="0 0 360 96" role="img" aria-label="スロ極">
+            <defs>
+              <linearGradient id="heroFill" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#fff6cf" />
+                <stop offset="0.45" stop-color="#f3d37a" />
+                <stop offset="1" stop-color="#7cf0ff" />
+              </linearGradient>
+              <filter id="heroNeon" x="-15%" y="-40%" width="130%" height="180%">
+                <feGaussianBlur stdDeviation="2.2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <text x="4" y="68" fill="url(#heroFill)" filter="url(#heroNeon)" font-size="72" font-family="Hiragino Mincho ProN, Yu Mincho, serif" font-weight="700">スロ極</text>
+          </svg>
+          <p class="kicker">SURO-GOKU</p>
+          <h1>全台系を、<br />一つの数字で、<br />決めない。</h1>
+          <p class="lead">合同機種、あたり末尾、取材。別々の材料が同じホールを指したとき、スロ極はそこを先に出します。</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary checkout-cta" href="https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00">月額15,000円で申し込む</a>
+            <a class="btn btn-ghost" href="#method">精度の仕組みを見る</a>
+          </div>
+          <div class="proof" aria-label="対応規模">
+            <article class="stat"><b>__HALL_COUNT__</b><span>対応ホール</span></article>
+            <article class="stat"><b>__PREF_COUNT__</b><span>都道府県</span></article>
+            <article class="stat"><b>4</b><span>重ねる視点</span></article>
+          </div>
+          <div class="signal">
+            <div class="signal-row">
+              <span class="pill">全台系</span>
+              <span class="pill">合同機種</span>
+              <span class="pill">あたり末尾</span>
+              <span class="pill">取材</span>
+            </div>
+            <strong>重なった店から、先に見る</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="method">
+        <div class="wrap">
+          <p class="kicker">精度</p>
+          <h2>四つが重なった店から見る。</h2>
+          <p class="section-lead">単店の好数字だけでは、現場と噛み合わないことがあります。スロ極は次の四つを、同じ判断の中で洗います。</p>
+          <div class="steps">
+            <article class="step">
+              <div class="step-head"><span class="mark">01</span><h3>全台系を判定する</h3></div>
+              <p>機種ごとに全6・全56・全456をスコアリングし、今日濃いホールを先に並べます。店舗のページを一軒ずつ開く前に、見る順番が決まります。</p>
+              <div class="mini chips" aria-hidden="true"><span class="chip on">全6</span><span class="chip">全56</span><span class="chip">全456</span></div>
+              <p class="example"><b>例</b> 〇〇店の機種Aがその日全6。数字だけなら「良い店」で終わります。スロ極は同じ店の全56・全456も並べ、〇〇店から動く価値があるかを先に切り分けます。</p>
+            </article>
+            <article class="step">
+              <div class="step-head"><span class="mark">02</span><h3>合同機種を洗い出す</h3></div>
+              <p>合同イベントの系列で、同じ機種が2店舗以上で全6または全56になっているものだけを抽出します。1店だけの好転は、たまたまとして分けます。</p>
+              <div class="mini link-demo" aria-hidden="true"><span>A店 全56</span><i>→ 機種B ←</i><span>B店 全56</span></div>
+              <p class="example"><b>例</b> 合同の日、機種BがA店とB店の両方で全56。片方だけの全6は候補から外し、2店でそろった機種Bを合同の当たり候補として上に出します。</p>
+            </article>
+            <article class="step">
+              <div class="step-head"><span class="mark">03</span><h3>あたり末尾を洗い出す</h3></div>
+              <p>台番号の末尾0から9までを、店舗全体でまとめます。機種ごとの表では平均に溶ける「今日の当たり末尾」を、ホール単位で見ます。</p>
+              <div class="mini digits" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span class="on">7</span><span>8</span><span>9</span></div>
+              <p class="example"><b>例</b> 〇〇店を末尾ごとに足すと、末尾7だけ推測設定の平均が高い。機種ごとの一覧では埋もれていた偏りが、店全体の一行で分かります。</p>
+            </article>
+            <article class="step">
+              <div class="step-head"><span class="mark">04</span><h3>取材情報と結びつける</h3></div>
+              <p>取材・合同・特定日を、対象ホールの判定とつなぎます。数字が同じに見えても、イベント当日の店から確認できます。</p>
+              <div class="mini link-demo" aria-hidden="true"><span>取材</span><i>→</i><span>C店の全台系</span></div>
+              <p class="example"><b>例</b> C店に取材が入った日は、その店の全台系スコアを取材のない店より先に並べます。別のアプリでイベントを探してから、データサイトへ戻る手順がなくなります。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="coverage">
+        <div class="wrap">
+          <p class="kicker">対応範囲</p>
+          <h2>対応ホールは、必要な県だけ開く。</h2>
+          <div class="coverage-panel">
+            <div class="proof" aria-label="掲載している対応範囲">
+              <article class="stat"><b>__HALL_COUNT__</b><span>掲載ホール</span></article>
+              <article class="stat"><b>__PREF_COUNT__</b><span>都道府県</span></article>
+              <article class="stat"><b>2+</b><span>店舗ある県だけ</span></article>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-primary" type="button" id="open-halls">各都道府県の対応ホールを確認する</button>
+            </div>
+            <p class="note">1店舗だけの都道府県は一覧から外しています。公開状況で店舗数は変わります。設定の断定や、遊技結果の保証はしません。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="compare">
+        <div class="wrap">
+          <p class="kicker">比較</p>
+          <h2>なぜ判断が変わるのか。<br />手作業とスロ極の決定的な差。</h2>
+          <p class="section-lead">同じ公開データでも、見る順番と、同時に重ねる材料が違います。勝敗そのものを保証する数字ではなく、移動前に捨てられる無駄の差です。</p>
+          <div class="meter" aria-label="確認にかかる画面数のイメージ">
+            <div class="meter-row">
+              <span>自力で巡回</span>
+              <div class="bar"><i style="width:100%"></i></div>
+              <em>店舗の数だけ画面を開く</em>
+            </div>
+            <div class="meter-row win">
+              <span>スロ極</span>
+              <div class="bar"><i style="width:22%"></i></div>
+              <em>1画面に集約</em>
+            </div>
+          </div>
+          <div class="versus">
+            <article>
+              <h3>自力の巡回・手探り</h3>
+              <p>タブを行き来している間に、狙い台が埋まる。</p>
+              <p>合同は目視、末尾は自分で足し、取材は別の場所で確認する。</p>
+              <p>1店の好数字だけで動くと、ガセが混ざる。</p>
+            </article>
+            <article class="win">
+              <h3>スロ極</h3>
+              <p>開いた時点で、全台系の濃いホールが上に並ぶ。</p>
+              <p>合同機種とあたり末尾で、単発の数字をその場で検証できる。</p>
+              <p>取材当日の店が、判定とつながった状態で先に見える。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="offer">
+        <div class="wrap offer">
+          <article class="price-card">
+            <p class="kicker">月額</p>
+            <p class="price">¥15,000 <small>/ 月（税込）</small></p>
+            <p>1日あたり500円。申し込みはこのあとのボタンから、Stripeの決済画面へ進みます。</p>
+          </article>
+          <article class="price-card">
+            <h2>決済画面で申し込む。</h2>
+            <p>カード番号はStripeが扱い、このページでは預かりません。</p>
+            <label class="consent">
+              <input id="agree-checkout" type="checkbox" />
+              <span><a href="/legal/terms">利用規約</a>、<a href="/legal/privacy">プライバシーポリシー</a>、<a href="/legal/tokusho">特定商取引法に基づく表記</a>に同意して申し込みます。</span>
+            </label>
+            <a class="btn btn-primary checkout-cta" id="checkout-link" href="https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00">同意してStripeで申し込む</a>
+            <p class="form-msg" id="checkout-msg" role="status"></p>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq">
+        <div class="wrap">
+          <p class="kicker">FAQ</p>
+          <h2>申し込み前に多い質問</h2>
+          <div class="faq">
+            <details class="faq-item" open>
+              <summary>料金はいくらですか？</summary>
+              <p>月額15,000円（税込）です。申し込みボタンからStripeの決済画面へ進み、支払方法と課金日はそこで確定します。</p>
+            </details>
+            <details class="faq-item">
+              <summary>どのホールに対応していますか？</summary>
+              <p>掲載しているのは __HALL_COUNT__ 店舗、__PREF_COUNT__ 都道府県です。2店舗以上ある県だけを、ボタンから開けます。1店舗だけの県は一覧に出していません。</p>
+            </details>
+            <details class="faq-item">
+              <summary>全台系の精度は、何で上げていますか？</summary>
+              <p>全台系判定に、合同機種の洗い出し、あたり末尾の洗い出し、取材情報との結びつきを重ねています。一致が多いホールから見ます。</p>
+            </details>
+            <details class="faq-item">
+              <summary>設定を断定しますか？</summary>
+              <p>しません。公開情報の重なりを整理し、移動の判断を助けるツールです。遊技の結果は保証しません。</p>
+            </details>
+            <details class="faq-item">
+              <summary>スマートフォンでも見られますか？</summary>
+              <p>このページは携帯のブラウザ幅で読めるように組んでいます。ログインなしで開けます。解析画面本体は、利用者ごとの案内で開きます。</p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>スロ極</p>
+        <div class="foot-links">
+          <a href="/legal/terms">利用規約</a>
+          <a href="/legal/tokusho">特定商取引法に基づく表記</a>
+          <a href="/legal/privacy">プライバシーポリシー</a>
+          <a class="checkout-cta" href="https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00">申し込む</a>
+        </div>
+        <p>本サービスは遊技の結果を保証するものではありません。店舗のデータ公開状況により、表示は変動します。</p>
+      </div>
+    </footer>
+
+    <div class="modal" id="hall-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hall-modal-title">
+        <div class="modal-head">
+          <h2 id="hall-modal-title">対応ホール</h2>
+          <button class="icon-btn" type="button" id="close-halls" aria-label="閉じる">×</button>
+        </div>
+        <input id="hall-search" type="search" placeholder="都道府県・店舗名で検索" aria-label="対応ホールを検索" />
+        <div id="hall-list">__HALL_MODAL__</div>
+        <p class="empty-search" id="hall-empty" hidden>一致するホールはありません。</p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var modal = document.getElementById("hall-modal");
+        var openBtn = document.getElementById("open-halls");
+        var closeBtn = document.getElementById("close-halls");
+        var search = document.getElementById("hall-search");
+        var empty = document.getElementById("hall-empty");
+        function setOpen(next) {
+          modal.hidden = !next;
+          document.documentElement.style.overflow = next ? "hidden" : "";
+          if (next) search.focus();
+          else openBtn.focus();
+        }
+        openBtn.addEventListener("click", function () { setOpen(true); });
+        closeBtn.addEventListener("click", function () { setOpen(false); });
+        modal.addEventListener("click", function (event) {
+          if (event.target === modal) setOpen(false);
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && !modal.hidden) setOpen(false);
+        });
+        search.addEventListener("input", function () {
+          var query = search.value.trim().toLowerCase();
+          var visible = 0;
+          var blocks = modal.querySelectorAll(".pref-acc");
+          for (var i = 0; i < blocks.length; i++) {
+            var block = blocks[i];
+            var pref = (block.getAttribute("data-pref") || "").toLowerCase();
+            var prefHit = query && pref.indexOf(query) !== -1;
+            var rows = block.querySelectorAll("li");
+            var badge = block.querySelector("summary b");
+            if (badge && !badge.getAttribute("data-total")) badge.setAttribute("data-total", badge.textContent);
+            var matched = 0;
+            for (var j = 0; j < rows.length; j++) {
+              var hit = !query || prefHit || rows[j].textContent.toLowerCase().indexOf(query) !== -1;
+              rows[j].hidden = !hit;
+              if (hit) matched += 1;
+            }
+            if (badge) badge.textContent = query ? String(matched) : badge.getAttribute("data-total");
+            block.hidden = query ? matched === 0 : false;
+            if (query && matched) block.open = true;
+            if (!block.hidden) visible += 1;
+          }
+          empty.hidden = visible !== 0;
+        });
+
+        var agree = document.getElementById("agree-checkout");
+        var msg = document.getElementById("checkout-msg");
+        var offer = document.getElementById("offer");
+        var checkoutLinks = document.querySelectorAll("a.checkout-cta");
+        for (var i = 0; i < checkoutLinks.length; i++) {
+          checkoutLinks[i].addEventListener("click", function (event) {
+            if (!agree.checked) {
+              event.preventDefault();
+              msg.className = "form-msg err";
+              msg.textContent = "利用規約への同意が必要です。";
+              if (offer && offer.scrollIntoView) offer.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

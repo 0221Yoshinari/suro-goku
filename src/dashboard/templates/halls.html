@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ホール管理</title>
+    <link rel="stylesheet" href="/static/styles.css?v=56" />
+    <link rel="stylesheet" href="/static/admin.css?v=3" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <p class="eyebrow">パスワード保護された管理画面</p>
+        <h1>ホール管理</h1>
+      </div>
+      <div class="top-actions">
+        <a class="button-link" href="/master-panel-x7k3q9">機種マスター</a>
+        <a class="button-link" href="/">ダッシュボード</a>
+        <form method="post" action="/logout" class="logout-form">
+          <button type="submit">ログアウト</button>
+        </form>
+      </div>
+    </header>
+
+    <p class="admin-note">
+      登録ホールの都道府県、データサイト、最終取得を確認します。取得のオンオフは各行のスイッチです。新規に一括登録した店舗は、ここから有効にするまで巡回しません。未公開は台データオンラインに店舗だけがあり、台データはまだ出ていない店です。
+    </p>
+    <p id="hall-status" class="admin-status" role="status"></p>
+    <p id="hall-error" class="error hidden" role="alert"></p>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <h2>登録ホール</h2>
+        <p class="hint" id="hall-summary">ホールを読み込み中…</p>
+      </div>
+      <div class="toolbar admin-toolbar">
+        <label class="search">
+          <span class="sr-only">ホール名で検索</span>
+          <input id="hall-search" type="search" placeholder="ホール名・都道府県" />
+        </label>
+        <div class="filters" role="group" aria-label="データサイト">
+          <button type="button" class="filter is-active" data-source-filter="all">すべて</button>
+          <button type="button" class="filter" data-source-filter="teramoba">テラモバ</button>
+          <button type="button" class="filter" data-source-filter="goraggio">台データオンライン</button>
+        </div>
+        <div class="filters" role="group" aria-label="取得ステータス">
+          <button type="button" class="filter is-active" data-status-filter="all">すべて</button>
+          <button type="button" class="filter" data-status-filter="ok">正常</button>
+          <button type="button" class="filter" data-status-filter="error">エラー</button>
+          <button type="button" class="filter" data-status-filter="pending">未取得</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table hall-table">
+          <thead>
+            <tr>
+              <th>ホール名</th>
+              <th>都道府県</th>
+              <th>データサイト</th>
+              <th>最終取得</th>
+              <th>ステータス</th>
+              <th>取得</th>
+            </tr>
+          </thead>
+          <tbody id="hall-rows"></tbody>
+        </table>
+      </div>
+      <p id="hall-empty" class="empty hidden">この条件のホールはありません。</p>
+    </section>
+
+    <script src="/static/halls.js?v=2"></script>
+  </body>
+</html>

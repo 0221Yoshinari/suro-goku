@@ -1,0 +1,148 @@
+{
+  "version": "1.2",
+  "description": "初当たり確率で全台系判定できる主要機種のみ。テラモバの型式略称は normalize_machine_name と patterns で吸収する。",
+  "exclude_patterns": ["ヴァルヴレイヴ", "ヴヴヴ", "valvrave"],
+  "machines": [
+    {
+      "id": "im-juggler",
+      "display_name": "アイムジャグラーEX",
+      "type": "A",
+      "master_ids": ["im-juggler-ex", "neo-aim-ex"],
+      "patterns": ["アイムジャグラー", "ネオアイム", "ネオAIM"]
+    },
+    {
+      "id": "my-juggler-v",
+      "display_name": "マイジャグラーV",
+      "type": "A",
+      "master_ids": ["my-juggler-v"],
+      "patterns": ["マイジャグラーV", "マイジャグラー5", "マイジャグラー"]
+    },
+    {
+      "id": "million-god",
+      "display_name": "ミリオンゴッド",
+      "type": "AT",
+      "master_ids": ["million-god-kiseki"],
+      "patterns": ["ミリオンゴッド", "神々の軌跡"]
+    },
+    {
+      "id": "kabaneri",
+      "display_name": "甲鉄城のカバネリ",
+      "type": "AT",
+      "master_ids": ["kabaneri-kaimon", "kabaneri-1"],
+      "patterns": ["甲鉄城のカバネリ海門決戦", "海門決戦", "甲鉄城のカバネリ", "甲鉄城カバネリ", "カバネリ"]
+    },
+    {
+      "id": "tokyo-ghoul",
+      "display_name": "東京喰種",
+      "type": "AT",
+      "master_ids": ["tokyo-ghoul"],
+      "patterns": ["東京喰種", "東京グール", "トーキョーグール"]
+    },
+    {
+      "id": "hokuto-tensei",
+      "display_name": "パチスロ北斗の拳 転生の章",
+      "type": "AT",
+      "master_ids": ["hokuto-tensei-2"],
+      "patterns": ["転生の章", "北斗転生", "北斗の拳転生"]
+    },
+    {
+      "id": "hokuto-smaslo",
+      "display_name": "Lスマスロ北斗の拳",
+      "type": "AT",
+      "master_ids": ["hokuto-no-ken"],
+      "patterns": ["Lスマスロ北斗の拳", "スマスロ北斗の拳", "北斗の拳AD", "北斗の拳ＡＤ"]
+    },
+    {
+      "id": "monkey-turn-v",
+      "display_name": "パチスロ モンキーターンV",
+      "type": "AT",
+      "master_ids": ["monkey-turn-v"],
+      "patterns": ["モンキーターン", "モンキーターン5", "モンキーターンV", "モンキーターン５"]
+    },
+    {
+      "id": "gogo-juggler-3",
+      "display_name": "ゴーゴージャグラー3",
+      "type": "A",
+      "master_ids": ["gogo-juggler-3"],
+      "patterns": ["ゴーゴージャグラー", "ゴージャぐ", "ゴーゴー3", "ゴージャグ"]
+    },
+    {
+      "id": "sengoku-otome",
+      "display_name": "戦国乙女",
+      "type": "AT",
+      "master_ids": ["sengoku-otome-5", "sengoku-otome-4"],
+      "patterns": ["戦国乙女"]
+    },
+    {
+      "id": "sao",
+      "display_name": "ソードアート・オンライン",
+      "type": "AT",
+      "master_ids": ["sao-2"],
+      "skip_judgment": true,
+      "patterns": ["ソードアート", "ソードアート・オンライン", "SAO", "ソードアートオンライン"]
+    },
+    {
+      "id": "funky-juggler-2",
+      "display_name": "ファンキージャグラー2",
+      "type": "A",
+      "master_ids": ["funky-juggler-2"],
+      "patterns": ["ファンキージャグラー", "ファンキー2", "ファンキー２", "ファンキー2KT"]
+    },
+    {
+      "id": "mister-juggler",
+      "display_name": "ミスタージャグラー",
+      "type": "A",
+      "master_ids": ["mister-juggler"],
+      "patterns": ["ミスタージャグラー"]
+    },
+    {
+      "id": "mh-rise",
+      "display_name": "パチスロ モンスターハンターライズ",
+      "type": "AT",
+      "master_ids": ["mh-rise"],
+      "patterns": ["モンスターハンターライズ", "モンハンライズ"]
+    },
+    {
+      "id": "juggler-girls-ss",
+      "display_name": "ジャグラーガールズSS",
+      "type": "A",
+      "master_ids": ["juggler-girls-ss"],
+      "patterns": ["ジャグラーガールズ"]
+    },
+    {
+      "id": "bakemonogatari",
+      "display_name": "化物語",
+      "type": "AT",
+      "master_ids": ["bakemonogatari"],
+      "patterns": ["化物語", "傷物語"]
+    },
+    {
+      "id": "miracle-juggler",
+      "display_name": "ウルトラミラクルジャグラー",
+      "type": "A",
+      "master_ids": ["ultra-miracle-juggler"],
+      "patterns": ["ウルトラミラクルジャグラー", "ウルミラ", "Uミラクルジャグ", "Ｕミラクルジャグ", "ミラクルジャグ"]
+    },
+    {
+      "id": "happy-juggler",
+      "display_name": "ハッピージャグラーV3",
+      "type": "A",
+      "master_ids": ["happy-juggler-v3", "happy-juggler-8"],
+      "patterns": ["ハッピージャグラー", "ハッピージャグ", "ハッピージャグV3"]
+    },
+    {
+      "id": "bancho",
+      "display_name": "押忍！番長",
+      "type": "AT",
+      "master_ids": ["iza-bancho"],
+      "patterns": ["いざ！番長", "いざ番長", "押忍！番長", "番長4"]
+    },
+    {
+      "id": "magia-record",
+      "display_name": "マギアレコード",
+      "type": "AT",
+      "master_ids": ["magia-record"],
+      "patterns": ["マギアレコード", "マギレコ"]
+    }
+  ]
+}

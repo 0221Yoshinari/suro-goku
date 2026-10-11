@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: suro-goku
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-web.txt
+    startCommand: uvicorn src.dashboard.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: TUNNEL_ENABLED
+        value: "0"
+      - key: X_MONITOR_DISABLE
+        value: "1"
+      - key: STRIPE_CHECKOUT_URL
+        value: https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00
+      - key: DASHBOARD_URL
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: DASHBOARD_SESSION_SECRET
+        sync: false
+      - key: MASTER_PANEL_TOKEN
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

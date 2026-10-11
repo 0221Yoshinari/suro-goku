@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>スロ極</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Roboto+Mono:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css?v=65" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <p class="brand-kicker">PREMIUM SLOT INTELLIGENCE</p>
+        <h1><span class="brand-jp">スロ極</span><span class="brand-en">- SURO-GOKU -</span></h1>
+      </div>
+      <div class="top-actions">
+        <div class="status-cluster">
+          <p id="hall-count-label" class="live-badge">LIVE 監視中</p>
+          <p id="fetched-at-banner" class="time-badge">最終更新 --:--</p>
+          <p id="freshness" class="freshness">最終更新を確認中…</p>
+          <p id="judged-at" class="meta judged-meta">読み込み中…</p>
+        </div>
+        <div class="action-buttons">
+          <a class="button-link" href="/master-panel-x7k3q9/halls">ホール管理</a>
+          <button type="button" id="reload-btn">再読み込み</button>
+          <button type="button" id="judge-btn" class="primary">再判定する</button>
+        </div>
+      </div>
+      <nav class="main-tabs" role="tablist" aria-label="表示の切り替え">
+        <button type="button" class="main-tab is-active" role="tab" id="tab-stores" data-view="stores" aria-selected="true">店舗別ダッシュボード</button>
+        <button type="button" class="main-tab main-tab-coverage" role="tab" id="tab-coverage" data-view="coverage" aria-selected="false">📅 本日の取材一覧</button>
+        <button type="button" class="main-tab" role="tab" id="tab-machines" data-view="machines" aria-selected="false">機種合同分析</button>
+        <button type="button" class="main-tab" role="tab" id="tab-digits" data-view="digits" aria-selected="false">全館・末尾分析</button>
+      </nav>
+    </header>
+
+    <div class="nav-dock">
+    <div id="joint-announce" class="joint-announce" aria-live="polite">
+      <p class="joint-announce-empty">📢 本日の合同取材: 本日開催予定の合同取材はありません</p>
+    </div>
+    <div class="locale-bar">
+      <label class="locale-select">
+        <span>📍 マイ都道府県</span>
+        <select id="prefecture-select" aria-label="マイ都道府県"></select>
+      </label>
+      <div class="locale-select">
+        <label for="area-select">🎯 詳細エリア</label>
+        <select id="area-select" aria-label="詳細エリア"></select>
+        <div class="signal-jumps" role="group" aria-label="選択中の詳細エリアの高設定挙動機種数">
+          <button type="button" class="signal-jump signal-jump-all6" data-signal="ALL_HIGH" aria-label="全6">
+            <span class="signal-jump-main">
+              <span class="signal-jump-label">全6</span>
+              <span class="signal-jump-count">-機種</span>
+            </span>
+            <span class="signal-jump-hint">タップして確認</span>
+          </button>
+          <button type="button" class="signal-jump signal-jump-56" data-signal="HIGH_56" aria-label="56">
+            <span class="signal-jump-main">
+              <span class="signal-jump-label">56</span>
+              <span class="signal-jump-count">-機種</span>
+            </span>
+            <span class="signal-jump-hint">タップして確認</span>
+          </button>
+          <button type="button" class="signal-jump signal-jump-456" data-signal="HIGH_BASE" aria-label="456">
+            <span class="signal-jump-main">
+              <span class="signal-jump-label">456</span>
+              <span class="signal-jump-count">-機種</span>
+            </span>
+            <span class="signal-jump-hint">タップして確認</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div id="view-stores" class="view">
+    <section id="section-today" class="panel panel-today">
+      <div class="panel-head">
+        <h2 id="today-summary-title">🔥 本日の全台系・高設定挙動ホール一覧（全店舗サマリー）</h2>
+        <p id="today-summary-meta" class="hint">全店舗の反応を集計しています…</p>
+      </div>
+      <div id="today-summary" class="today-list"></div>
+      <p id="today-empty" class="empty hidden">全6 / 全56 / 全456の反応がある店舗はありません。</p>
+    </section>
+    <section id="section-roster" class="panel panel-roster">
+      <div class="panel-head">
+        <h2 id="roster-title">このエリアの対応ホール</h2>
+        <p id="roster-meta" class="hint">店舗の取得状況を読み込み中…</p>
+      </div>
+      <div id="hall-roster" class="hall-roster"></div>
+    </section>
+    <div class="toolbar">
+      <div id="group-filters" class="filters group-filters" role="tablist" aria-label="系列"></div>
+      <label class="hall-select-label">
+        店舗
+        <select id="hall-select"></select>
+      </label>
+      <label class="search">
+        <span class="sr-only">この店舗の機種名で検索</span>
+        <input id="search" type="search" placeholder="この店舗の機種名" />
+      </label>
+    </div>
+    <p id="hall-fetched-stamp" class="hall-fetched">店舗データの取得日時を確認中…</p>
+    <div id="hall-event-badges" class="event-badges hall-event-badges hidden"></div>
+
+    <section class="stats" aria-label="集計">
+      <article class="stat stat-jump" data-jump="section-list" role="button" tabindex="0">
+        <p class="stat-label">判定対象</p>
+        <p id="stat-count" class="stat-value stat-value-wide">-</p>
+      </article>
+      <article class="stat stat-all-high stat-jump" data-jump="section-all-high" role="button" tabindex="0">
+        <p class="stat-label">全6数値</p>
+        <p id="stat-all-high" class="stat-value">-</p>
+      </article>
+      <article class="stat stat-high-56 stat-jump" data-jump="section-high-56" role="button" tabindex="0">
+        <p class="stat-label">全56数値</p>
+        <p id="stat-high-56" class="stat-value">-</p>
+      </article>
+      <article class="stat stat-high-base stat-jump" data-jump="section-high-base" role="button" tabindex="0">
+        <p class="stat-label">全456数値</p>
+        <p id="stat-high-base" class="stat-value">-</p>
+      </article>
+    </section>
+
+    <section id="section-all-high" class="panel panel-all-high">
+      <div class="panel-head">
+        <h2>全6数値</h2>
+        <p class="hint">平均3000G以上で、合算または初当りが設定6理論値（許容を含む）をクリアした機種。</p>
+      </div>
+      <div id="high-cards" class="cards"></div>
+      <p id="cards-empty-high" class="empty hidden">全6数値の機種はありません。</p>
+    </section>
+
+    <section id="section-high-56" class="panel panel-high-56">
+      <div class="panel-head">
+        <h2>全56数値</h2>
+        <p class="hint">全6には届かず、設定5理論値（許容を含む）をクリアしている機種。設定5・6が濃い挙動です。</p>
+      </div>
+      <div id="mid-cards" class="cards"></div>
+      <p id="cards-empty-mid" class="empty hidden">全56数値の機種はありません。</p>
+    </section>
+
+    <section id="section-high-base" class="panel panel-high-base">
+      <div class="panel-head">
+        <h2>全456数値</h2>
+        <p class="hint">全6・全56には届かず、設定4理論値をクリアしている機種。</p>
+      </div>
+      <div id="base-cards" class="cards"></div>
+      <p id="cards-empty-base" class="empty hidden">全456数値の機種はありません。</p>
+    </section>
+
+    <section id="section-other" class="panel panel-other">
+      <button type="button" id="other-machines-toggle" class="other-toggle" aria-expanded="false" aria-controls="other-panel">
+        ▼ その他全機種データ・検品表示（全0機種）
+      </button>
+      <div id="other-panel" class="other-panel">
+        <div class="other-panel-inner">
+          <p class="hint">全6 / 全56 / 全456に該当しない通常挙動の機種です。末尾仕掛けの確認とデータの検品用に、開いたときだけ一覧します。</p>
+          <div id="other-cards" class="cards"></div>
+          <p id="cards-empty-other" class="empty hidden">該当する機種はありません。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-store-digits" class="panel panel-hall-digits">
+      <div class="panel-head">
+        <h2>末尾判定</h2>
+        <p class="hint">選択した店舗の全設置台を末尾0〜9で合算した数値判定です。</p>
+      </div>
+      <div id="store-digit-board"></div>
+    </section>
+
+    <section id="section-list" class="panel">
+      <div class="panel-head">
+        <h2>挙動一覧</h2>
+        <div id="status-filters" class="filters" role="group" aria-label="挙動の分類">
+          <button type="button" class="filter is-active" data-filter="all">すべて</button>
+          <button type="button" class="filter" data-filter="all6">全6挙動</button>
+          <button type="button" class="filter" data-filter="high56">全56挙動</button>
+          <button type="button" class="filter" data-filter="base">全456挙動</button>
+          <button type="button" class="filter" data-filter="other">その他（通常）</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>店舗</th>
+              <th>機種</th>
+              <th>シリーズ</th>
+              <th>タイプ</th>
+              <th>ステータス</th>
+              <th>台数</th>
+              <th>通常時G</th>
+              <th>平均G</th>
+              <th>BB / RB</th>
+              <th>合成</th>
+              <th>BIG</th>
+              <th>REG / 初当</th>
+              <th>規定G</th>
+              <th>設定6 / 5 / 4</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="table-empty" class="empty hidden">この分類に該当する機種はありません。</p>
+      <p id="table-none" class="empty hidden">表示する判定結果がありません。先に OCR と判定を実行してください。</p>
+    </section>
+
+    </div>
+
+    <div id="view-coverage" class="view hidden">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>📅 本日の取材・イベント一覧</h2>
+          <p id="coverage-meta" class="hint">本日と明日の取材・合同・特定日だけを表示します。</p>
+        </div>
+        <div id="coverage-list" class="coverage-list"></div>
+        <p id="coverage-empty" class="empty hidden">本日と明日の取材・イベントはまだありません。</p>
+      </section>
+    </div>
+
+    <div id="view-machines" class="view hidden">
+      <div class="toolbar cross-toolbar">
+        <div id="category-filters" class="filters category-filters" role="group" aria-label="機種カテゴリ">
+          <button type="button" class="filter is-active" data-category="all">すべて</button>
+          <button type="button" class="filter" data-category="juggler">ジャグラー・Aタイプ</button>
+          <button type="button" class="filter" data-category="smaslo">スマスロAT機</button>
+          <button type="button" class="filter" data-category="medal">メダルAT・その他</button>
+        </div>
+        <div id="cross-group-filters" class="filters cross-group-filters" role="group" aria-label="系列で絞り込み"></div>
+        <div class="cross-toggles" role="group" aria-label="表示オプション">
+          <button type="button" id="cross-data-only" class="filter" aria-pressed="false">データありのみ</button>
+          <button type="button" id="cross-major-only" class="filter" aria-pressed="false">主要系列のみ展開</button>
+        </div>
+        <label class="hall-select-label cross-sort">
+          店舗の並び
+          <select id="cross-hall-sort" aria-label="店舗の並び">
+            <option value="status">判定の強い順</option>
+            <option value="name">店舗名順</option>
+          </select>
+        </label>
+        <label class="search">
+          <span class="sr-only">機種名で検索</span>
+          <input id="machine-search" type="search" placeholder="機種名でリアルタイム検索" />
+        </label>
+      </div>
+      <p id="cross-summary" class="hint cross-summary">登録店舗の同一機種を横断して比較します。</p>
+      <div id="cross-cards" class="cross-list"></div>
+      <p id="cross-empty" class="empty hidden">この条件に該当する機種はありません。</p>
+    </div>
+
+    <div id="view-digits" class="view hidden">
+      <div class="toolbar">
+        <div id="digit-group-filters" class="filters group-filters" role="tablist" aria-label="系列"></div>
+      </div>
+      <nav id="hit-digit-nav" class="hit-digit-nav" aria-label="ホールを選択">
+        <div class="hit-digit-head">
+          <label class="hall-select-label hit-digit-hall-select">
+            ホールを選択
+            <select id="digit-hall-select" aria-label="ホールを選択"></select>
+          </label>
+        </div>
+      </nav>
+      <section id="section-hall-digits" class="panel panel-hall-digits">
+        <div class="panel-head">
+          <h2>全館・末尾別判定</h2>
+          <p class="hint">店舗の全設置台を末尾0〜9で合算し、平均推測設定と数値判定（全6 / 全56 / 全456 / 通常）を出します。</p>
+        </div>
+        <div id="hall-digit-boards"></div>
+      </section>
+    </div>
+
+    <p id="error" class="error hidden" role="alert"></p>
+
+    <div id="watch-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="watch-title">
+      <div class="modal-backdrop" data-close-watch="true"></div>
+      <div class="modal-panel">
+        <div class="modal-head">
+          <h2 id="watch-title">監視機種・取得スケジュール</h2>
+          <button type="button" id="watch-close" aria-label="閉じる">閉じる</button>
+        </div>
+        <section id="watch-schedule" class="watch-schedule" aria-label="実行スケジュール"></section>
+        <label class="hall-select-label watch-hall-select">
+          店舗
+          <select id="watch-hall-select"></select>
+        </label>
+        <p id="watch-hall-meta" class="hint"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>マーク</th>
+                <th>機種</th>
+                <th>タイプ</th>
+                <th>直近のホール表記</th>
+                <th>最終取得台数</th>
+              </tr>
+            </thead>
+            <tbody id="watch-rows"></tbody>
+          </table>
+        </div>
+        <p id="watch-empty" class="empty hidden">この店舗の監視対象はありません。</p>
+      </div>
+    </div>
+    <p id="signal-toast" class="signal-toast" role="status" aria-live="polite"></p>
+    <button type="button" id="to-top" class="to-top" aria-label="ページトップに戻る">▲ TOP</button>
+    <script src="/static/app.js?v=65"></script>
+  </body>
+</html>

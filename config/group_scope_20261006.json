@@ -1,0 +1,265 @@
+{
+  "comment": "2026-10-06 3グループ限定で enabled を変えた差分。戻すときは was_enabled を書き戻し、scrape_groups_only を外す。",
+  "changed": [
+    {
+      "id": "gogo-arena-tenjin",
+      "name": "GOGOアリーナ天神",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "parlor-zone-meinohama",
+      "name": "ゾーン姪浜",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "megaface-hakata",
+      "name": "メガフェイス博多",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "tamaya-munakata",
+      "name": "玉屋トリアーダ宗像店",
+      "group": "tamaya",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "tamaya-shingu",
+      "name": "玉屋∞新宮",
+      "group": "tamaya",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "tamaya-dazaifu",
+      "name": "玉屋GO＋太宰府",
+      "group": "tamaya",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "tamaya-chikuzen",
+      "name": "玉屋GO＋筑前",
+      "group": "tamaya",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "123-hakata",
+      "name": "１２３博多店",
+      "group": "123",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "boom-tenjin",
+      "name": "ブーム天神",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "wl-fukuoka-higashi",
+      "name": "ワンダーランド1188福岡東店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-kashii-2",
+      "name": "ワンダーランド香椎Ⅱ",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-minamigaoka",
+      "name": "ワンダーランド南ヶ丘店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-sue",
+      "name": "ワンダーランド須恵店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-odo-2",
+      "name": "ワンダーランド小戸Ⅱ",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-tachiarai",
+      "name": "ワンダーランド大刀洗店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-higashiaikawa",
+      "name": "ワンダーランド770東合川店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-yoshii",
+      "name": "ワンダーランド吉井店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-ukiha",
+      "name": "ワンダーランドうきはバイパス店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-yanagawa",
+      "name": "ワンダーランド柳川店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "wl-mizuma",
+      "name": "ワンダーランド三潴店",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "maruhan-hakozaki",
+      "name": "マルハン箱崎店",
+      "group": "maruhan",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "daidata-100722",
+      "name": "ワンダーランドメタルポリス",
+      "group": "wonderland",
+      "prefecture": "fukuoka",
+      "was_enabled": false,
+      "now_enabled": true
+    },
+    {
+      "id": "daidata-100973",
+      "name": "MJアリーナ井尻店",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "daidata-100975",
+      "name": "MJアリーナ空港店",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "daidata-101153",
+      "name": "Aパーク 屋形原店",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "daidata-100968",
+      "name": "MJアリーナ板付店",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "daidata-100971",
+      "name": "MJ長尾",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    },
+    {
+      "id": "daidata-100251",
+      "name": "ひばり吉塚店",
+      "group": "other",
+      "prefecture": "fukuoka",
+      "was_enabled": true,
+      "now_enabled": false
+    }
+  ],
+  "enabled_names": [
+    "玉屋トリアーダ宗像店",
+    "玉屋∞新宮",
+    "玉屋GO＋空港",
+    "玉屋∞本店",
+    "玉屋∞室見",
+    "玉屋555大橋",
+    "玉屋409雑餉隈",
+    "玉屋GO＋太宰府",
+    "玉屋GO＋筑前",
+    "玉屋GO＋屋形原",
+    "SLOT玉屋222中尾",
+    "プラザ 本店",
+    "プラザ 本店II",
+    "プラザ 博多",
+    "プラザ3",
+    "プラザ 天神",
+    "プラザ 長浜",
+    "荒江プラザ",
+    "ワンダーランド香椎本館",
+    "ワンダーランド小戸本館",
+    "ワンダーランド1188福岡東店",
+    "ワンダーランド西新店",
+    "ワンダーランド百年橋店",
+    "ワンダーランド香椎Ⅱ",
+    "ワンダーランド南ヶ丘店",
+    "ワンダーランド須恵店",
+    "ワンダーランド小戸Ⅱ",
+    "ワンダーランド大刀洗店",
+    "ワンダーランド770東合川店",
+    "ワンダーランド吉井店",
+    "ワンダーランドうきはバイパス店",
+    "ワンダーランド柳川店",
+    "ワンダーランド三潴店",
+    "ワンダーランドメタルポリス"
+  ]
+}
