@@ -39,9 +39,14 @@ _LOGIN_TEMPLATE = None
 
 def dashboard_password() -> str:
     raw = os.environ.get("DASHBOARD_PASSWORD")
-    if raw is None or not str(raw).strip():
+    if raw is None:
         return DEFAULT_PASSWORD
-    return str(raw).strip()
+    value = str(raw).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1].strip()
+    if not value:
+        return DEFAULT_PASSWORD
+    return value
 
 
 def session_max_age_seconds() -> int:
@@ -261,10 +266,55 @@ def is_blocked_path(path: str) -> bool:
     return False
 
 
-def is_public_path(path: str) -> bool:
-    if path in {"/health", "/login", "/logout", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook"}:
+def is_staff_api(path: str) -> bool:
+    """再判定とホール管理。運営セッションかマスタートークンが要る。"""
+    if path == "/api/judge":
         return True
-    return path.startswith("/legal/") or path.startswith("/static/")
+    if path == f"{MASTER_PANEL_PREFIX}/rejudge":
+        return True
+    prefix = f"{MASTER_PANEL_PREFIX}/hall-rows"
+    return path == prefix or path.startswith(f"{prefix}/")
+
+
+def is_staff(request: Request) -> bool:
+    """運営用パスワードのセッション、またはマスタートークン。"""
+    if token_is_valid(request.cookies.get(COOKIE_NAME)):
+        return True
+    return master_request_authorized(request)
+
+
+def public_demo_mode() -> bool:
+    """共有リンク用。このプロセスでは入口をデモにし、ログイン画面を出さない。"""
+    return (os.getenv("SURO_PUBLIC_DEMO") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+_OPEN_TOOL_PATHS = {"/", "/api/judgments", "/api/hall-catalog", "/api/watch-config"}
+
+
+def open_tool_mode() -> bool:
+    """リリース前。Render ではリンクを開くと、パスワードなしでツール画面になる。"""
+    flag = (os.getenv("DASHBOARD_OPEN") or "").strip().lower()
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    if flag in {"1", "true", "yes", "on"}:
+        return True
+    return (os.getenv("RENDER") or "").strip().lower() in {"1", "true", "yes"}
+
+
+def is_public_path(path: str) -> bool:
+    if path in {"/health", "/login", "/logout", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook", "/demo-secret", "/pr-demo"}:
+        return True
+    if path.startswith("/legal/") or path.startswith("/static/"):
+        return True
+    if open_tool_mode() and path in _OPEN_TOOL_PATHS:
+        return True
+    if not public_demo_mode():
+        return False
+    if path.startswith("/api/") or is_master_panel_path(path) or is_staff_api(path):
+        return False
+    if is_blocked_path(path) or is_retired_admin_path(path):
+        return False
+    return True
 
 
 def safe_next(value: str | None) -> str:
@@ -337,6 +387,15 @@ async def auth_middleware(request: Request, call_next):
         response = RedirectResponse(f"/login?next={quote(safe_next(target), safe='/')}", status_code=303)
         response.headers["Cache-Control"] = "no-store"
         return response
+    if is_staff_api(path):
+        if is_staff(request):
+            return await call_next(request)
+        if kind == "member":
+            return JSONResponse(
+                {"detail": "管理者権限が必要です"},
+                status_code=403,
+                headers={"Cache-Control": "no-store"},
+            )
     if is_master_panel_path(path) and kind == "member" and not master_request_authorized(request):
         return HTMLResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
     if is_master_panel_path(path) and not master_request_authorized(request):
@@ -349,6 +408,12 @@ async def auth_middleware(request: Request, call_next):
 
 
 async def login_get(request: Request) -> Response:
+    if public_demo_mode():
+        return RedirectResponse("/demo-secret", status_code=302)
+    if open_tool_mode():
+        target = safe_next(request.query_params.get("next"))
+        if not is_master_panel_path(target) and not is_staff_api(target):
+            return RedirectResponse("/", status_code=302)
     notice = _LOGIN_NOTICES.get((request.query_params.get("notice") or "").strip(), "")
     if is_authenticated(request):
         return RedirectResponse(safe_next(request.query_params.get("next")), status_code=303)
@@ -359,7 +424,12 @@ async def login_post(request: Request) -> Response:
     form = parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True)
     password = (form.get("password") or [""])[0].strip()
     next_path = safe_next((form.get("next") or ["/"])[0])
-    if shared_password_enabled() and passwords_match(password):
+    if passwords_match(password):
+        if not shared_password_enabled():
+            return render_login(
+                error="運営用のパスワードは、いまの設定では使えません。",
+                next_path=next_path,
+            )
         response = RedirectResponse(next_path, status_code=303)
         apply_session_cookie(response, request)
         return response
