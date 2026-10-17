@@ -407,24 +407,70 @@ def _events_mtime() -> float:
         return 0.0
 
 
-@app.get("/api/judgments")
-def get_judgments() -> dict:
-    global _JUDGMENT_CACHE
-    latest = DEFAULT_OUTPUT_DIR / "latest.json"
-    if not latest.is_file():
-        return _empty_payload()
+@app.post("/api/internal/hall-judgments")
+async def receive_hall_judgment(request: Request) -> JSONResponse:
+    """Macの巡回が1店舗分の判定を本番へ置く。"""
+    from src.dashboard.judgment_sync import store_hall_payload, token_matches
+
+    if not token_matches(request.headers.get("authorization")):
+        return JSONResponse({"detail": "認証が必要です"}, status_code=401)
     try:
-        mtime = latest.stat().st_mtime
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"detail": "JSONではありません"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"detail": "店舗データではありません"}, status_code=400)
+    try:
+        store_hall_payload(body)
+    except ValueError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=400)
+    global _JUDGMENT_CACHE
+    _JUDGMENT_CACHE = None
+    return JSONResponse({"ok": True, "hall_name": body.get("hall_name")})
+
+
+@app.get("/api/judgments")
+def get_judgments(prefecture: str = "") -> dict:
+    """県を指定しない呼び出しは福岡だけ返す。全国分を一度に返すと画面が空になる。"""
+    global _JUDGMENT_CACHE
+    selected = (prefecture or "").strip().lower() or "fukuoka"
+    marker = DEFAULT_OUTPUT_DIR / ".sync-mtime"
+    try:
+        stamp = marker.stat().st_mtime if marker.is_file() else 0.0
     except OSError:
-        mtime = 0.0
+        stamp = 0.0
     events_mtime = _events_mtime()
     with _JUDGMENT_LOCK:
         cached = _JUDGMENT_CACHE
-        if cached and cached[0] == mtime and cached[1] == events_mtime and time.monotonic() - cached[2] < 60:
+        signature = (selected, stamp)
+        if cached and cached[0] == signature and cached[1] == events_mtime and time.monotonic() - cached[2] < 60:
             return cached[3]
-        payload = _build_judgments(latest)
-        _JUDGMENT_CACHE = (mtime, events_mtime, time.monotonic(), payload)
+        from src.dashboard.judgment_sync import assemble_prefecture
+
+        synced = assemble_prefecture(selected)
+        if synced:
+            payload = _finish_synced(synced)
+        else:
+            latest = DEFAULT_OUTPUT_DIR / "latest.json"
+            payload = _build_judgments(latest) if latest.is_file() else _empty_payload()
+        _JUDGMENT_CACHE = (signature, events_mtime, time.monotonic(), payload)
         return payload
+
+
+def _finish_synced(payload: dict) -> dict:
+    payload.setdefault("machines", [])
+    payload.setdefault("results", [])
+    machines = payload["machines"]
+    payload.setdefault("machine_count", len(machines))
+    payload.setdefault("unit_count", payload.get("unit_count") or 0)
+    payload.setdefault("count", payload.get("machine_count") or 0)
+    payload.setdefault("all_high_count", sum(1 for row in machines if row.get("is_all_high")))
+    payload.setdefault("high_56_count", sum(1 for row in machines if row.get("is_high_56") or row.get("status") == "HIGH_56"))
+    payload.setdefault("high_base_count", sum(1 for row in machines if row.get("is_high_base") or row.get("status") == "HIGH_BASE"))
+    payload.setdefault("early_alert_count", sum(1 for row in machines if row.get("is_early_alert") or row.get("status") == "EARLY_ALERT"))
+    payload.setdefault("halls", [])
+    _apply_hall_catalog(payload)
+    return _with_events(payload)
 
 
 def _build_judgments(latest) -> dict:

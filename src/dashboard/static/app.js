@@ -1609,7 +1609,7 @@ function renderAreaFilters() {
     writeStored(AREA_STORAGE_KEY, areaFilter);
     hallFilter = "";
     digitHall = "all";
-    render();
+    loadJudgments(true).catch((err) => showError(err.message));
   });
   fillLocaleSelect(document.getElementById("area-select"), areas, areaFilter, (id) => {
     if (areaFilter === id) {
@@ -2691,7 +2691,8 @@ async function loadJudgments(force) {
 
 async function loadJudgmentsNow(force) {
   showError("");
-  const response = await fetch("/api/judgments");
+  const pref = prefectureFilter || "fukuoka";
+  const response = await fetch(`/api/judgments?prefecture=${encodeURIComponent(pref)}`);
   if (redirectIfUnauthorized(response)) {
     return;
   }

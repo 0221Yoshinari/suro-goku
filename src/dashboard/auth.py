@@ -302,7 +302,7 @@ def open_tool_mode() -> bool:
 
 
 def is_public_path(path: str) -> bool:
-    if path in {"/health", "/login", "/logout", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook", "/demo-secret", "/pr-demo"}:
+    if path in {"/health", "/login", "/logout", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook", "/api/internal/hall-judgments", "/demo-secret", "/pr-demo"}:
         return True
     if path.startswith("/legal/") or path.startswith("/static/"):
         return True
