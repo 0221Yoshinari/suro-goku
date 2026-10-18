@@ -22,8 +22,13 @@
     <main>
       <p><a href="/lp">ランディングページへ戻る</a></p>
       <h1>特定商取引法に基づく表記</h1>
+      <!-- SELLER_NAME / SELLER_ADDRESS / SELLER_EMAIL / SELLER_TEL を環境変数で差し替える -->
       <table>
-        <tr><th>販売価格</th><td>月額 15,000円（税込）</td></tr>
+        <tr><th>販売業者</th><td>__SELLER_NAME__</td></tr>
+        <tr><th>所在地</th><td>__SELLER_ADDRESS__</td></tr>
+        <tr><th>電話番号</th><td>__SELLER_TEL__</td></tr>
+        <tr><th>メールアドレス</th><td>__SELLER_EMAIL__</td></tr>
+        <tr><th>販売価格</th><td>月額 __MONTHLY_PRICE__円（税込）</td></tr>
         <tr><th>商品代金以外の必要料金</th><td>インターネット接続料など、お客様側の通信費</td></tr>
         <tr><th>支払方法</th><td>Stripe の決済画面</td></tr>
         <tr><th>支払時期</th><td>申込時に決済画面で確定した各課金日</td></tr>

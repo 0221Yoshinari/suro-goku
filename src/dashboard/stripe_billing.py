@@ -17,12 +17,16 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
+from urllib.parse import parse_qsl
 from urllib.parse import quote
+from urllib.parse import urlencode
 from urllib.parse import urlparse
+from urllib.parse import urlunparse
 
 import httpx
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
 
 from src.dashboard.members import MembersStoreError
 from src.dashboard.members import grant_checkout
@@ -116,11 +120,19 @@ def handle_webhook(payload: bytes, header: str) -> str:
     return result
 
 
-def checkout_redirect_url(request: Request) -> str:
-    created = _create_checkout(request)
+_LINK_FALLBACK_LOGGED = False
+
+
+def checkout_redirect_url(request: Request, *, member_id: str = "", email: str = "") -> str:
+    global _LINK_FALLBACK_LOGGED
+    created = _create_checkout(request, member_id=member_id, email=email)
     if created:
         return created
-    return payment_link_url()
+    fallback = _with_account_query(payment_link_url(), member_id, email)
+    if fallback and not _LINK_FALLBACK_LOGGED:
+        _LINK_FALLBACK_LOGGED = True
+        print("STRIPE_PRICE_ID または STRIPE_SECRET_KEY が無いため、Payment Link へ戻します", flush=True)
+    return fallback
 
 
 def payment_link_url() -> str:
@@ -171,6 +183,8 @@ def lookup_checkout_member(session_id: str) -> dict | None:
             customer_id=_stripe_id(remote.get("customer")),
             subscription_id=_stripe_id(remote.get("subscription")),
             email=_email(remote),
+            name=_person_name(remote),
+            member_id=_account_id_from_obj(remote),
         )
         subscription = remote.get("subscription")
         if isinstance(subscription, dict):
@@ -216,6 +230,8 @@ def _dispatch(event: dict) -> str:
             customer_id=_stripe_id(obj.get("customer")),
             subscription_id=_stripe_id(obj.get("subscription")),
             email=_email(obj),
+            name=_person_name(obj),
+            member_id=_account_id_from_obj(obj),
         )
         return "ok"
     if kind in _SUBSCRIPTION_EVENTS:
@@ -228,14 +244,26 @@ def _dispatch(event: dict) -> str:
 
 
 def _apply_subscription(obj: dict, when: int, *, deleted: bool) -> None:
+    email, name = _subscription_contact(obj)
+    customer_id = _stripe_id(obj.get("customer"))
+    if customer_id and (not email or not name):
+        fetched_email, fetched_name = _fetch_customer_contact(customer_id)
+        email = email or fetched_email
+        name = name or fetched_name
     grant_subscription(
         when=when,
-        customer_id=_stripe_id(obj.get("customer")),
+        customer_id=customer_id,
         subscription_id=_stripe_id(obj.get("id")),
         status=str(obj.get("status") or ""),
         trial_end=_unix(obj.get("trial_end")),
+        trial_start=_unix(obj.get("trial_start")),
         period_end=_period_end(obj),
         deleted=deleted,
+        member_id=_account_id_from_obj(obj),
+        email=email,
+        name=name,
+        plan_name=_plan_name(obj),
+        started_at=_unix(obj.get("start_date")) or _unix(obj.get("created")),
     )
 
 
@@ -248,7 +276,7 @@ def _checkout_payable(obj: dict) -> bool:
     return mode == "subscription" or bool(obj.get("subscription"))
 
 
-def _create_checkout(request: Request) -> str:
+def _create_checkout(request: Request, *, member_id: str = "", email: str = "") -> str:
     secret = _stripe_secret()
     price = (os.environ.get("STRIPE_PRICE_ID") or "").strip()
     if not secret or not _PRICE_RE.fullmatch(price):
@@ -261,13 +289,21 @@ def _create_checkout(request: Request) -> str:
         ("line_items[0][price]", price),
         ("line_items[0][quantity]", "1"),
         ("success_url", f"{base}/thanks?session_id={{CHECKOUT_SESSION_ID}}"),
-        ("cancel_url", f"{base}/lp"),
+        ("cancel_url", f"{base}/billing" if _account_id(member_id) else f"{base}/lp"),
         ("locale", "ja"),
         ("allow_promotion_codes", "true"),
     ]
-    trial = (os.environ.get("STRIPE_TRIAL_DAYS") or "").strip()
-    if trial.isdigit() and 0 < int(trial) <= 60:
-        items.append(("subscription_data[trial_period_days]", str(int(trial))))
+    account_id = _account_id(member_id)
+    if account_id:
+        items.append(("client_reference_id", account_id))
+        items.append(("metadata[user_id]", account_id))
+        items.append(("subscription_data[metadata][user_id]", account_id))
+    cleaned_email = (email or "").strip()
+    if cleaned_email and "@" in cleaned_email and len(cleaned_email) <= 200:
+        items.append(("customer_email", cleaned_email))
+    trial_days = _trial_days()
+    if 0 < trial_days <= 60:
+        items.append(("subscription_data[trial_period_days]", str(trial_days)))
     try:
         response = httpx.post(
             "https://api.stripe.com/v1/checkout/sessions",
@@ -339,6 +375,73 @@ def _form(items: list[tuple[str, str]]) -> bytes:
     return "&".join(parts).encode("utf-8")
 
 
+def start_member_checkout(request: Request) -> HTMLResponse | RedirectResponse:
+    """ログイン中の会員を、自システムのユーザーID付きで Stripe へ送る。"""
+    member_id, email = account_from_request(request)
+    if not member_id:
+        return RedirectResponse("/login?next=/checkout", status_code=303)
+    url = checkout_redirect_url(request, member_id=member_id, email=email)
+    if not url:
+        body = "<p>決済画面は準備中です。</p>" '<p class="login-links"><a href="/billing">戻る</a></p>'
+        return _page("決済画面は準備中です", "しばらくしてから、もう一度お試しください。", body, "", 503)
+    return RedirectResponse(url, status_code=303)
+
+
+def account_from_request(request: Request) -> tuple[str, str]:
+    from src.dashboard.auth import COOKIE_NAME
+    from src.dashboard.auth import client_fp
+    from src.dashboard.auth import client_ip
+    from src.dashboard.auth import member_token_claims
+    from src.dashboard.members import member_session_live
+
+    claims = member_token_claims(request.cookies.get(COOKIE_NAME))
+    if not claims or not member_session_live(claims[0], claims[1], client_fp(request), client_ip(request)):
+        return "", ""
+    member = present_member(claims[0]) or {}
+    return str(member.get("id") or ""), str(member.get("email") or "")
+
+
+def _with_account_query(url: str, member_id: str, email: str) -> str:
+    """Payment Link でも、ログイン中のユーザーIDを決済に載せる。"""
+    account = _account_id(member_id)
+    if not url or not account:
+        return url
+    parsed = urlparse(url)
+    pairs = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key not in {"client_reference_id", "prefilled_email"}]
+    pairs.append(("client_reference_id", account))
+    cleaned = (email or "").strip()
+    if cleaned and "@" in cleaned and len(cleaned) <= 200:
+        pairs.append(("prefilled_email", cleaned))
+    return urlunparse(parsed._replace(query=urlencode(pairs)))
+
+
+def _trial_days() -> int:
+    raw = os.environ.get("STRIPE_TRIAL_DAYS")
+    if raw is None or not str(raw).strip():
+        return 7
+    text = str(raw).strip()
+    if text.isdigit():
+        return int(text)
+    return 0
+
+
+def _account_id(value: object) -> str:
+    text = str(value or "").strip()
+    if re.fullmatch(r"m_[0-9a-f]{16}", text):
+        return text
+    return ""
+
+
+def _account_id_from_obj(obj: dict) -> str:
+    direct = _account_id(obj.get("client_reference_id"))
+    if direct:
+        return direct
+    meta = obj.get("metadata")
+    if isinstance(meta, dict):
+        return _account_id(meta.get("user_id"))
+    return ""
+
+
 def _stripe_id(value: object) -> str:
     if isinstance(value, str):
         return value.strip()
@@ -353,8 +456,93 @@ def _email(obj: dict) -> str:
         return direct
     details = obj.get("customer_details")
     if isinstance(details, dict):
-        return str(details.get("email") or "").strip()
+        found = str(details.get("email") or "").strip()
+        if found:
+            return found
+    customer = obj.get("customer")
+    if isinstance(customer, dict):
+        return str(customer.get("email") or "").strip()
     return ""
+
+
+def _person_name(obj: dict) -> str:
+    details = obj.get("customer_details")
+    if isinstance(details, dict):
+        found = str(details.get("name") or "").strip()
+        if found:
+            return found
+    customer = obj.get("customer")
+    if isinstance(customer, dict):
+        return str(customer.get("name") or "").strip()
+    return ""
+
+
+def _subscription_contact(obj: dict) -> tuple[str, str]:
+    email = ""
+    name = ""
+    customer = obj.get("customer")
+    if isinstance(customer, dict):
+        email = str(customer.get("email") or "").strip()
+        name = str(customer.get("name") or "").strip()
+    if not email:
+        email = str(obj.get("customer_email") or "").strip()
+    if not name:
+        name = _person_name(obj)
+    return email, name
+
+
+def _plan_name(obj: dict) -> str:
+    price = _subscription_price(obj)
+    if price is None:
+        return ""
+    nickname = str(price.get("nickname") or "").strip()
+    if nickname:
+        return nickname
+    product = price.get("product")
+    if isinstance(product, dict):
+        return str(product.get("name") or "").strip()
+    return ""
+
+
+def _subscription_price(obj: dict) -> dict | None:
+    items = obj.get("items")
+    rows = items.get("data") if isinstance(items, dict) else None
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            price = row.get("price") if isinstance(row.get("price"), dict) else row.get("plan")
+            if isinstance(price, dict):
+                return price
+    plan = obj.get("plan")
+    if isinstance(plan, dict):
+        return plan
+    return None
+
+
+def _fetch_customer_contact(customer_id: str) -> tuple[str, str]:
+    if not re.fullmatch(r"cus_[A-Za-z0-9]+", customer_id or ""):
+        return "", ""
+    secret = _stripe_secret()
+    if not secret:
+        return "", ""
+    try:
+        response = httpx.get(
+            f"https://api.stripe.com/v1/customers/{customer_id}",
+            headers={"Authorization": f"Bearer {secret}"},
+            timeout=8.0,
+        )
+    except httpx.HTTPError:
+        return "", ""
+    if response.status_code != 200:
+        return "", ""
+    try:
+        payload = response.json()
+    except json.JSONDecodeError:
+        return "", ""
+    if not isinstance(payload, dict):
+        return "", ""
+    return str(payload.get("email") or "").strip(), str(payload.get("name") or "").strip()
 
 
 def _unix(value: object) -> int | None:
@@ -400,7 +588,7 @@ def _member_block(member: dict) -> str:
             '<input type="hidden" name="next" value="/" />'
             '<button type="submit" class="primary">この端末でツールを開く</button>'
             "</form>"
-            '<p class="login-note">同時に使えるのは1台です。端末を変えるときは、先にログアウトしてください。</p>'
+            '<p class="login-note">別の端末でログインすると、こちらの端末はログアウトされます。</p>'
         )
     rows.append('<p class="login-links"><a href="/login">ログイン画面</a> · <a href="/lp">紹介ページ</a></p>')
     return "".join(rows)

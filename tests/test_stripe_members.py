@@ -52,7 +52,7 @@ def request(method: str, url: str, *, body: bytes = b"", headers: dict | None = 
     async def receive():
         nonlocal sent
         if sent:
-            return {"type": "http.disconnect"}
+            await asyncio.Future()
         sent = True
         return {"type": "http.request", "body": body, "more_body": False}
 
@@ -121,6 +121,7 @@ class StripeMemberTest(unittest.TestCase):
             os.environ,
             {
                 "MEMBER_STORE_PATH": str(self.store),
+                "DATABASE_URL": "",
                 "STRIPE_WEBHOOK_SECRET": "whsec_test_secret",
                 "STRIPE_SECRET_KEY": "",
                 "STRIPE_PRICE_ID": "",
@@ -219,24 +220,29 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("利用権限がありません", body)
 
-    def test_second_device_is_blocked_while_the_first_is_active(self) -> None:
+    def test_second_device_login_logs_out_the_first(self) -> None:
         self.post_webhook(checkout_event())
         key = self.license_key()
         self.call("POST", "/login", data={"password": key}, headers={"User-Agent": "DeviceOne"})
         first = dict(self.cookies)
-        status, _headers, body, _cookies = self.call("POST", "/login", data={"password": key}, headers={"User-Agent": "DeviceTwo"})
-        self.assertEqual(status, 200)
-        self.assertIn("別の端末で利用中です", body)
+        status, headers, _body, _cookies = self.call("POST", "/login", data={"password": key}, headers={"User-Agent": "DeviceTwo"})
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
+        second = dict(self.cookies)
         self.cookies = first
-        status, _headers, _body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceOne"})
-        self.assertEqual(status, 200)
+        status, _headers, body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceOne"})
+        self.assertEqual(status, 401)
+        self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
+        self.cookies = second
         status, _headers, body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceTwo"})
+        self.assertEqual(status, 200)
+        status, _headers, body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceThree"})
         self.assertEqual(status, 401)
         self.assertEqual(json.loads(body)["detail"], "別の端末で利用中です")
-        status, _headers, _body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceOne"})
+        status, _headers, _body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceTwo"})
         self.assertEqual(status, 200)
 
-    def test_same_browser_on_another_address_is_blocked(self) -> None:
+    def test_login_from_another_address_replaces_the_session(self) -> None:
         self.post_webhook(checkout_event())
         key = self.license_key()
         self.call(
@@ -246,26 +252,41 @@ class StripeMemberTest(unittest.TestCase):
             headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.10"},
         )
         first = dict(self.cookies)
-        status, _headers, body, _cookies = self.call(
+        status, headers, _body, _cookies = self.call(
             "POST",
             "/login",
             data={"password": key},
             headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.20"},
         )
-        self.assertEqual(status, 200)
-        self.assertIn("別の端末で利用中です", body)
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
+        second = dict(self.cookies)
         self.cookies = first
         status, _headers, body, _cookies = self.call(
             "GET",
             "/api/judgments",
+            headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.10"},
+        )
+        self.assertEqual(status, 401)
+        self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
+        self.cookies = second
+        status, _headers, _body, _cookies = self.call(
+            "GET",
+            "/api/judgments",
             headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.20"},
+        )
+        self.assertEqual(status, 200)
+        status, _headers, body, _cookies = self.call(
+            "GET",
+            "/api/judgments",
+            headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.30"},
         )
         self.assertEqual(status, 401)
         self.assertEqual(json.loads(body)["detail"], "別の端末で利用中です")
         status, _headers, _body, _cookies = self.call(
             "GET",
             "/api/judgments",
-            headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.10"},
+            headers={"User-Agent": "DeviceOne", "X-Forwarded-For": "203.0.113.20"},
         )
         self.assertEqual(status, 200)
 
@@ -412,7 +433,7 @@ class StripeMemberTest(unittest.TestCase):
     def test_default_password_stops_working_after_stripe_is_configured(self) -> None:
         status, _headers, body, _cookies = self.call("POST", "/login", data={"password": "2026"})
         self.assertEqual(status, 200)
-        self.assertIn("パスワードが違います", body)
+        self.assertIn("運営用のパスワードは、いまの設定では使えません。", body)
         with mock.patch.dict(os.environ, {"DASHBOARD_PASSWORD": "owner-only-secret"}):
             status, headers, _body, _cookies = self.call("POST", "/login", data={"password": "owner-only-secret"})
         self.assertEqual(status, 303)
@@ -467,6 +488,203 @@ class StripeMemberTest(unittest.TestCase):
         self.assertIn("/thanks?session_id={CHECKOUT_SESSION_ID}", sent)
         self.assertIn("trial_period_days", sent)
         self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer sk_test_unit_secret")
+
+    def test_member_cannot_rejudge_or_edit_halls(self) -> None:
+        self.post_webhook(checkout_event())
+        status, _headers, _body, _cookies = self.call(
+            "POST",
+            "/login",
+            data={"password": self.license_key(), "next": "/"},
+            headers={"User-Agent": "DeviceOne"},
+        )
+        self.assertEqual(status, 303)
+        device = {"User-Agent": "DeviceOne"}
+        status, _headers, page, _cookies = self.call("GET", "/", headers=device)
+        self.assertEqual(status, 200)
+        self.assertIn("ログアウト", page)
+        self.assertNotIn("再判定する", page)
+        self.assertNotIn('href="/master-panel-x7k3q9/halls"', page)
+        status, _headers, body, _cookies = self.call("POST", "/api/judge", headers=device)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["detail"], "管理者権限が必要です")
+        status, _headers, body, _cookies = self.call("GET", "/master-panel-x7k3q9/hall-rows", headers=device)
+        self.assertEqual(status, 403)
+        status, _headers, body, _cookies = self.call("POST", "/master-panel-x7k3q9/rejudge", headers=device)
+        self.assertEqual(status, 403)
+        self.assertNotIn("whsec", body)
+
+    def test_account_subscription_sets_is_active_and_keeps_one_session(self) -> None:
+        email = "player@example.com"
+        password = "password123"
+        status, headers, body, _cookies = self.call(
+            "POST",
+            "/register",
+            data={"email": email, "password": password},
+        )
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/billing")
+        self.assertNotIn(password, body)
+        status, _headers, page, _cookies = self.call("GET", "/billing")
+        self.assertEqual(status, 200)
+        self.assertIn(email, page)
+        self.assertIn("まだ申し込み前です", page)
+        self.assertIn("7日間無料で申し込む", page)
+        self.assertNotIn(password, page)
+        self.assertNotIn("pbkdf2$", page)
+        status, headers, _body, _cookies = self.call("GET", "/")
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/billing")
+        status, _headers, body, _cookies = self.call("GET", "/api/judgments")
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["detail"], "利用権限がありません")
+
+        saved_text = self.store.read_text(encoding="utf-8")
+        self.assertNotIn(password, saved_text)
+        saved = json.loads(saved_text)
+        self.assertEqual(len(saved["members"]), 1)
+        member_id = saved["members"][0]["id"]
+        self.assertFalse(saved["members"][0]["is_active"])
+        self.assertTrue(str(saved["members"][0]["password_hash"]).startswith("pbkdf2$"))
+
+        status, _headers, body, _cookies = self.call(
+            "POST",
+            "/register",
+            data={"email": email, "password": "another-password"},
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("このメールアドレスは登録済みです", body)
+        status, _headers, body, _cookies = self.call(
+            "POST",
+            "/register",
+            data={"email": "other@example.com", "password": "short"},
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("8文字以上", body)
+
+        class FakeResponse:
+            status_code = 200
+
+            def json(self):
+                return {"id": "cs_test_account1", "url": "https://checkout.stripe.com/c/pay/cs_test_account1"}
+
+        with mock.patch.dict(
+            os.environ,
+            {"STRIPE_SECRET_KEY": "sk_test_unit_secret", "STRIPE_PRICE_ID": "price_unit123", "STRIPE_TRIAL_DAYS": ""},
+        ):
+            with mock.patch("src.dashboard.stripe_billing.httpx.post", return_value=FakeResponse()) as post:
+                status, headers, body, _cookies = self.call("GET", "/checkout")
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "https://checkout.stripe.com/c/pay/cs_test_account1")
+        self.assertNotIn("sk_test_unit_secret", body)
+        from urllib.parse import unquote
+
+        sent = unquote(post.call_args.kwargs["content"].decode())
+        self.assertIn(f"client_reference_id={member_id}", sent)
+        self.assertIn(f"metadata[user_id]={member_id}", sent)
+        self.assertIn(f"subscription_data[metadata][user_id]={member_id}", sent)
+        self.assertIn("subscription_data[trial_period_days]=7", sent)
+        self.assertIn("customer_email=player@example.com", sent)
+
+        created = {
+            "id": "evt_account_created",
+            "type": "customer.subscription.created",
+            "created": 1_700_000_010,
+            "data": {
+                "object": {
+                    "id": "sub_account",
+                    "customer": "cus_account",
+                    "status": "trialing",
+                    "trial_end": int(time.time()) + 7 * 24 * 3600,
+                    "metadata": {"user_id": member_id},
+                }
+            },
+        }
+        status, _headers, _body, _cookies = self.post_webhook(created)
+        self.assertEqual(status, 200)
+        saved = json.loads(self.store.read_text(encoding="utf-8"))
+        self.assertEqual(len(saved["members"]), 1)
+        self.assertTrue(saved["members"][0]["is_active"])
+        self.assertEqual(saved["members"][0]["status"], "trialing")
+        self.assertEqual(saved["members"][0]["id"], member_id)
+        status, _headers, page, _cookies = self.call("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertIn("店舗別ダッシュボード", page)
+
+        first = dict(self.cookies)
+        self.cookies = {}
+        status, headers, _body, _cookies = self.call(
+            "POST",
+            "/login",
+            data={"email": email, "password": password},
+            headers={"User-Agent": "DeviceTwo"},
+        )
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
+        second = dict(self.cookies)
+        self.cookies = first
+        status, _headers, body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceOne"})
+        self.assertEqual(status, 401)
+        self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
+        self.cookies = second
+        status, _headers, _body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceTwo"})
+        self.assertEqual(status, 200)
+
+        updated = {
+            "id": "evt_account_canceled",
+            "type": "customer.subscription.updated",
+            "created": 1_700_000_020,
+            "data": {
+                "object": {
+                    "id": "sub_account",
+                    "customer": "cus_account",
+                    "status": "canceled",
+                    "metadata": {"user_id": member_id},
+                }
+            },
+        }
+        self.post_webhook(updated)
+        saved = json.loads(self.store.read_text(encoding="utf-8"))
+        self.assertFalse(saved["members"][0]["is_active"])
+        status, _headers, body, _cookies = self.call("GET", "/api/judgments", headers={"User-Agent": "DeviceTwo"})
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["detail"], "利用権限がありません")
+        status, _headers, page, _cookies = self.call("GET", "/billing", headers={"User-Agent": "DeviceTwo"})
+        self.assertEqual(status, 200)
+        self.assertIn("7日間無料で申し込む", page)
+
+        deleted = {
+            "id": "evt_account_deleted",
+            "type": "customer.subscription.deleted",
+            "created": 1_700_000_030,
+            "data": {
+                "object": {
+                    "id": "sub_account",
+                    "customer": "cus_account",
+                    "status": "canceled",
+                    "metadata": {"user_id": member_id},
+                }
+            },
+        }
+        status, _headers, _body, _cookies = self.post_webhook(deleted)
+        self.assertEqual(status, 200)
+        saved = json.loads(self.store.read_text(encoding="utf-8"))
+        self.assertFalse(saved["members"][0]["is_active"])
+        self.assertEqual(saved["members"][0]["status"], "canceled")
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "STRIPE_SECRET_KEY": "",
+                "STRIPE_PRICE_ID": "",
+                "STRIPE_CHECKOUT_URL": "https://buy.stripe.com/test_link_abcdefgh",
+            },
+        ):
+            status, headers, _body, _cookies = self.call("GET", "/checkout", headers={"User-Agent": "DeviceTwo"})
+        self.assertEqual(status, 303)
+        location = headers["location"]
+        self.assertIn("buy.stripe.com/test_link_abcdefgh", location)
+        self.assertIn(f"client_reference_id={member_id}", location)
+        self.assertIn("prefilled_email=player%40example.com", location)
 
 
 if __name__ == "__main__":

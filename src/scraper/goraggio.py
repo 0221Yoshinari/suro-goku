@@ -11,13 +11,16 @@ import urllib.parse
 import urllib.request
 from html import unescape
 from http.cookiejar import CookieJar
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
 from src.scraper.base import FetchResult, PROJECT_ROOT
 from src.scraper.deadline import run_within
-from src.scraper.halls import Hall, format_duration, hall_data_dir, halls_for_source, max_workers, sleep_hall_gap
+from src.scraper.halls import Hall, format_duration, hall_data_dir, halls_for_source, max_workers, prioritize_halls
+from src.scraper.incremental import publish_hall_incoming
 from src.scraper.html_tables import parse_document
+from src.scraper.log_safe import emit
 from src.scraper.pace import failure_record, get_pacer, is_pressure, request_gap, rotate_user_agent
 from src.scraper.targets import is_watched
 
@@ -263,25 +266,25 @@ def fetch_goraggio_hall(hall: Hall, client: GoraggioClient | None = None) -> lis
     from src.scraper.pace import summarize_failure
 
     note_progress()
-    print(f"台データオンラインへアクセス: {list_url}", flush=True)
+    emit(f"台データオンラインへアクセス: {list_url}", flush=True)
     final, html = session.open(list_url, referer=f"https://daidata.goraggio.com/{code}")
     final, html = session.accept_if_needed(code, final, html, list_url)
     if _is_accept_page(html, final):
         final, html = session.open(list_url, referer=f"https://daidata.goraggio.com/{code}")
     models = parse_model_links(html, final or list_url)
     watched = [(name, url) for name, url in models if is_watched(name)]
-    print(f"スロット機種数: {len(models)} / 監視対象: {len(watched)}", flush=True)
+    emit(f"スロット機種数: {len(models)} / 監視対象: {len(watched)}", flush=True)
     machines: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     for index, (name, url) in enumerate(watched, start=1):
-        print(f"  [{index}/{len(watched)}] {name}", flush=True)
+        emit(f"  [{index}/{len(watched)}] {name}", flush=True)
         try:
             unit_url, unit_html = session.open(url, referer=list_url)
             unit_url, unit_html = session.accept_if_needed(code, unit_url, unit_html, url)
             if _is_accept_page(unit_html, unit_url):
                 unit_url, unit_html = session.open(url, referer=list_url)
             rows = parse_unit_table(unit_html, name, hall.name)
-            print(f"    取得 {len(rows)} 台", flush=True)
+            emit(f"    取得 {len(rows)} 台", flush=True)
             for row in rows:
                 key = (row["machine_name"], row["dai_no"])
                 if key in seen:
@@ -291,7 +294,7 @@ def fetch_goraggio_hall(hall: Hall, client: GoraggioClient | None = None) -> lis
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as exc:
-            print(f"    一覧を開けませんでした: {summarize_failure(str(exc))}", flush=True)
+            emit(f"    一覧を開けませんでした: {summarize_failure(str(exc))}", flush=True)
             continue
     return machines
 
@@ -308,7 +311,7 @@ def select_cycle_halls(halls: list[Hall], fetched_names: set[str], *, new_limit:
 
 
 PAGE_TIMEOUT_SEC = 15.0
-DETAIL_CONCURRENCY = 2
+DETAIL_CONCURRENCY = 4
 
 
 class AsyncGoraggio:
@@ -361,7 +364,8 @@ class AsyncGoraggio:
             headers["Content-Type"] = "application/x-www-form-urlencoded"
             headers["Origin"] = "https://daidata.goraggio.com"
         last: Exception | None = None
-        for _attempt in range(max(1, attempts)):
+        tries = max(1, attempts)
+        for attempt in range(tries):
             try:
                 if data is None:
                     response = await self._client.get(url, headers=headers)
@@ -375,14 +379,20 @@ class AsyncGoraggio:
                     last = GoraggioError("接続できません")
                 else:
                     last = GoraggioError("接続できません" if "://" in str(exc) else str(exc)[:160])
+                if attempt + 1 < tries:
+                    await asyncio.sleep(min(8.0, 2 ** attempt))
                 continue
             if response.status_code == 429:
                 self.http_429 += 1
                 last = GoraggioError("HTTP 429")
+                if attempt + 1 < tries:
+                    await asyncio.sleep(min(8.0, 2 ** attempt))
                 continue
             if response.status_code >= 400:
                 last = GoraggioError(f"HTTP {response.status_code}")
                 if response.status_code in {502, 503, 504}:
+                    if attempt + 1 < tries:
+                        await asyncio.sleep(min(8.0, 2 ** attempt))
                     continue
                 raise last
             return str(response.url), response.content.decode("utf-8", errors="replace")
@@ -451,16 +461,20 @@ async def _fetch_watched(
             final_url, html = await client.open(list_url, referer=f"https://daidata.goraggio.com/{code}")
         links = parse_model_links(html, final_url or list_url)
         watched = [(name, url) for name, url in links if is_watched(name)]
-        print(f"  {hall.name}: 一覧 {len(links)} 機種 / 監視対象 {len(watched)} 機種", flush=True)
+        emit(f"  {hall.name}: 一覧 {len(links)} 機種 / 監視対象 {len(watched)} 機種", flush=True)
+        from src.scraper.deadline import note_progress
+
+        note_progress()
         sem = asyncio.Semaphore(DETAIL_CONCURRENCY)
 
         async def one(name: str, unit_url: str) -> tuple[str, str, list[dict[str, Any]], str]:
             async with sem:
                 rows, reason = await _read_model(client, hall, code, list_url, name, unit_url, attempts=2)
+                note_progress()
                 if reason:
                     from src.scraper.pace import summarize_failure
 
-                    print(f"  {hall.name} / {name}: {summarize_failure(reason)}", flush=True)
+                    emit(f"  {hall.name} / {name}: {summarize_failure(reason)}", flush=True)
                 return name, unit_url, rows, reason
 
         groups = await asyncio.gather(*(one(name, url) for name, url in watched))
@@ -478,7 +492,7 @@ async def _fill_models(
     failed: list[tuple[str, str, str]],
 ) -> tuple[list[dict[str, Any]], int, list[str]]:
     wait = random.uniform(3.0, 5.0)
-    print(f"  {hall.name}: 欠損 {len(failed)} 機種を {wait:.1f}秒後に別IPで1回補填", flush=True)
+    emit(f"  {hall.name}: 欠損 {len(failed)} 機種を {wait:.1f}秒後に別IPで1回補填", flush=True)
     await asyncio.sleep(wait)
     code = hall_code_of(hall)
     list_url = list_url_of(hall)
@@ -491,10 +505,10 @@ async def _fill_models(
                 from src.scraper.pace import summarize_failure
 
                 label = summarize_failure(reason)
-                print(f"  {hall.name} / {name}: 補填失敗 ({label})", flush=True)
+                emit(f"  {hall.name} / {name}: 補填失敗 ({label})", flush=True)
                 still.append(f"{hall.name} / {name}: {label}")
                 continue
-            print(f"  {hall.name} / {name}: 補填 {len(rows)} 台", flush=True)
+            emit(f"  {hall.name} / {name}: 補填 {len(rows)} 台", flush=True)
             recovered = _merge_rows(recovered, rows)
         return recovered, client.http_429, still
 
@@ -506,7 +520,7 @@ async def fetch_goraggio_hall_async(hall: Hall) -> tuple[list[dict[str, Any]], i
         from src.scraper.pace import summarize_failure
 
         wait = random.uniform(3.0, 5.0)
-        print(
+        emit(
             f"  {hall.name}: 店舗取得失敗（{summarize_failure(str(exc))}）。{wait:.1f}秒後に別IPで1回再取得",
             flush=True,
         )
@@ -530,11 +544,11 @@ async def fetch_goraggio_data_async(halls: list[Hall] | None = None) -> FetchRes
     chosen = select_cycle_halls(targets, fetched_names, new_limit=len(targets))
     deferred = len(targets) - len(chosen)
     if deferred:
-        print(
+        emit(
             f"台データオンライン: 未取得のうち {len(chosen) - len(fetched_names)} 店を今回取り、残り {deferred} 店は次回以降",
             flush=True,
         )
-    targets = chosen
+    targets = prioritize_halls(chosen)
     started = time.monotonic()
     combined: list[dict[str, Any]] = []
     fetched: list[str] = []
@@ -544,34 +558,39 @@ async def fetch_goraggio_data_async(halls: list[Hall] | None = None) -> FetchRes
     http_429 = 0
     missing_models: list[str] = []
     workers = min(max_workers(), len(targets))
-    print(f"台データオンライン: {len(targets)}店を同時{workers}・HTTP/2・店舗別IPで取得", flush=True)
+    emit(f"台データオンライン: {len(targets)}店を同時{workers}・HTTP/2・店舗別IPで取得", flush=True)
 
     from src.scraper.smart_retry import partition_halls
     from src.scraper.source_fallback import finish_hall_attempt
 
     ready, waiting = partition_halls(targets, "goraggio")
     if waiting:
-        print(f"台データオンライン: 再試行待ち {len(waiting)}店をスキップ", flush=True)
+        emit(f"台データオンライン: 再試行待ち {len(waiting)}店をスキップ", flush=True)
     gate = asyncio.Semaphore(workers)
     lock = asyncio.Lock()
 
-    def _store(hall: Hall, payload: list[dict[str, Any]] | None, error: str) -> None:
+    def _store(hall: Hall, payload: list[dict[str, Any]] | None, error: str) -> Path | None:
+        from src.scraper.deadline import note_progress
+
+        note_progress()
         payload, error, _via = finish_hall_attempt(hall, payload, error, "goraggio")
         if error or payload is None:
             safe = error or "取得失敗"
-            print(f"  {hall.name} の取得失敗: {safe}", flush=True)
+            emit(f"  {hall.name} の取得失敗: {safe}", flush=True)
             failed.append(hall.name)
             reasons.append(f"{hall.name}: {safe}")
             details.append(failure_record(hall.name, safe))
-            return
+            return None
         hall_result = FetchResult(source="goraggio", hall_name=hall.name, machines=payload)
         hall_path = hall_result.write_incoming(hall_data_dir(hall.name, PROJECT_ROOT / "data" / "goraggio"))
-        print(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
+        emit(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
         combined.extend(payload)
         fetched.append(hall.name)
+        return hall_path
 
     async def _run(hall: Hall) -> None:
         nonlocal http_429
+        saved: Path | None = None
         async with gate:
             try:
                 payload, seen_429, missing = await fetch_goraggio_hall_async(hall)
@@ -584,18 +603,20 @@ async def fetch_goraggio_data_async(halls: list[Hall] | None = None) -> FetchRes
             async with lock:
                 http_429 += seen_429
                 missing_models.extend(missing)
-                _store(hall, payload, error)
+                saved = _store(hall, payload, error)
+        if saved is not None:
+            await asyncio.to_thread(publish_hall_incoming, saved, hall.name, "goraggio")
 
     await asyncio.gather(*(_run(hall) for hall in ready))
     for hall in waiting:
         _store(hall, None, "再試行待ち")
     elapsed = time.monotonic() - started
-    print(
+    emit(
         f"台データオンライン: {format_duration(elapsed)} / 429応答 {http_429} 回 / 補填後の欠損 {len(missing_models)} 機種",
         flush=True,
     )
     for item in missing_models:
-        print(f"  欠損: {item}", flush=True)
+        emit(f"  欠損: {item}", flush=True)
     if not combined:
         detail = " / ".join(reasons)
         raise GoraggioError("台データオンラインの取得に失敗したため incoming.json は更新していません。" + (f" {detail}" if detail else ""))

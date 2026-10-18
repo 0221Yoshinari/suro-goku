@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,15 +14,26 @@ DEFAULT_OVERRIDES_PATH = PROJECT_ROOT / "data" / "masters" / "overrides.json"
 
 HIT_TARGETS = ("bb", "rb", "combined")
 MACHINE_TYPES = ("A", "AT")
-PROBABILITY_FIELDS = ("setting_6", "setting_5", "setting_4", "rb_6", "rb_5", "rb_4")
-LEVEL_BY_FIELD = {
-    "setting_6": 6,
-    "setting_5": 5,
-    "setting_4": 4,
-    "rb_6": 6,
-    "rb_5": 5,
-    "rb_4": 4,
+SETTING_LEVELS = (1, 2, 3, 4, 5, 6)
+REQUIRED_SETTINGS = ("setting_6", "setting_5", "setting_4")
+PROBABILITY_FIELDS = tuple(f"setting_{level}" for level in SETTING_LEVELS) + tuple(
+    f"rb_{level}" for level in SETTING_LEVELS
+)
+THRESHOLD_FIELDS = ("min_games", "early_min_games")
+JUDGMENT_FIELDS = set(PROBABILITY_FIELDS) | {"type", "hit_target", *THRESHOLD_FIELDS}
+LEVEL_BY_FIELD = {f"setting_{level}": level for level in SETTING_LEVELS}
+LEVEL_BY_FIELD.update({f"rb_{level}": level for level in SETTING_LEVELS})
+FIELD_LABELS = {
+    "type": "タイプ",
+    "hit_target": "初当り対象",
+    "min_games": "規定G",
+    "early_min_games": "朝一G",
+    "note": "備考",
 }
+FIELD_LABELS.update({f"setting_{level}": f"設定{level}の初当り・合算" for level in SETTING_LEVELS})
+FIELD_LABELS.update({f"rb_{level}": f"設定{level}のREG" for level in SETTING_LEVELS})
+NOTE_LIMIT = 400
+HISTORY_LIMIT = 12
 
 
 class OverrideError(ValueError):
@@ -46,10 +58,14 @@ def load_override_document(path: Path | None = None) -> dict[str, Any]:
     machines = payload.get("machines")
     if not isinstance(machines, dict):
         machines = {}
+    added = payload.get("added")
+    if not isinstance(added, dict):
+        added = {}
     return {
         "version": 1,
         "updated_at": payload.get("updated_at"),
         "machines": {str(key): value for key, value in machines.items() if isinstance(value, dict)},
+        "added": {str(key): value for key, value in added.items() if isinstance(value, dict)},
     }
 
 
@@ -61,6 +77,7 @@ def save_override_document(document: dict[str, Any], path: Path | None = None) -
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "description": "管理画面で保存した機種マスターの上書き。判定時に config/machines.json より優先する。",
         "machines": document.get("machines") or {},
+        "added": document.get("added") or {},
     }
     temporary = target.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -71,20 +88,28 @@ def apply_overrides(payload: dict[str, Any], path: Path | None = None) -> dict[s
     """マスターJSONの machines に手動補正を重ねたコピーを返す。"""
     document = load_override_document(path)
     stored = document.get("machines") or {}
-    if not stored:
+    added = document.get("added") or {}
+    if not stored and not added:
         return payload
     machines = payload.get("machines") or []
     merged_machines: list[Any] = []
+    seen: set[str] = set()
     for item in machines:
         if not isinstance(item, dict):
             merged_machines.append(item)
             continue
         machine_id = str(item.get("id") or "")
+        if machine_id:
+            seen.add(machine_id)
         override = stored.get(machine_id)
         if not isinstance(override, dict):
             merged_machines.append(item)
             continue
         merged_machines.append(merge_override(item, override))
+    for machine_id, record in added.items():
+        if machine_id in seen or not isinstance(record, dict):
+            continue
+        merged_machines.append(copy.deepcopy(record))
     return {**payload, "machines": merged_machines}
 
 
@@ -128,16 +153,26 @@ def merge_override(item: dict[str, Any], override: dict[str, Any]) -> dict[str, 
                 criteria["synthetic_probability_threshold"] = value
         settings[str(level)] = entry
         changed.append(field)
+    for field in THRESHOLD_FIELDS:
+        if override.get(field) is None:
+            continue
+        criteria[field] = int(override[field])
+        changed.append(field)
+    if "note" in override:
+        merged["note"] = str(override.get("note") or "")
+    history = override.get("history") if isinstance(override.get("history"), list) else []
     merged["override"] = {
-        "active": True,
-        "fields": changed,
+        "active": any(field in JUDGMENT_FIELDS for field in changed),
+        "fields": [field for field in changed if field in JUDGMENT_FIELDS],
         "updated_at": override.get("updated_at"),
+        "note": merged.get("note") or "",
+        "history": [item for item in history if isinstance(item, dict)][-HISTORY_LIMIT:],
     }
     return merged
 
 
-def parse_edit(payload: dict[str, Any]) -> dict[str, Any]:
-    """管理画面の1行を正規化する。空のREGは未指定。"""
+def parse_edit(payload: dict[str, Any], *, require_mid_settings: bool = True) -> dict[str, Any]:
+    """管理画面の1行を正規化する。空のREGと未入力の設定1〜3は未指定。"""
     if not isinstance(payload, dict):
         raise OverrideError("保存形式が正しくありません")
     machine_type = str(payload.get("type") or "").strip().upper()
@@ -149,18 +184,18 @@ def parse_edit(payload: dict[str, Any]) -> dict[str, Any]:
     elif hit_target not in HIT_TARGETS:
         raise OverrideError("初当り判定対象は BB / RB / 合算 を選んでください")
     parsed: dict[str, Any] = {"type": machine_type, "hit_target": hit_target}
-    labels = {
-        "setting_6": "設定6理論値",
-        "setting_5": "全56（設定5）理論値",
-        "setting_4": "全456（設定4）理論値",
-        "rb_6": "設定6のREG理論値",
-        "rb_5": "全56のREG理論値",
-        "rb_4": "全456のREG理論値",
-    }
-    for field in ("setting_6", "setting_5", "setting_4"):
-        parsed[field] = _parse_probability(payload.get(field), labels[field], required=True)
-    for field in ("rb_6", "rb_5", "rb_4"):
-        parsed[field] = _parse_probability(payload.get(field), labels[field], required=False)
+    for field in PROBABILITY_FIELDS:
+        if field not in payload and field not in REQUIRED_SETTINGS:
+            continue
+        required = field in REQUIRED_SETTINGS and (require_mid_settings or field == "setting_6")
+        if field in payload or required:
+            parsed[field] = _parse_probability(payload.get(field), FIELD_LABELS[field], required=required)
+    for field in THRESHOLD_FIELDS:
+        if field not in payload:
+            continue
+        parsed[field] = _parse_games(payload.get(field), FIELD_LABELS[field])
+    if "note" in payload:
+        parsed["note"] = _parse_note(payload.get("note"))
     return parsed
 
 
@@ -172,6 +207,8 @@ def diff_against_base(parsed: dict[str, Any], base: dict[str, Any]) -> dict[str,
     if parsed["hit_target"] != base["hit_target"]:
         changed["hit_target"] = parsed["hit_target"]
     for field in PROBABILITY_FIELDS:
+        if field not in parsed:
+            continue
         current = parsed.get(field)
         original = base.get(field)
         if current is None and original is None:
@@ -180,7 +217,127 @@ def diff_against_base(parsed: dict[str, Any], base: dict[str, Any]) -> dict[str,
             continue
         if original is None or not _same_number(current, original):
             changed[field] = current
+    for field in THRESHOLD_FIELDS:
+        if field not in parsed or parsed.get(field) is None:
+            continue
+        if parsed[field] != base.get(field):
+            changed[field] = parsed[field]
+    if "note" in parsed and (parsed.get("note") or "") != (base.get("note") or ""):
+        changed["note"] = parsed.get("note") or ""
     return changed
+
+
+def history_summary(changed: dict[str, Any]) -> str:
+    """保存差分を備考の履歴1行にする。"""
+    parts: list[str] = []
+    for field in ("type", "hit_target", *PROBABILITY_FIELDS, *THRESHOLD_FIELDS):
+        if field not in changed:
+            continue
+        parts.append(f"{FIELD_LABELS.get(field, field)}を{changed[field]}")
+    if "note" in changed:
+        parts.append("備考を更新")
+    return "、".join(parts)
+
+
+def append_history(previous: list[Any] | None, summary: str, at: str) -> list[dict[str, str]]:
+    history = [item for item in (previous or []) if isinstance(item, dict) and item.get("summary")]
+    if summary:
+        history.append({"at": at, "summary": summary})
+    return history[-HISTORY_LIMIT:]
+
+
+def allocate_machine_id(name: str, taken: set[str]) -> str:
+    digest = hashlib.sha1(name.strip().encode("utf-8")).hexdigest()[:8]
+    candidate = f"custom-{digest}"
+    index = 2
+    while candidate in taken:
+        candidate = f"custom-{digest}-{index}"
+        index += 1
+    return candidate
+
+
+def build_machine_record(
+    *,
+    machine_id: str,
+    name: str,
+    parsed: dict[str, Any],
+    aliases: list[str] | None = None,
+    history: list[dict[str, str]] | None = None,
+    added: bool = True,
+) -> dict[str, Any]:
+    """追加機種を、load_masters が読むマスター1件の形にする。"""
+    settings: dict[str, dict[str, float]] = {}
+    for level in SETTING_LEVELS:
+        entry: dict[str, float] = {}
+        synthetic = parsed.get(f"setting_{level}")
+        rb = parsed.get(f"rb_{level}")
+        if synthetic is not None:
+            entry["synthetic"] = float(synthetic)
+            entry["first_hit"] = float(synthetic)
+        if rb is not None:
+            entry["rb"] = float(rb)
+        if entry:
+            settings[str(level)] = entry
+    criteria: dict[str, Any] = {
+        "min_games": int(parsed.get("min_games") or 3000),
+        "early_min_games": int(parsed.get("early_min_games") or 300),
+        "settings": settings,
+    }
+    record: dict[str, Any] = {
+        "id": machine_id,
+        "name": name,
+        "type": parsed["type"],
+        "hit_target": parsed["hit_target"],
+        "aliases": list(aliases or []),
+        "note": parsed.get("note") or "",
+        "added": added,
+        "criteria": criteria,
+        "history": list(history or []),
+    }
+    if parsed.get("setting_6") is not None:
+        record["setting_6"] = float(parsed["setting_6"])
+        criteria["synthetic_probability_threshold"] = float(parsed["setting_6"])
+    for level in (5, 4, 3, 2, 1):
+        if parsed.get(f"setting_{level}") is not None:
+            record[f"setting_{level}"] = float(parsed[f"setting_{level}"])
+    if parsed.get("rb_6") is not None:
+        criteria["rb_probability_threshold"] = float(parsed["rb_6"])
+    return record
+
+
+def parse_new_machine(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    if not isinstance(payload, dict):
+        raise OverrideError("保存形式が正しくありません")
+    name = str(payload.get("name") or "").strip()
+    if not name or len(name) > 80:
+        raise OverrideError("機種名は1〜80文字で入力してください")
+    parsed = parse_edit(payload, require_mid_settings=False)
+    if parsed.get("min_games") is None:
+        parsed["min_games"] = _parse_games(3000, FIELD_LABELS["min_games"])
+    if parsed.get("early_min_games") is None:
+        parsed["early_min_games"] = _parse_games(300, FIELD_LABELS["early_min_games"])
+    if "note" not in parsed:
+        parsed["note"] = ""
+    return name, parsed
+
+
+def _parse_games(value: Any, label: str) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise OverrideError(f"{label}は整数で入力してください") from exc
+    if number < 1 or number > 100000:
+        raise OverrideError(f"{label}は 1 以上 100000 以下にしてください")
+    return number
+
+
+def _parse_note(value: Any) -> str:
+    text = str(value or "").strip()
+    if len(text) > NOTE_LIMIT:
+        raise OverrideError(f"備考は{NOTE_LIMIT}文字以内にしてください")
+    return text
 
 
 def _parse_probability(value: Any, label: str, *, required: bool) -> float | None:

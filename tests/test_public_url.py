@@ -2,7 +2,14 @@ import unittest
 from unittest import mock
 
 from src.notify.discord import build_error_content, build_success_content, dashboard_access_line
-from src.tunnel import current_public_url, extract_public_url, tunnel_log_is_dead
+from src.tunnel import (
+    _ensure_public_url_locked,
+    _tunnel_still_serving,
+    current_public_url,
+    extract_public_url,
+    local_tunnel_pids,
+    tunnel_log_is_dead,
+)
 
 
 class PublicUrlTest(unittest.TestCase):
@@ -61,6 +68,85 @@ class PublicUrlTest(unittest.TestCase):
         with mock.patch("src.notify.discord.dashboard_url", return_value="https://foo-bar.trycloudflare.com"):
             text = build_error_content("接続失敗")
         self.assertIn("[ダッシュボードを開く](https://foo-bar.trycloudflare.com)", text)
+
+    def test_cloudflared_uses_ipv4(self) -> None:
+        with mock.patch("src.tunnel._binary", return_value="cloudflared"):
+            from src.tunnel import _cloudflared_command
+
+            command = _cloudflared_command(8000)
+        self.assertEqual(
+            command,
+            [
+                "cloudflared",
+                "tunnel",
+                "--no-autoupdate",
+                "--edge-ip-version",
+                "4",
+                "--url",
+                "http://127.0.0.1:8000",
+            ],
+        )
+
+    def test_local_tunnel_pids_match_port(self) -> None:
+        ps = "\n".join(
+            [
+                "31907 /opt/homebrew/bin/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:8000",
+                "47360 /opt/homebrew/bin/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:8765",
+                "12 /usr/bin/python -m src.dashboard",
+            ]
+        )
+        self.assertEqual(local_tunnel_pids(ps, 8000), [31907])
+        self.assertEqual(local_tunnel_pids(ps), [31907, 47360])
+
+    def test_live_connector_survives_failed_self_check(self) -> None:
+        state = {
+            "url": "https://live.trycloudflare.com",
+            "pid": 42,
+            "provider": "cloudflared",
+            "local_port": 8000,
+        }
+        with mock.patch("src.tunnel._read_state", return_value=state), mock.patch(
+            "src.tunnel._log_since_last_start",
+            return_value="INF Registered tunnel connection connIndex=0\n",
+        ), mock.patch("src.tunnel._pid_alive", return_value=True), mock.patch(
+            "src.tunnel.public_url_reachable", return_value=False
+        ) as probe:
+            self.assertTrue(_tunnel_still_serving("https://live.trycloudflare.com"))
+        probe.assert_not_called()
+
+    def test_dead_log_is_not_kept(self) -> None:
+        state = {
+            "url": "https://dead.trycloudflare.com",
+            "pid": 42,
+            "provider": "cloudflared",
+            "local_port": 8000,
+        }
+        log = (
+            "INF Registered tunnel connection connIndex=0\n"
+            'ERR Register tunnel error error="Unauthorized: Tunnel not found"\n'
+        )
+        with mock.patch("src.tunnel._read_state", return_value=state), mock.patch(
+            "src.tunnel._log_since_last_start", return_value=log
+        ), mock.patch("src.tunnel._pid_alive", return_value=True):
+            self.assertFalse(_tunnel_still_serving("https://dead.trycloudflare.com"))
+
+    def test_issued_url_is_never_replaced(self) -> None:
+        state = {
+            "url": "https://someone-textiles-unions-muze.trycloudflare.com",
+            "pid": 87204,
+            "provider": "cloudflared",
+            "local_port": 8000,
+        }
+        with mock.patch("src.tunnel._read_state", return_value=state), mock.patch(
+            "src.tunnel._start_process"
+        ) as start, mock.patch("src.tunnel._stop_process") as stop, mock.patch(
+            "src.tunnel._pid_alive", return_value=False
+        ):
+            url, created = _ensure_public_url_locked(8000)
+        self.assertEqual(url, "https://someone-textiles-unions-muze.trycloudflare.com")
+        self.assertFalse(created)
+        start.assert_not_called()
+        stop.assert_not_called()
 
     def test_current_public_url_requires_live_process(self) -> None:
         live = {"url": "https://live.trycloudflare.com", "pid": 42, "local_port": 8000}

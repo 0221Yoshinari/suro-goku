@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from datetime import datetime
@@ -249,6 +250,44 @@ def group_joint_picks(machines: list[dict] | None, events: list[dict] | None = N
         )
     )
     return picks
+
+
+_EXTERNAL_HALL_PREFIXES = ("daidata-", "teramoba-", "goraggio-", "site7-", "pscube-", "maruhan_app-")
+_MEMBER_EVENT_HIDDEN = {"source", "source_key", "source_url"}
+
+
+def public_hall_id(hall_id: str) -> str:
+    """一般向けの店舗ID。外部サイト由来の接頭辞と店舗番号は出さない。"""
+    text = str(hall_id or "")
+    lowered = text.lower()
+    for prefix in _EXTERNAL_HALL_PREFIXES:
+        if lowered.startswith(prefix):
+            digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+            return f"hall-{digest}"
+    return text
+
+
+def member_event(event: dict) -> dict:
+    """会員画面へ返すイベント。取得元と外部URLは含めない。"""
+    raw_id = str(event.get("hall_id") or "")
+    cleaned_id = public_hall_id(raw_id)
+    cleaned = {key: value for key, value in event.items() if key not in _MEMBER_EVENT_HIDDEN}
+    cleaned["hall_id"] = cleaned_id
+    label = str(cleaned.get("target_label") or "")
+    if raw_id and raw_id != cleaned_id and raw_id in label:
+        cleaned["target_label"] = label.replace(raw_id, cleaned_id)
+    return cleaned
+
+
+def present_member_payload(payload: dict) -> dict:
+    """会員向けJSONから、取得元とローカルパスを除く。"""
+    for key in ("source", "masters_path", "source_url", "source_key", "failure_details", "results"):
+        payload.pop(key, None)
+    for key in ("events", "upcoming_events"):
+        rows = payload.get(key)
+        if isinstance(rows, list):
+            payload[key] = [member_event(row) if isinstance(row, dict) else row for row in rows]
+    return payload
 
 
 def public_event(raw: dict) -> dict:

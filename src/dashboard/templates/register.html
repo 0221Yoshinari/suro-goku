@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>アカウント作成 | スロ極</title>
+    <link rel="stylesheet" href="/static/styles.css?v=57" />
+  </head>
+  <body class="login-body">
+    <main class="login-card">
+      <p class="eyebrow">スロ極</p>
+      <h1>アカウントを作成</h1>
+      <p class="login-lead">メールアドレスとパスワードを登録します。その後、7日間の無料体験へ進めます。</p>
+      __ERROR__
+      <form method="post" action="/register" class="login-form">
+        <label class="login-label" for="email">メールアドレス</label>
+        <input id="email" name="email" type="email" autocomplete="username" maxlength="200" required autofocus />
+        <label class="login-label" for="password">パスワード（8文字以上）</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required />
+        <button type="submit" class="primary">登録してはじめる</button>
+      </form>
+      <p class="login-note">パスワードはサーバにそのまま保存しません。</p>
+      <p class="login-links"><a href="/login">ログイン</a> · <a href="/lp">紹介ページ</a></p>
+    </main>
+  </body>
+</html>

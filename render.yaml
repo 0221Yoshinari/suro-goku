@@ -29,3 +29,35 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SELLER_NAME
+        sync: false
+      - key: SELLER_ADDRESS
+        sync: false
+      - key: SELLER_EMAIL
+        sync: false
+      - key: SELLER_TEL
+        sync: false
+  - type: web
+    name: suro-goku-billing
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-web.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: SQUARE_ENVIRONMENT
+        value: sandbox
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: SQUARE_APPLICATION_ID
+        sync: false
+      - key: SQUARE_ACCESS_TOKEN
+        sync: false

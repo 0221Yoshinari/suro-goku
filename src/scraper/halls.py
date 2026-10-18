@@ -341,7 +341,7 @@ def area_presets(*, include_disabled: bool = True) -> list[dict[str, Any]]:
                 "areas": [],
             }
         )
-    enabled = [hall for hall in load_halls() if hall.prefecture]
+    enabled = [hall for hall in scoped_halls() if hall.prefecture]
     for preset in presets:
         areas = {str(area) for area in preset.get("areas") or []}
         if areas:
@@ -357,13 +357,13 @@ def prefectures(*, include_disabled: bool = True) -> list[dict[str, Any]]:
     """店舗が存在する都道府県だけを、福岡県を先頭にして返す。"""
     present = {
         hall.prefecture
-        for hall in load_halls(include_disabled=include_disabled)
+        for hall in scoped_halls(include_disabled=include_disabled)
         if hall.prefecture
     }
     ordered = [key for key in PREFECTURE_ORDER if key in present]
     ordered.extend(sorted(present.difference(ordered)))
     enabled_counts: dict[str, int] = {}
-    for hall in load_halls():
+    for hall in scoped_halls():
         if hall.prefecture:
             enabled_counts[hall.prefecture] = enabled_counts.get(hall.prefecture, 0) + 1
     rows: list[dict[str, Any]] = []
@@ -402,30 +402,23 @@ def hall_locale_index(*, include_disabled: bool = False) -> dict[str, dict[str, 
     }
 
 
-def hall_groups(*, include_disabled: bool = False) -> list[dict[str, Any]]:
-    """有効ホールを系列ごとにまとめる。並びは玉屋 → プラザ → 123 → その他。"""
+def hall_groups(*, include_disabled: bool = False, scoped: bool = False) -> list[dict[str, Any]]:
+    """有効ホールを系列ごとにまとめる。並びは玉屋 → プラザ → 123 → その他。
+
+    scoped=True のときは取得対象の店舗だけ。イベントの系列展開は全店舗のまま。
+    """
     order = list(GROUP_LABELS)
     buckets: dict[str, list[str]] = {}
     for hall in load_halls(include_disabled=include_disabled):
+        if scoped and scope_filter_active() and not hall_in_active_scope(hall):
+            continue
         buckets.setdefault(hall.group or "other", []).append(hall.name)
     keys = [key for key in order if key in buckets]
     keys.extend(key for key in buckets if key not in keys)
-    rows = [
+    return [
         {"id": key, "label": group_label(key), "halls": buckets[key]}
         for key in keys
     ]
-    if scrape_groups_only():
-        scoped: list[dict[str, Any]] = []
-        for row in rows:
-            names = []
-            for name in row["halls"]:
-                hall = hall_by_name(name)
-                if hall is not None and hall_in_active_scope(hall):
-                    names.append(name)
-            if names:
-                scoped.append({**row, "halls": names})
-        return scoped
-    return rows
 
 
 def halls_in_group(group_id: str) -> list[str]:
@@ -440,12 +433,48 @@ def scrape_groups_only() -> bool:
     return bool(load_halls_config().get("scrape_groups_only"))
 
 
+def acquisition_limited() -> bool:
+    """True のあいだは、福岡県の全ホールと東京都の指定店だけを取得する。"""
+    return bool(load_halls_config().get("acquisition_limited"))
+
+
+def scope_filter_active() -> bool:
+    return acquisition_limited() or scrape_groups_only()
+
+
+# 台データが公開されていて goraggio で取れる東京都のエスパス日拓10店。
+# 日暮里店とビッグディッパー新橋はマスタ未登録。
+# アイランド秋葉原・マルハン新宿東宝/亀有・メガガイアは台データ未公開のため外す。
+TOKYO_PILOT_HALL_IDS = frozenset({
+    "daidata-100949",  # エスパス日拓新宿歌舞伎町店
+    "daidata-100928",  # エスパス日拓秋葉原駅前店
+    "daidata-100196",  # エスパス日拓上野新館（日暮里に最も近い公開店）
+    "daidata-100947",  # エスパス日拓上野本館
+    "daidata-100860",  # エスパス日拓渋谷駅前新館
+    "daidata-100950",  # エスパス日拓西武新宿駅前店
+    "daidata-100915",  # エスパス日拓高田馬場本店
+    "daidata-100951",  # エスパス日拓新大久保駅前店
+    "daidata-100952",  # エスパス日拓赤坂見附駅前新館
+    "daidata-100260",  # エスパス１３００新小岩北口駅前店
+})
+
+
+def scoped_halls(*, include_disabled: bool = False) -> list[Hall]:
+    halls = load_halls(include_disabled=include_disabled)
+    if not scope_filter_active():
+        return halls
+    return [hall for hall in halls if hall_in_active_scope(hall)]
+
+
 def hall_in_active_scope(hall: Hall) -> bool:
     """本日の取得対象か。
 
-    プラザは店名に「プラザ」が付く他系列を含めず、プラザグループ
-    （plaza-grp）の店舗だけ。他都道府県は指示があるまで対象外。
+    acquisition_limited のあいだは、福岡県に登録されたホール全部と
+    TOKYO_PILOT_HALL_IDS だけ。未公開で enabled が false の店は
+    load_halls 側で落ちる。他県は対象外。
     """
+    if acquisition_limited():
+        return _hall_in_pilot_scope(hall)
     if not scrape_groups_only():
         return True
     if hall.prefecture != "fukuoka":
@@ -456,6 +485,14 @@ def hall_in_active_scope(hall: Hall) -> bool:
     if hall.group == "wonderland" and "ワンダーランド" in name:
         return True
     if hall.group == "plaza" and _is_plaza_group_hall(hall):
+        return True
+    return False
+
+
+def _hall_in_pilot_scope(hall: Hall) -> bool:
+    if hall.prefecture == "fukuoka":
+        return True
+    if hall.prefecture == "tokyo" and hall.id in TOKYO_PILOT_HALL_IDS:
         return True
     return False
 
@@ -477,13 +514,9 @@ def configured_halls() -> list[str]:
         names = [hall.name for hall in load_halls()]
         if one and not names:
             names = resolve_hall_names(one)
-    if not scrape_groups_only():
+    if not scope_filter_active():
         return names
-    allowed = {
-        hall.name
-        for hall in load_halls()
-        if hall_in_active_scope(hall)
-    }
+    allowed = {hall.name for hall in scoped_halls()}
     return [name for name in names if name in allowed]
 
 
@@ -519,14 +552,51 @@ def pause_range() -> tuple[float, float]:
 
 
 def max_workers() -> int:
-    """同時に進める店舗数。出口IPを分ける前提で 15〜20。"""
+    """同時に進める店舗数。プロキシで出口IPを分けるときは24、直結のときは12まで。"""
     payload = load_halls_config()
     raw = os.getenv("SCRAPER_MAX_WORKERS")
     if raw and raw.strip():
         value = int(raw)
     else:
         value = int(payload.get("max_workers") or 18)
-    return max(1, min(20, value))
+    cap = 24 if _proxy_pool_enabled() else 12
+    return max(1, min(cap, value))
+
+
+def _proxy_pool_enabled() -> bool:
+    try:
+        from src.scraper.proxy_config import proxy_endpoints
+
+        return bool(proxy_endpoints())
+    except Exception:
+        return False
+
+
+# 需要の高い県から取る。ここに無い県はホール名順で後回し。
+PRIORITY_PREFECTURES = (
+    "fukuoka",
+    "tokyo",
+    "osaka",
+    "aichi",
+    "kanagawa",
+    "saitama",
+    "chiba",
+    "hyogo",
+)
+
+
+def hall_priority(hall: Hall) -> tuple[int, str, str]:
+    pref = hall.prefecture or ""
+    try:
+        rank = PRIORITY_PREFECTURES.index(pref)
+    except ValueError:
+        rank = len(PRIORITY_PREFECTURES)
+    return (rank, pref, hall.name)
+
+
+def prioritize_halls(halls: list[Hall]) -> list[Hall]:
+    """福岡・東京・大阪を先に、それ以外は県名順にする。"""
+    return sorted(halls, key=hall_priority)
 
 
 def worker_user_agent(worker_id: int) -> str:

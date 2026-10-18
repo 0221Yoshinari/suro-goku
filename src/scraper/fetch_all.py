@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.scraper.base import FetchResult, PROJECT_ROOT
+from src.scraper.log_safe import emit
 from src.scraper.halls import configured_halls, hall_source, halls_for_source, format_duration
 from src.scraper.registry import get_source
 
@@ -14,7 +15,7 @@ async def fetch_configured() -> FetchResult:
     names = configured_halls()
     if not names:
         raise RuntimeError("有効なホールが config/halls.json にありません")
-    print(f"取得オーケストレーション: {' → '.join(f'{n}({hall_source(n)})' for n in names)}", flush=True)
+    emit(f"取得オーケストレーション: {' → '.join(f'{n}({hall_source(n)})' for n in names)}", flush=True)
 
     combined: list[dict] = []
     fetched: list[str] = []
@@ -41,17 +42,17 @@ async def fetch_configured() -> FetchResult:
             result = await get_source(source_id).fetch()
         except Exception as exc:
             reason = summarize_failure(str(exc))
-            print(f"{source_id} の取得失敗: {reason}", flush=True)
+            emit(f"{source_id} の取得失敗: {reason}", flush=True)
             bucket["failed"].extend(hall.name for hall in halls)
             bucket["details"].extend(failure_record(hall.name, reason) for hall in halls)
             bucket["extras"].append({"elapsed_sec": 0, "error": reason})
             return bucket
         extra = result.extra or {}
         if extra.get("skipped"):
-            print(f"{source_id} は取得対象外のためスキップします", flush=True)
+            emit(f"{source_id} は取得対象外のためスキップします", flush=True)
             return bucket
         if extra.get("mock"):
-            print(f"{source_id} はテストデータのため、定期取得の結合には入れません", flush=True)
+            emit(f"{source_id} はテストデータのため、定期取得の結合には入れません", flush=True)
             return bucket
         bucket["combined"].extend(result.machines)
         bucket["fetched"].extend(extra.get("halls") or [result.hall_name])
@@ -78,7 +79,7 @@ async def fetch_configured() -> FetchResult:
 
     # 同時2以下のときは、ソースも1本ずつ進める。
     if max_workers() <= 2:
-        print(f"安全モード: ソースを直列で取得（同時 {max_workers()}）", flush=True)
+        emit(f"安全モード: ソースを直列で取得（同時 {max_workers()}）", flush=True)
         parts = []
         for source_id in source_ids:
             parts.append(await absorb(source_id))
@@ -106,8 +107,15 @@ async def fetch_configured() -> FetchResult:
         extras.extend(bucket["extras"])
         sources_used.extend(bucket["sources"])
 
+    log_acquisition_failures(details)
     if not combined:
-        raise RuntimeError("全ソースの取得が 0 件のため incoming.json は更新していません。")
+        summary = "、".join(
+            f"{item.get('hall')}={item.get('reason')}" for item in details if item.get("hall")
+        )
+        message = "全ソースの取得が 0 件のため incoming.json は更新していません。"
+        if summary:
+            message = f"{message} {summary}"
+        raise RuntimeError(message)
 
     elapsed = time.monotonic() - started
     ordered = [name for name in names if name in fetched]
@@ -128,5 +136,20 @@ async def fetch_configured() -> FetchResult:
         },
     )
     path = result.write_incoming(PROJECT_ROOT / "data" / "site7")
-    print(f"結合 incoming: {path} / {len(combined)} 件 / source={envelope_source}", flush=True)
+    emit(
+        f"保存完了: {path} / {len(combined)} 件 / 店舗 {len(ordered)} / source={envelope_source}",
+        flush=True,
+    )
     return result
+
+
+def log_acquisition_failures(details: list[dict]) -> None:
+    """取得失敗を店舗名と定型理由で残す。成功時の台データは incoming.json へ書く。"""
+    for item in details:
+        if not isinstance(item, dict):
+            continue
+        hall = str(item.get("hall") or "").strip()
+        if not hall:
+            continue
+        reason = str(item.get("reason") or "取得失敗")
+        emit(f"取得失敗 {hall}: {reason}", flush=True)

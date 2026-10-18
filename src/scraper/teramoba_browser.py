@@ -11,10 +11,12 @@ from html import unescape
 from typing import Any
 
 from src.scraper.browser import browser_session, hall_switch_pause, teramoba_browser_profile
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.halls import Hall
 from src.scraper.targets import is_watched
 from src.scraper.teramoba import (
     INERTIA_PAGE_RE,
+    RECOVERY_DISMISS_COOKIE,
     TeramobaError,
     TeramobaMaintenance,
     _maybe_decrypt,
@@ -73,11 +75,27 @@ async def _js_click_agree(page) -> bool:
     except Exception:
         return False
     if clicked:
-        print("  同意するを JS で押しました", flush=True)
+        emit("  同意するを JS で押しました", flush=True)
     return bool(clicked)
 
 
+async def _pass_recovery_notice(page) -> bool:
+    """復旧案内の「サイトを閲覧する」を押して、台データ画面へ進む。"""
+    button = page.get_by_role("button", name="サイトを閲覧する")
+    try:
+        if await button.count() == 0:
+            return False
+        emit("  復旧案内の「サイトを閲覧する」を押します", flush=True)
+        await button.first.click()
+        await page.wait_for_load_state("domcontentloaded", timeout=20000)
+        return True
+    except Exception:
+        return False
+
+
 async def _dismiss_protection(page) -> None:
+    if await _pass_recovery_notice(page):
+        return
     if await _js_click_agree(page):
         return
     if "protection_redirect" not in (page.url or "") and "利用規約" not in ((await page.title()) or ""):
@@ -103,6 +121,10 @@ async def _unlock_until_stand(page, timeout_ms: int) -> bool:
         remain_ms = max(1, int((deadline - time.monotonic()) * 1000))
         if await _await_selector(page, STAND_READY, min(remain_ms, 2000)):
             return True
+        if await _pass_recovery_notice(page):
+            if await _await_selector(page, STAND_READY, min(remain_ms, 8000)):
+                return True
+            continue
         if not clicked_agree:
             clicked_agree = await _js_click_agree(page)
             if not clicked_agree and "protection_redirect" in (page.url or ""):
@@ -112,7 +134,7 @@ async def _unlock_until_stand(page, timeout_ms: int) -> bool:
                         return btn ? {disabled: !!btn.disabled, text: (btn.innerText || '').trim()} : null;
                     }"""
                 )
-                print(f"  同意ボタン待機: {state}", flush=True)
+                emit(f"  同意ボタン待機: {state}", flush=True)
         elif await page.locator("iframe[src*='challenges.cloudflare.com'], iframe[src*='turnstile']").count():
             await _click_turnstile(page)
             if await _await_selector(page, STAND_READY, min(remain_ms, 20000)):
@@ -161,13 +183,13 @@ async def _apply_turnstile_token(page, target) -> bool:
         return False
     from src.scraper.capsolver import CapSolverError, solve_turnstile
 
-    print(f"  ブラウザで CapSolver トークンを適用します hall_id={hall_id}", flush=True)
+    emit(f"  ブラウザで CapSolver トークンを適用します hall_id={hall_id}", flush=True)
     try:
         token = await asyncio.to_thread(
             solve_turnstile, target.list_url, site_key, action="scraping_protection"
         )
     except CapSolverError as exc:
-        print(f"  CapSolver では確認を解けませんでした: {exc}", flush=True)
+        emit(f"  CapSolver では確認を解けませんでした: {failure_reason(exc)}", flush=True)
         return False
     origin = target.base_url.rstrip("/")
     try:
@@ -181,7 +203,7 @@ async def _apply_turnstile_token(page, target) -> bool:
             ]
         )
     except Exception as exc:
-        print(f"  Cookie のブラウザ登録をページ内セットに切り替えます: {exc}", flush=True)
+        emit(f"  Cookie のブラウザ登録をページ内セットに切り替えます: {failure_reason(exc)}", flush=True)
     await page.set_extra_http_headers({"cf-turnstile-response": token})
     await page.evaluate(
         """async ({ token, hallId, provider }) => {
@@ -205,7 +227,7 @@ async def _apply_turnstile_token(page, target) -> bool:
         }""",
         {"token": token, "hallId": hall_id, "provider": provider},
     )
-    print("  cf-turnstile-response を Cookie とリクエストヘッダーへセットしました", flush=True)
+    emit("  cf-turnstile-response を Cookie とリクエストヘッダーへセットしました", flush=True)
     await page.wait_for_timeout(3000)
     return True
 
@@ -266,6 +288,7 @@ async def _parse_standlist(page) -> list[dict[str, Any]]:
 
 async def _return_to_list(page, list_url: str) -> None:
     await page.goto(list_url, wait_until="domcontentloaded", timeout=60000)
+    await _pass_recovery_notice(page)
     await _await_selector(page, LIST_READY, 20000)
 
 
@@ -331,7 +354,7 @@ async def _capture_session(context) -> None:
         for item in cookies
         if any(token in str(item.get("name") or "").lower() for token in ("agree", "cf_", "turnstile", "captcha"))
     ]
-    print(f"  セッションCookieを保持: {', '.join(names) or '同意系の名前なし（同一ブラウザで継続）'}", flush=True)
+    emit("  セッションCookieを保持" if names else "  セッションCookieは同意系の名前なし（同一ブラウザで継続）", flush=True)
 
 
 async def _units_via_api(page, hall: Hall, target, models: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
@@ -347,7 +370,7 @@ async def _units_via_api(page, hall: Hall, target, models: list[dict[str, Any]])
     )
     props = _inertia_props(await _page_text(page, stand_url))
     if not props:
-        print("  API再利用は保護ページのままのため、クリック取得を続けます", flush=True)
+        emit("  API再利用は保護ページのままのため、クリック取得を続けます", flush=True)
         return None
     data = props.get("data") if isinstance(props.get("data"), dict) else {}
     key = str(data.get("key") or "") or None
@@ -357,12 +380,12 @@ async def _units_via_api(page, hall: Hall, target, models: list[dict[str, Any]])
     history_day = int(info.get("history_day") or 7)
     if not latest:
         return None
-    print(f"  認証済みセッションで API 取得（対象日 {latest}）", flush=True)
+    emit(f"  認証済みセッションで API 取得（対象日 {latest}）", flush=True)
     machines: list[dict[str, Any]] = []
     for index, model in enumerate(models, start=1):
         name = str(model.get("machine_name") or "")
         machine_enc = str(model.get("machine_name_enc") or urllib.parse.quote(name))
-        print(f"  [{index}/{len(models)}] {name}", flush=True)
+        emit(f"  [{index}/{len(models)}] {name}", flush=True)
         path = (
             f"/n-api/rack_info/machine_list?hall_id={target.hall_id}"
             f"&kind_code={urllib.parse.quote(target.kind_code)}"
@@ -375,10 +398,10 @@ async def _units_via_api(page, hall: Hall, target, models: list[dict[str, Any]])
             body = payload.get("data") if isinstance(payload, dict) else None
             decrypted = _maybe_decrypt(body, key, iv)
         except Exception as exc:
-            print(f"    API取得失敗: {exc}", flush=True)
+            emit(f"    API取得失敗: {failure_reason(exc)}", flush=True)
             continue
         if not isinstance(decrypted, dict):
-            print("    APIの台一覧が空です", flush=True)
+            emit("    APIの台一覧が空です", flush=True)
             continue
         rows = []
         for key_name, unit in decrypted.items():
@@ -389,7 +412,7 @@ async def _units_via_api(page, hall: Hall, target, models: list[dict[str, Any]])
             row = _normalize_unit(unit, hall.name, None)
             if row:
                 rows.append(row)
-        print(f"    取得 {len(rows)} 台", flush=True)
+        emit(f"    取得 {len(rows)} 台", flush=True)
         machines.extend(rows)
     return machines
 
@@ -407,11 +430,23 @@ def _rows_from_dom(units: list[dict[str, Any]], hall_name: str, machine_name: st
 async def fetch_hall_via_browser(page, hall: Hall) -> list[dict[str, Any]]:
     target = target_from_hall(hall)
     started = time.monotonic()
-    print(f"  Playwright でページ内取得: {target.list_url}", flush=True)
+    emit(f"  Playwright でページ内取得: {target.list_url}", flush=True)
+    await page.context.add_cookies(
+        [
+            {
+                "name": RECOVERY_DISMISS_COOKIE,
+                "value": "1",
+                "url": target.origin if target.origin.endswith("/") else target.origin + "/",
+                "secure": True,
+                "sameSite": "None",
+            }
+        ]
+    )
     await page.goto(target.list_url, wait_until="domcontentloaded", timeout=60000)
+    await _pass_recovery_notice(page)
     html = await page.content()
     if is_maintenance_page(html):
-        print("  店舗ステータス：メンテナンス中（CapSolver は使いません）", flush=True)
+        emit("  店舗ステータス：メンテナンス中（CapSolver は使いません）", flush=True)
         raise TeramobaMaintenance("店舗ステータス：メンテナンス中")
     if not await _wait_machine_list(page, target, timeout_ms=LIST_WAIT_MS):
         body = ""
@@ -425,7 +460,7 @@ async def fetch_hall_via_browser(page, hall: Hall) -> list[dict[str, Any]]:
 
     catalog = await _machine_rows(page)
     watched = [item for item in catalog if is_watched(item.get("name"))]
-    print(
+    emit(
         f"  DOM機種数: {len(catalog)} / 監視対象を優先: {len(watched)}（除外 {len(catalog) - len(watched)}）",
         flush=True,
     )
@@ -433,17 +468,17 @@ async def fetch_hall_via_browser(page, hall: Hall) -> list[dict[str, Any]]:
         return []
 
     first_name = str(watched[0].get("name") or "")
-    print(f"  [1/{len(watched)}] {first_name}（認証）", flush=True)
+    emit(f"  [1/{len(watched)}] {first_name}（認証）", flush=True)
     try:
         first_units = await _open_machine(page, first_name, target.list_url, timeout_ms=UNLOCK_WAIT_MS)
     except Exception as exc:
-        print(f"    一覧を開けませんでした: {exc}", flush=True)
+        emit(f"    一覧を開けませんでした: {failure_reason(exc)}", flush=True)
         first_units = []
     machines = _rows_from_dom(first_units, hall.name, first_name)
-    print(f"    取得 {len(machines)} 台", flush=True)
+    emit(f"    取得 {len(machines)} 台", flush=True)
     if not machines:
         elapsed = time.monotonic() - started
-        print(f"  所要 {elapsed:.1f} 秒 / 台データ 0 件", flush=True)
+        emit(f"  所要 {elapsed:.1f} 秒 / 台データ 0 件", flush=True)
         return []
 
     await _capture_session(page.context)
@@ -465,22 +500,22 @@ async def fetch_hall_via_browser(page, hall: Hall) -> list[dict[str, Any]]:
     reused = await _units_via_api(page, hall, target, api_models or []) if api_models else None
     if reused:
         elapsed = time.monotonic() - started
-        print(f"  所要 {elapsed:.1f} 秒 / 台データ {len(reused)} 件", flush=True)
+        emit(f"  所要 {elapsed:.1f} 秒 / 台データ {len(reused)} 件", flush=True)
         return reused
 
     for index, item in enumerate(watched[1:], start=2):
         name = str(item.get("name") or "")
-        print(f"  [{index}/{len(watched)}] {name}", flush=True)
+        emit(f"  [{index}/{len(watched)}] {name}", flush=True)
         try:
             units = await _open_machine(page, name, target.list_url, timeout_ms=STAND_WAIT_MS)
         except Exception as exc:
-            print(f"    一覧を開けませんでした: {exc}", flush=True)
+            emit(f"    一覧を開けませんでした: {failure_reason(exc)}", flush=True)
             continue
         rows = _rows_from_dom(units, hall.name, name)
-        print(f"    取得 {len(rows)} 台", flush=True)
+        emit(f"    取得 {len(rows)} 台", flush=True)
         machines.extend(rows)
     elapsed = time.monotonic() - started
-    print(f"  所要 {elapsed:.1f} 秒 / 台データ {len(machines)} 件", flush=True)
+    emit(f"  所要 {elapsed:.1f} 秒 / 台データ {len(machines)} 件", flush=True)
     return machines
 
 
@@ -490,18 +525,18 @@ async def fetch_halls_via_browser(halls: list[Hall]) -> dict[str, list[dict[str,
     os.environ.setdefault("PLAYWRIGHT_CHANNEL", "chrome")
     profile = teramoba_browser_profile()
     headless = _browser_headless()
-    print(
+    emit(
         f"Playwright 取得を開始（{'headless' if headless else 'headed'} / {len(halls)} 店舗 / プロファイル {profile}）",
         flush=True,
     )
     results: dict[str, list[dict[str, Any]] | Exception] = {}
     async with browser_session(headless=headless, user_data_dir=profile) as session:
         for index, hall in enumerate(halls, start=1):
-            print(f"\n----- ブラウザ取得 [{index}/{len(halls)}] {hall.name} -----", flush=True)
+            emit(f"\n----- ブラウザ取得 [{index}/{len(halls)}] {hall.name} -----", flush=True)
             try:
                 results[hall.name] = await fetch_hall_via_browser(session.page, hall)
             except Exception as exc:
-                print(f"  {hall.name} のページ内取得失敗: {exc}", flush=True)
+                emit(f"  {hall.name} のページ内取得失敗: {failure_reason(exc)}", flush=True)
                 results[hall.name] = exc
             if index < len(halls):
                 await hall_switch_pause()

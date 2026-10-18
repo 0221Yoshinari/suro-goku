@@ -1,5 +1,6 @@
 .venv/
 venv/
+.render-sync/
 __pycache__/
 *.py[cod]
 .Python
@@ -33,5 +34,8 @@ data/tunnel_state.json
 data/lp_inquiries.jsonl
 data/members.json
 data/members.json.tmp
+data/members.sqlite
+data/members.sqlite-journal
+data/*.sqlite
 images/*
 !images/.gitkeep

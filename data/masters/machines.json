@@ -1,0 +1,3301 @@
+{
+  "version": "2.0",
+  "description": "機種マスター。Aタイプは BIG/REG/合算、AT/ART機は初当たり（1/N）を設定別に保持する。",
+  "judgment": {
+    "flag_name": "ALL_HIGH / HIGH_BASE / EARLY_ALERT",
+    "logic": "規定G（既定3000）以上かつ設定6基準 → ALL_HIGH（全6数値）。規定G以上かつ設定4基準（設定6未達） → HIGH_BASE（全456数値）。300G以上かつ規定G未満で設定5または6基準 → EARLY_ALERT（朝一チャンス）。Aタイプは合成・BIG・REGを見る。"
+  },
+  "machines": [
+    {
+      "id": "neo-aim-ex",
+      "name": "ネオアイムジャグラーEX",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "ネオアイム",
+        "ネオAIM",
+        "NEO AIM",
+        "SネオアイムジャグラーEX"
+      ],
+      "published": {
+        "bb_probability": 255.0,
+        "rb_probability": 255.0,
+        "first_hit_denominator": 127.5,
+        "payout_percent": 105.5,
+        "comment": "設定6 メーカー公表値（BB/RB 1/255.0、合算 1/127.5）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 127.5,
+        "rb_probability_threshold": 255.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 127.5,
+            "rb": 255.0
+          },
+          "5": {
+            "synthetic": 136.5,
+            "rb": 273.1
+          },
+          "4": {
+            "synthetic": 147.6,
+            "rb": 321.3
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 127.5,
+      "setting_5": 136.5,
+      "setting_4": 147.6
+    },
+    {
+      "id": "im-juggler-ex",
+      "name": "アイムジャグラーEX",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "SアイムジャグラーEX",
+        "アイムジャグラー"
+      ],
+      "published": {
+        "bb_probability": 255.0,
+        "rb_probability": 255.0,
+        "first_hit_denominator": 127.5,
+        "payout_percent": 105.5,
+        "comment": "設定6 メーカー公表値（合算 1/127.5）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 127.5,
+        "rb_probability_threshold": 255.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 127.5,
+            "rb": 255.0
+          },
+          "5": {
+            "synthetic": 136.5,
+            "rb": 273.1
+          },
+          "4": {
+            "synthetic": 147.6,
+            "rb": 321.3
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 127.5,
+      "setting_5": 136.5,
+      "setting_4": 147.6
+    },
+    {
+      "id": "my-juggler-v",
+      "name": "マイジャグラーV",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "マイジャグラー5",
+        "マイジャグラーⅤ",
+        "SマイジャグラーV"
+      ],
+      "published": {
+        "bb_probability": 229.1,
+        "rb_probability": 229.1,
+        "first_hit_denominator": 114.6,
+        "payout_percent": 109.4,
+        "comment": "設定6 メーカー公表値（合算 1/114.6）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 114.6,
+        "rb_probability_threshold": 229.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 114.6,
+            "rb": 229.1
+          },
+          "5": {
+            "synthetic": 119.0,
+            "rb": 238.3
+          },
+          "4": {
+            "synthetic": 124.2,
+            "rb": 248.5
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 114.6,
+      "setting_5": 119.0,
+      "setting_4": 124.2
+    },
+    {
+      "id": "gogo-juggler-3",
+      "name": "ゴーゴージャグラー3",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "ゴーゴージャグラーⅢ",
+        "Sゴーゴージャグラー3",
+        "ゴーゴー3",
+        "ゴーゴージャグラー３"
+      ],
+      "published": {
+        "bb_probability": 234.9,
+        "rb_probability": 234.9,
+        "first_hit_denominator": 117.4,
+        "payout_percent": 106.5,
+        "comment": "設定6 メーカー公表値（合算 1/117.4）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 117.4,
+        "rb_probability_threshold": 234.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 117.4,
+            "rb": 234.1
+          },
+          "5": {
+            "synthetic": 122.3,
+            "rb": 248.5
+          },
+          "4": {
+            "synthetic": 128.5,
+            "rb": 268.6
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 117.4,
+      "setting_5": 122.3,
+      "setting_4": 128.5
+    },
+    {
+      "id": "funky-juggler-2",
+      "name": "ファンキージャグラー2",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "ファンキージャグラーⅡ",
+        "Sファンキージャグラー2",
+        "ファンキージャグラー２ＫＴ",
+        "ファンキージャグラー2KT",
+        "ファンキージャグラー２"
+      ],
+      "published": {
+        "bb_probability": 219.9,
+        "rb_probability": 262.1,
+        "first_hit_denominator": 119.6,
+        "payout_percent": 109.0,
+        "comment": "設定6 メーカー公表値（合算 1/119.6）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 119.6,
+        "rb_probability_threshold": 239.2,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 119.6,
+            "rb": 239.2
+          },
+          "5": {
+            "synthetic": 124.2,
+            "rb": 252.1
+          },
+          "4": {
+            "synthetic": 129.8,
+            "rb": 273.1
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 119.6,
+      "setting_5": 124.2,
+      "setting_4": 129.8
+    },
+    {
+      "id": "happy-juggler-v3",
+      "name": "ハッピージャグラーV3",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "ハッピージャグラーVⅢ",
+        "ハッピージャグラーⅢ",
+        "SハッピージャグラーV3"
+      ],
+      "published": {
+        "bb_probability": 226.0,
+        "rb_probability": 256.0,
+        "first_hit_denominator": 119.2,
+        "payout_percent": 108.4,
+        "comment": "設定6 メーカー公表値（合算 1/120.0）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 119.2,
+        "rb_probability_threshold": 238.4,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 119.2,
+            "rb": 238.4
+          },
+          "5": {
+            "synthetic": 124.0,
+            "rb": 252.1
+          },
+          "4": {
+            "synthetic": 129.6,
+            "rb": 273.1
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 119.2,
+      "setting_5": 124.0,
+      "setting_4": 129.6
+    },
+    {
+      "id": "ultra-miracle-juggler",
+      "name": "ウルトラミラクルジャグラー",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "ウルミラ",
+        "Sウルトラミラクルジャグラー"
+      ],
+      "published": {
+        "bb_probability": 216.3,
+        "rb_probability": 277.7,
+        "first_hit_denominator": 121.6,
+        "payout_percent": 108.1,
+        "comment": "設定6 メーカー公表値（合算 1/121.6）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 121.6,
+        "rb_probability_threshold": 243.2,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 121.6,
+            "rb": 243.2
+          },
+          "5": {
+            "synthetic": 126.5,
+            "rb": 256.0
+          },
+          "4": {
+            "synthetic": 132.2,
+            "rb": 277.7
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 121.6,
+      "setting_5": 126.5,
+      "setting_4": 132.2
+    },
+    {
+      "id": "mister-juggler",
+      "name": "ミスタージャグラー",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "Sミスタージャグラー"
+      ],
+      "published": {
+        "bb_probability": 237.4,
+        "rb_probability": 237.4,
+        "first_hit_denominator": 118.7,
+        "payout_percent": 107.3,
+        "comment": "設定6 メーカー公表値（合算 1/118.7）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 118.7,
+        "rb_probability_threshold": 237.4,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 118.7,
+            "rb": 237.4
+          },
+          "5": {
+            "synthetic": 123.4,
+            "rb": 250.3
+          },
+          "4": {
+            "synthetic": 129.0,
+            "rb": 270.8
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 118.7,
+      "setting_5": 123.4,
+      "setting_4": 129.0
+    },
+    {
+      "id": "juggler-girls-ss",
+      "name": "ジャグラーガールズSS",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "ジャグラーガールズ",
+        "SジャグラーガールズSS"
+      ],
+      "published": {
+        "bb_probability": 226.0,
+        "rb_probability": 252.1,
+        "first_hit_denominator": 119.2,
+        "payout_percent": 107.5,
+        "comment": "設定6 メーカー公表値（合算 1/119.2）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 119.2,
+        "rb_probability_threshold": 238.4,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 119.2,
+            "rb": 238.4
+          },
+          "5": {
+            "synthetic": 124.0,
+            "rb": 252.1
+          },
+          "4": {
+            "synthetic": 129.6,
+            "rb": 273.1
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 119.2,
+      "setting_5": 124.0,
+      "setting_4": 129.6
+    },
+    {
+      "id": "prism-nana",
+      "name": "プリズムナナ",
+      "series": "スマスロ",
+      "maker": "カルミナ",
+      "aliases": [
+        "スマホナ",
+        "Lプリズムナナ",
+        "スマスロプリズムナナ",
+        "まじかるすいーとプリズムナナ"
+      ],
+      "published": {
+        "first_hit_denominator": 278.6,
+        "payout_percent": 114.9,
+        "comment": "設定6 初当たり確率 1/278.6"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 278.6,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 278.6,
+            "first_hit": 278.6
+          },
+          "5": {
+            "synthetic": 298.1,
+            "first_hit": 298.1
+          },
+          "4": {
+            "synthetic": 323.2,
+            "first_hit": 323.2
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 278.6,
+      "setting_5": 298.1,
+      "setting_4": 323.2
+    },
+    {
+      "id": "valvrave-2",
+      "name": "革命機ヴァルヴレイヴ2",
+      "series": "スマスロ",
+      "maker": "SANKYO",
+      "aliases": [
+        "ヴァルヴレイヴ",
+        "ヴァルヴレイヴ2",
+        "Lヴァルヴレイヴ2",
+        "スマスロヴァルヴレイヴ",
+        "Lパチスロ革命機ヴァルヴレイヴ2",
+        "Lパチスロ 革命機ヴァルヴレイヴ2（Lヴヴヴ2）",
+        "Lヴヴヴ2"
+      ],
+      "published": {
+        "first_hit_denominator": 456.0,
+        "payout_percent": 114.9,
+        "comment": "設定6 初当たり合算 1/456（革命・決戦・AT直撃の合算）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 456.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 456.0,
+            "first_hit": 456.0
+          },
+          "5": {
+            "synthetic": 487.9,
+            "first_hit": 487.9
+          },
+          "4": {
+            "synthetic": 529.0,
+            "first_hit": 529.0
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 456.0,
+      "setting_5": 487.9,
+      "setting_4": 529.0
+    },
+    {
+      "id": "hokuto-no-ken",
+      "name": "スマスロ北斗の拳",
+      "series": "スマスロ",
+      "maker": "Sammy",
+      "aliases": [
+        "L北斗の拳",
+        "Lスマスロ北斗の拳"
+      ],
+      "published": {
+        "first_hit_denominator": 235.1,
+        "payout_percent": 113.0,
+        "comment": "設定6 AT初当たり（バトルボーナス）1/235.1"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 235.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 235.1,
+            "first_hit": 235.1
+          },
+          "5": {
+            "synthetic": 251.6,
+            "first_hit": 251.6
+          },
+          "4": {
+            "synthetic": 272.7,
+            "first_hit": 272.7
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 235.1,
+      "setting_5": 251.6,
+      "setting_4": 272.7
+    },
+    {
+      "id": "hanabi",
+      "name": "スマスロハナビ",
+      "series": "スマスロ",
+      "maker": "Pioneer",
+      "aliases": [
+        "ハナビ",
+        "Lハナビ",
+        "スマスロ ハナビ",
+        "Lスマスロハナビ"
+      ],
+      "published": {
+        "bb_probability": 273.1,
+        "rb_probability": 282.5,
+        "first_hit_denominator": 138.8,
+        "payout_percent": 106.4,
+        "comment": "設定6 ボーナス合算 1/138.8"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 138.8,
+        "rb_probability_threshold": 282.5,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 138.8,
+            "rb": 282.5,
+            "first_hit": 138.8
+          },
+          "5": {
+            "synthetic": 148.5,
+            "rb": 302.3,
+            "first_hit": 148.5
+          },
+          "4": {
+            "synthetic": 161.0,
+            "rb": 355.9,
+            "first_hit": 161.0
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 138.8,
+      "setting_5": 148.5,
+      "setting_4": 161.0
+    },
+    {
+      "id": "disc-up-ur",
+      "name": "ディスクアップ ULTRAREMIX",
+      "series": "スマスロ",
+      "maker": "Sammy",
+      "aliases": [
+        "ディスクアップ",
+        "ウルリミ",
+        "A-SLOT+ ディスクアップ ULTRAREMIX",
+        "スマスロディスクアップ"
+      ],
+      "published": {
+        "bb_probability": 260.9,
+        "rb_probability": 334.1,
+        "first_hit_denominator": 146.5,
+        "payout_percent": 107.7,
+        "comment": "設定6 ボーナス合算 1/146.5"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 146.5,
+        "rb_probability_threshold": 334.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 146.5,
+            "rb": 334.1,
+            "first_hit": 146.5
+          },
+          "5": {
+            "synthetic": 156.8,
+            "rb": 357.5,
+            "first_hit": 156.8
+          },
+          "4": {
+            "synthetic": 169.9,
+            "rb": 421.0,
+            "first_hit": 169.9
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 146.5,
+      "setting_5": 156.8,
+      "setting_4": 169.9
+    },
+    {
+      "id": "magia-record",
+      "name": "マギアレコード",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "マギレコ",
+        "スマスロマギアレコード",
+        "Lマギアレコード",
+        "スマスロ マギアレコード 魔法少女まどか☆マギカ外伝",
+        "スマスロマギアレコード魔法少女まどか☆マギカ外伝"
+      ],
+      "published": {
+        "first_hit_denominator": 184.3,
+        "comment": "設定6 ボーナス初当たり合算 1/184.3"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 184.3,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 184.3,
+            "first_hit": 184.3
+          },
+          "5": {
+            "synthetic": 197.2,
+            "first_hit": 197.2
+          },
+          "4": {
+            "synthetic": 213.8,
+            "first_hit": 213.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 184.3,
+      "setting_5": 197.2,
+      "setting_4": 213.8
+    },
+    {
+      "id": "million-god-kiseki",
+      "name": "Lミリオンゴッド－神々の軌跡－",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スマスロ ミリオンゴッド-神々の軌跡-",
+        "ミリオンゴッド神々の軌跡",
+        "Lミリオンゴッド"
+      ],
+      "published": {
+        "first_hit_denominator": 295.0,
+        "comment": "設定6 AT初当たり 1/295"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 295.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 295.0,
+            "first_hit": 295.0
+          },
+          "5": {
+            "synthetic": 315.7,
+            "first_hit": 315.7
+          },
+          "4": {
+            "synthetic": 342.2,
+            "first_hit": 342.2
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 295.0,
+      "setting_5": 315.7,
+      "setting_4": 342.2
+    },
+    {
+      "id": "oki-doki-black",
+      "name": "沖ドキ！ＢＬＡＣＫ",
+      "series": "沖ドキ",
+      "maker": "",
+      "aliases": [
+        "沖ドキBLACK",
+        "沖ドキ！BLACK",
+        "S沖ドキ！BLACK"
+      ],
+      "published": {
+        "first_hit_denominator": 243.1,
+        "comment": "設定6 ボーナス合算 1/243.1"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 243.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 243.1,
+            "first_hit": 243.1
+          },
+          "5": {
+            "synthetic": 260.1,
+            "first_hit": 260.1
+          },
+          "4": {
+            "synthetic": 282.0,
+            "first_hit": 282.0
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 243.1,
+      "setting_5": 260.1,
+      "setting_4": 282.0
+    },
+    {
+      "id": "hokuto-tensei-2",
+      "name": "スマスロ 北斗の拳 転生の章2",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "北斗の拳転生の章2",
+        "北斗転生2",
+        "Lスマスロ北斗の拳転生の章2"
+      ],
+      "published": {
+        "first_hit_denominator": 273.1,
+        "comment": "設定6 AT初当たり 1/273.1"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 273.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 273.1,
+            "first_hit": 273.1
+          },
+          "5": {
+            "synthetic": 292.2,
+            "first_hit": 292.2
+          },
+          "4": {
+            "synthetic": 316.8,
+            "first_hit": 316.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 273.1,
+      "setting_5": 292.2,
+      "setting_4": 316.8
+    },
+    {
+      "id": "monkey-turn-v",
+      "name": "Lスマスロ モンキーターンＶ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スマスロモンキーターンV",
+        "モンキーターンV",
+        "LスマスロモンキーターンV",
+        "Lスマスロ モンキーターンV",
+        "モンキーターンＶ"
+      ],
+      "published": {
+        "first_hit": {
+          "1": 299.8,
+          "2": 295.5,
+          "4": 258.8,
+          "5": 235.7,
+          "6": 222.9
+        },
+        "payout_percent": {
+          "1": 97.9,
+          "2": 98.9,
+          "4": 104.5,
+          "5": 110.2,
+          "6": 114.9
+        },
+        "comment": "AT初当たりの公表値（設定6=1/222.9）。判定はサイトセブンRB回数（実質初当たり）を使う。",
+        "first_hit_denominator": 222.9
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 222.9,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "first_hit": 222.9,
+            "synthetic": 222.9
+          },
+          "5": {
+            "first_hit": 235.7,
+            "synthetic": 235.7
+          },
+          "4": {
+            "first_hit": 258.8,
+            "synthetic": 258.8
+          },
+          "2": {
+            "first_hit": 295.5,
+            "synthetic": 295.5
+          },
+          "1": {
+            "first_hit": 299.8,
+            "synthetic": 299.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 222.9,
+      "setting_5": 235.7,
+      "setting_4": 258.8,
+      "setting_2": 295.5,
+      "setting_1": 299.8
+    },
+    {
+      "id": "shinuchi-yoshimune",
+      "name": "L真打吉宗",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スマスロ真打吉宗",
+        "真打吉宗",
+        "Lスマスロ真打吉宗"
+      ],
+      "published": {
+        "first_hit_denominator": 354.9,
+        "comment": "設定6 AT初当たり 1/354.9"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 354.9,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 354.9,
+            "first_hit": 354.9
+          },
+          "5": {
+            "synthetic": 379.7,
+            "first_hit": 379.7
+          },
+          "4": {
+            "synthetic": 411.7,
+            "first_hit": 411.7
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 354.9,
+      "setting_5": 379.7,
+      "setting_4": 411.7
+    },
+    {
+      "id": "tokyo-ghoul",
+      "name": "L 東京喰種",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "L東京喰種",
+        "スマスロ東京喰種",
+        "東京喰種"
+      ],
+      "published": {
+        "first_hit_denominator": 203.7,
+        "comment": "サイトセブンRB列はCZ合算。設定4/5/6はCZ確率 1/233.1 / 1/216.4 / 1/203.7"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 203.7,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 203.7,
+            "first_hit": 203.7
+          },
+          "5": {
+            "synthetic": 216.4,
+            "first_hit": 216.4
+          },
+          "4": {
+            "synthetic": 233.1,
+            "first_hit": 233.1
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_4": 233.1,
+      "setting_5": 216.4,
+      "setting_6": 203.7
+    },
+    {
+      "id": "karakuri-circus-2",
+      "name": "Lからくりサーカス2",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スマスロからくりサーカス2",
+        "からくりサーカス2"
+      ],
+      "published": {
+        "first_hit_denominator": 447.0,
+        "comment": "設定6 AT初当たり 1/447（シリーズ解析値）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 447.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 447.0,
+            "first_hit": 447.0
+          },
+          "5": {
+            "synthetic": 478.3,
+            "first_hit": 478.3
+          },
+          "4": {
+            "synthetic": 518.5,
+            "first_hit": 518.5
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 447.0,
+      "setting_5": 478.3,
+      "setting_4": 518.5
+    },
+    {
+      "id": "kabaneri-kaimon",
+      "name": "L甲鉄城のカバネリ海門決戦",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スマスロ甲鉄城のカバネリ海門決戦",
+        "カバネリ海門決戦"
+      ],
+      "published": {
+        "first_hit_denominator": 195.1,
+        "comment": "サイトセブン集計はボーナス初当たり。設定4/5/6は 1/214.0 / 1/203.2 / 1/195.1（ST 1/318.5 は使わない）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 195.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 195.1,
+            "first_hit": 195.1
+          },
+          "5": {
+            "synthetic": 203.2,
+            "first_hit": 203.2
+          },
+          "4": {
+            "synthetic": 214.0,
+            "first_hit": 214.0
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "bb",
+      "target_count": "bonus",
+      "setting_4": 214.0,
+      "setting_5": 203.2,
+      "setting_6": 195.1
+    },
+    {
+      "id": "happy-juggler-8",
+      "name": "ハッピージャグラーＶＩＩＩ",
+      "series": "ジャグラー",
+      "maker": "",
+      "aliases": [
+        "ハッピージャグラーVIII",
+        "ハッピージャグラー8",
+        "SハッピージャグラーVIII"
+      ],
+      "published": {
+        "first_hit_denominator": 119.2,
+        "comment": "設定6 合算の公表値近傍 1/119.2"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 119.2,
+        "rb_probability_threshold": 238.4,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 119.2,
+            "rb": 238.4
+          },
+          "5": {
+            "synthetic": 124.0,
+            "rb": 252.1
+          },
+          "4": {
+            "synthetic": 129.6,
+            "rb": 273.1
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 119.2,
+      "setting_5": 124.0,
+      "setting_4": 129.6
+    },
+    {
+      "id": "valvrave-1",
+      "name": "Lパチスロ革命機ヴァルヴレイヴ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "革命機ヴァルヴレイヴ",
+        "Lヴァルヴレイヴ"
+      ],
+      "published": {
+        "first_hit_denominator": 456.0,
+        "comment": "設定6 初当たり合算 1/456（シリーズ公表）"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 456.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 456.0,
+            "first_hit": 456.0
+          },
+          "5": {
+            "synthetic": 487.9,
+            "first_hit": 487.9
+          },
+          "4": {
+            "synthetic": 529.0,
+            "first_hit": 529.0
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 456.0,
+      "setting_5": 487.9,
+      "setting_4": 529.0
+    },
+    {
+      "id": "sengoku-otome-5",
+      "name": "L戦国乙女5 業火を穿つ宿焔の双刃",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "戦国乙女5"
+      ],
+      "published": {
+        "first_hit_denominator": 319.7,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 319.7,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 319.7,
+            "first_hit": 319.7
+          },
+          "5": {
+            "synthetic": 342.1,
+            "first_hit": 342.1
+          },
+          "4": {
+            "synthetic": 370.9,
+            "first_hit": 370.9
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 319.7,
+      "setting_5": 342.1,
+      "setting_4": 370.9
+    },
+    {
+      "id": "sao-2",
+      "name": "ソードアート・オンラインII",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ソードアートオンラインII",
+        "SAO2"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "oki-doki-gold",
+      "name": "沖ドキ！ＧＯＬＤ",
+      "series": "沖ドキ",
+      "maker": "",
+      "aliases": [
+        "沖ドキGOLD",
+        "沖ドキ！GOLD"
+      ],
+      "published": {
+        "first_hit_denominator": 149.6,
+        "comment": "設定6 ボーナス合算の公表近傍 1/149.6"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 149.6,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 149.6,
+            "first_hit": 149.6
+          },
+          "5": {
+            "synthetic": 160.1,
+            "first_hit": 160.1
+          },
+          "4": {
+            "synthetic": 173.5,
+            "first_hit": 173.5
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 149.6,
+      "setting_5": 160.1,
+      "setting_4": 173.5
+    },
+    {
+      "id": "yabaciba",
+      "name": "Lヤバチバ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ヤバチバ"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "karakuri-circus-1",
+      "name": "Lパチスロからくりサーカス",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スマスロからくりサーカス",
+        "からくりサーカス"
+      ],
+      "published": {
+        "first_hit_denominator": 447.0,
+        "comment": "設定6 AT初当たり 1/447"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 447.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 447.0,
+            "first_hit": 447.0
+          },
+          "5": {
+            "synthetic": 478.3,
+            "first_hit": 478.3
+          },
+          "4": {
+            "synthetic": 518.5,
+            "first_hit": 518.5
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 447.0,
+      "setting_5": 478.3,
+      "setting_4": 518.5
+    },
+    {
+      "id": "oki-doki-gorgeous",
+      "name": "沖ドキ！ゴージャス(25Φ)",
+      "series": "沖ドキ",
+      "maker": "",
+      "aliases": [
+        "沖ドキゴージャス",
+        "沖ドキ！ゴージャス"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "lotis",
+      "name": "Lローティス",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ローティス"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "oki-doki-duo",
+      "name": "スマスロ 沖ドキ!DUO アンコール",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "沖ドキDUO",
+        "沖ドキ!DUO"
+      ],
+      "published": {
+        "first_hit_denominator": 220.0,
+        "comment": "設定6 初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 220.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 220.0,
+            "first_hit": 220.0
+          },
+          "5": {
+            "synthetic": 235.4,
+            "first_hit": 235.4
+          },
+          "4": {
+            "synthetic": 255.2,
+            "first_hit": 255.2
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 220.0,
+      "setting_5": 235.4,
+      "setting_4": 255.2
+    },
+    {
+      "id": "mh-rise",
+      "name": "スマスロ モンスターハンターライズ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "モンハンライズ",
+        "Lモンスターハンターライズ"
+      ],
+      "published": {
+        "first_hit_denominator": 299.0,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 299.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 299.0,
+            "first_hit": 299.0
+          },
+          "5": {
+            "synthetic": 319.9,
+            "first_hit": 319.9
+          },
+          "4": {
+            "synthetic": 346.8,
+            "first_hit": 346.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 299.0,
+      "setting_5": 319.9,
+      "setting_4": 346.8
+    },
+    {
+      "id": "chibariyo-2",
+      "name": "Lチバリヨ２",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "チバリヨ2",
+        "Lチバリヨ2"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "kaguya-sama",
+      "name": "Lスマスロかぐや様は告らせたい",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "かぐや様は告らせたい"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "jashin-chan",
+      "name": "邪神ちゃんドロップキック",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "邪神ちゃん"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "yajikita",
+      "name": "Lやじきた道中記参る！",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "やじきた道中記参る"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "world-dai-star",
+      "name": "ワールドダイスター",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "Lワールドダイスター"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "super-rio-ace-2",
+      "name": "Lスーパーリオエース2",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スーパーリオエース2"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "big-dream-gp",
+      "name": "Lビッグドリーム THE GOLDEN PUSHER",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ビッグドリーム"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "bakemonogatari",
+      "name": "スマスロ 化物語",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "化物語",
+        "L化物語"
+      ],
+      "published": {
+        "first_hit_denominator": 319.0,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 319.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 319.0,
+            "first_hit": 319.0
+          },
+          "5": {
+            "synthetic": 341.3,
+            "first_hit": 341.3
+          },
+          "4": {
+            "synthetic": 370.0,
+            "first_hit": 370.0
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 319.0,
+      "setting_5": 341.3,
+      "setting_4": 370.0
+    },
+    {
+      "id": "sengoku-otome-4",
+      "name": "L戦国乙女４　戦乱に閃く炯眼の軍師",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "戦国乙女4"
+      ],
+      "published": {
+        "first_hit_denominator": 319.7,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 319.7,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 319.7,
+            "first_hit": 319.7
+          },
+          "5": {
+            "synthetic": 342.1,
+            "first_hit": 342.1
+          },
+          "4": {
+            "synthetic": 370.9,
+            "first_hit": 370.9
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 319.7,
+      "setting_5": 342.1,
+      "setting_4": 370.9
+    },
+    {
+      "id": "street-fighter-6",
+      "name": "ストリートファイター6",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スト6",
+        "Lストリートファイター6"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "nangoku-special",
+      "name": "L南国育ちSPECIAL",
+      "series": "ボーナス",
+      "maker": "",
+      "aliases": [
+        "南国育ちSPECIAL"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "sengoku-collection-6",
+      "name": "戦国コレクション6",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "戦コレ6"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "ghost-in-the-shell",
+      "name": "スマスロ 攻殻機動隊",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "攻殻機動隊"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "god-eater-resurrection",
+      "name": "Lスマスロ　ゴッドイーター　リザレクション",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ゴッドイーターリザレクション"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "zeni-gata-5",
+      "name": "Ｌ主役は銭形５",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "主役は銭形5",
+        "L主役は銭形5"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "iza-bancho",
+      "name": "いざ！番長",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "いざ番長"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "shaman-king",
+      "name": "スマスロ シャーマンキング",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "シャーマンキング"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "konosuba",
+      "name": "この素晴らしい世界に祝福を！",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "このすば"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "ultraman",
+      "name": "L ULTRAMAN最終決戦",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ULTRAMAN最終決戦"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "index-2",
+      "name": "Lとある魔術の禁書目録2",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "とある魔術の禁書目録2"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "takt-op",
+      "name": "Lタクトオーパス デスティニー",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "タクトオーパス"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "biohazard-re3",
+      "name": "LバイオハザードRE：3",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "バイオハザードRE:3"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "animal-slot-docchi",
+      "name": "アニマルスロットドッチ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ドッチ"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "isekai-quartet",
+      "name": "異世界かるてっと",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "異世界カルテット"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "akudama-drive",
+      "name": "Lアクダマドライブ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "アクダマドライブ"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "b-thunder-v",
+      "name": "LBサンダーV",
+      "series": "ボーナス",
+      "maker": "",
+      "aliases": [
+        "BサンダーV",
+        "サンダーV"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "tekken-6",
+      "name": "スマスロ鉄拳6",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "鉄拳6"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "b-shake",
+      "name": "LB SHAKE BONUS TRIGGER",
+      "series": "ボーナス",
+      "maker": "",
+      "aliases": [
+        "B SHAKE",
+        "SHAKE BONUS TRIGGER"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "tokyo-revengers",
+      "name": "スマスロ 東京リベンジャーズ(リベスロ)",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "リベスロ",
+        "東京リベンジャーズ"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "onimusha-3",
+      "name": "スマスロ 新鬼武者3",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "新鬼武者3"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "clea-bonus-trigger",
+      "name": "LBクレアの秘宝伝ボーナストリガーver.",
+      "series": "ボーナス",
+      "maker": "",
+      "aliases": [
+        "クレアの秘宝伝ボーナストリガー"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "azur-lane",
+      "name": "L アズールレーン THE ANIMATION",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "アズールレーン"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "tolove-trance",
+      "name": "LToLOVEるダークネス TRANCE ver.8.7",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ToLOVEるダークネス TRANCE"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "kaiji-kyoyen",
+      "name": "回胴黙示録カイジ 狂宴",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "カイジ狂宴"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "yoshimune",
+      "name": "吉宗",
+      "series": "吉宗",
+      "maker": "",
+      "aliases": [
+        "S吉宗"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "shima-musume",
+      "name": "L 島娘",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "島娘"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "super-blackjack",
+      "name": "スマスロスーパーブラックジャック",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "スーパーブラックジャック"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "ikki-tousen",
+      "name": "L 真・一騎当千",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "真一騎当千"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "hokuto-musou",
+      "name": "Lスマスロ真・北斗無双",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "真北斗無双",
+        "スマスロ真北斗無双"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "bofuri",
+      "name": "L痛いのは嫌なので防御力に極振りしたいと思います。",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "防振り"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "tolove-darkness",
+      "name": "L Ｔｏ　ＬＯＶＥるダークネス",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ToLOVEるダークネス"
+      ],
+      "published": {
+        "first_hit_denominator": 199.0,
+        "comment": "設定6 ボーナス合算の公表近傍"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 199.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 199.0,
+            "first_hit": 199.0
+          },
+          "5": {
+            "synthetic": 212.9,
+            "first_hit": 212.9
+          },
+          "4": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 199.0,
+      "setting_5": 212.9,
+      "setting_4": 230.8
+    },
+    {
+      "id": "enen-no-shobotai",
+      "name": "Lパチスロ炎炎ノ消防隊",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "炎炎ノ消防隊"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "basilisk-tenzen",
+      "name": "Lスマスロバジリスク甲賀忍法帖絆2 天膳BLACK EDITION",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "絆2天膳",
+        "バジリスク絆2天膳"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "index-1",
+      "name": "Lスマスロとある魔術の禁書目録",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "とある魔術の禁書目録"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "tensei-slime",
+      "name": "Lスマスロ転生したらスライムだった件",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "転スラ"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "009-recyborg",
+      "name": "L ００９　ＲＥ：ＣＹＢＯＲＧ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "009 RE:CYBORG"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "kinnikuman",
+      "name": "Lスマスロ　キン肉マン～７人の悪魔超人編～",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "キン肉マン7人の悪魔超人編"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    },
+    {
+      "id": "kabaneri-1",
+      "name": "パチスロ　甲鉄城のカバネリ",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "甲鉄城のカバネリ"
+      ],
+      "published": {
+        "first_hit_denominator": 299.0,
+        "comment": "設定6 初当たりの解析概算"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 299.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 299.0,
+            "first_hit": 299.0
+          },
+          "5": {
+            "synthetic": 319.9,
+            "first_hit": 319.9
+          },
+          "4": {
+            "synthetic": 346.8,
+            "first_hit": 346.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 299.0,
+      "setting_5": 319.9,
+      "setting_4": 346.8
+    },
+    {
+      "id": "higurashi-2",
+      "name": "パチスロひぐらしのなく頃に祭２",
+      "series": "スマスロ",
+      "maker": "",
+      "aliases": [
+        "ひぐらしのなく頃に祭2"
+      ],
+      "published": {
+        "first_hit_denominator": 280.0,
+        "comment": "設定6 AT初当たりの仮置き 1/280"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 280.0,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 280.0,
+            "first_hit": 280.0
+          },
+          "5": {
+            "synthetic": 299.6,
+            "first_hit": 299.6
+          },
+          "4": {
+            "synthetic": 324.8,
+            "first_hit": 324.8
+          }
+        }
+      },
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "setting_6": 280.0,
+      "setting_5": 299.6,
+      "setting_4": 324.8
+    }
+  ],
+  "schema": {
+    "type": "A = BIG/REG/合算判定、AT = target_count に応じた回数判定",
+    "target_count": "bonus=BB（無ければART/RB）、st_at=ART、cz=RB。設定4/5/6は同じカウントの公表1/N。",
+    "setting_4": "設定4の対象確率 1/N",
+    "setting_5": "設定5の対象確率 1/N",
+    "setting_6": "設定6の対象確率 1/N",
+    "add_machine": "CSV（config/machines_settings.csv）を編集して --import するか、machines 配列にオブジェクトを追加する。"
+  }
+}

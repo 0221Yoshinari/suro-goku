@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import time
 import urllib.error
@@ -124,10 +125,13 @@ def _binary(name: str, env_key: str, fallback: str) -> str:
 
 def _cloudflared_command(port: int) -> list[str]:
     binary = _binary("cloudflared", "CLOUDFLARED_BIN", "/opt/homebrew/bin/cloudflared")
+    # QUIC は IPv6 の UDP を優先する。経路が一瞬欠けるとクイックトンネルのホスト名ごと破棄される。
     return [
         binary,
         "tunnel",
         "--no-autoupdate",
+        "--edge-ip-version",
+        "4",
         "--url",
         f"http://127.0.0.1:{port}",
     ]
@@ -176,6 +180,7 @@ def _start_process(command: list[str], provider: str, port: int) -> str:
         offset = log.tell()
         proc = subprocess.Popen(
             command,
+            stdin=subprocess.DEVNULL,
             stdout=log,
             stderr=subprocess.STDOUT,
             start_new_session=True,
@@ -222,9 +227,23 @@ def public_url_reachable(url: str, timeout: float = 8) -> bool | None:
             return int(response.status) < 500
     except urllib.error.HTTPError as exc:
         return int(exc.code) < 500
+    except (TimeoutError, socket.timeout):
+        return None
     except urllib.error.URLError as exc:
-        reason = str(exc.reason).lower()
-        if "nodename" in reason or "name or service" in reason or "temporary failure in name resolution" in reason:
+        reason = exc.reason
+        if isinstance(reason, (TimeoutError, socket.timeout)):
+            return None
+        text = str(reason).lower()
+        if any(
+            token in text
+            for token in (
+                "nodename",
+                "name or service",
+                "temporary failure in name resolution",
+                "timed out",
+                "timeout",
+            )
+        ):
             return None
         return False
     except Exception:
@@ -238,10 +257,25 @@ def _registration_is_current(provider: str) -> bool:
     return "Registered tunnel connection" in text
 
 
+def _connector_pid() -> int:
+    try:
+        return int(_read_state().get("pid") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _tunnel_still_serving(url: str) -> bool:
+    """生きているコネクタは、自己診断の失敗では捨てない。
+
+    同じマシンからクイックトンネルへ叩くとタイムアウトすることがある。
+    それを障害とみなしてプロセスを止めると、公開中のホスト名が二度と戻らない。
+    """
     provider = str(_read_state().get("provider") or "")
-    if provider and tunnel_log_is_dead(_log_since_last_start(provider)):
+    log = _log_since_last_start(provider) if provider else ""
+    if provider and tunnel_log_is_dead(log):
         return False
+    if _connector_pid() and _pid_alive(_connector_pid()):
+        return True
     probed = public_url_reachable(url)
     if probed is True:
         return True
@@ -252,6 +286,29 @@ def _tunnel_still_serving(url: str) -> bool:
     if probed is True:
         return True
     return bool(provider and probed is None and _registration_is_current(provider))
+
+
+def local_tunnel_pids(ps_output: str, port: int | None = None) -> list[int]:
+    """cloudflared のクイックトンネルのプロセスID。port を渡すとその待受だけ。"""
+    pids: list[int] = []
+    for line in ps_output.splitlines():
+        stripped = line.strip()
+        if "cloudflared" not in stripped or "--url" not in stripped:
+            continue
+        if port is not None and f"127.0.0.1:{port}" not in stripped and f"localhost:{port}" not in stripped:
+            continue
+        head = stripped.split(None, 1)[0]
+        if head.isdigit():
+            pids.append(int(head))
+    return pids
+
+
+def _quick_tunnel_pids(port: int | None = None) -> list[int]:
+    try:
+        output = subprocess.check_output(["ps", "-ax", "-o", "pid=,command="], text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return local_tunnel_pids(output, port)
 
 
 def _stop_process(pid: int) -> None:
@@ -269,20 +326,34 @@ def _stop_process(pid: int) -> None:
             time.sleep(0.2)
 
 
+def _issued_public_url(port: int) -> str | None:
+    """一度出したホスト名。プロセスが落ちていても、別のURLへ張り替えない。"""
+    state = _read_state()
+    url = str(state.get("url") or "")
+    if not url.startswith("https://"):
+        return None
+    try:
+        saved_port = int(state.get("local_port") or 0)
+    except (TypeError, ValueError):
+        saved_port = 0
+    if saved_port and saved_port != port:
+        return None
+    return url
+
+
 def _ensure_public_url_locked(port: int) -> tuple[str, bool]:
-    existing = current_public_url(port)
-    if existing and _tunnel_still_serving(existing):
-        return existing, False
+    issued = _issued_public_url(port)
+    if issued:
+        return issued, False
+    # まだ一度も発行していないときだけ作る。作り直すとホスト名が変わる。
+    for pid in _quick_tunnel_pids(port):
+        _stop_process(pid)
     state = _read_state()
     try:
         pid = int(state.get("pid") or 0)
     except (TypeError, ValueError):
         pid = 0
-    try:
-        saved_port = int(state.get("local_port") or 0)
-    except (TypeError, ValueError):
-        saved_port = 0
-    if pid and (not saved_port or saved_port == port):
+    if pid:
         _stop_process(pid)
     provider = _provider()
     if provider == "ngrok":
@@ -303,7 +374,7 @@ def _ensure_public_url_locked(port: int) -> tuple[str, bool]:
 
 
 def ensure_public_url(port: int) -> tuple[str, bool]:
-    """生きているトンネルがあればそのURLを返し、切れていれば作り直す。"""
+    """発行済みの公開URLを返す。ホスト名の張り替えはしない。"""
     from src.run_gate import require_acquisition
 
     require_acquisition("外部公開")
@@ -318,25 +389,22 @@ def ensure_public_url(port: int) -> tuple[str, bool]:
 
 
 def supervise_public_url(port: int, interval: float = 45) -> None:
-    """公開URLが切れたら再発行し続ける。"""
-    while True:
-        try:
-            url, created = ensure_public_url(port)
-            print(url, flush=True)
-            if created:
-                announce_public_url(url)
-        except Exception as exc:
-            print(f"外部公開トンネルを開始できませんでした: {exc}", flush=True)
-        time.sleep(interval)
+    """互換のための入口。発行済みURLは監視せず、張り替えもしない。"""
+    del interval
+    url, created = ensure_public_url(port)
+    print(url, flush=True)
+    if created:
+        announce_public_url(url)
 
 
 def announce_public_url(url: str) -> None:
     from src.notify.discord import send_webhook
 
+    page = url.rstrip("/") + "/lp"
     message = (
-        "**外部公開URL**\n"
-        "同じWi-Fiの外からも、リンクをタップするとダッシュボードを開けます。\n"
-        f"[ダッシュボードを開く]({url})"
+        "**紹介ページ**\n"
+        "リンクを知っている人は、どの回線からでも開けます。\n"
+        f"[紹介ページを開く]({page})"
     )
     try:
         send_webhook(message)

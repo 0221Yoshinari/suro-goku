@@ -1,0 +1,27 @@
+{
+  "last_attempt_at": "2026-10-18T23:30:00+09:00",
+  "last_result": "waiting",
+  "completed_on": "2026-10-05",
+  "target_date": "2026-10-06",
+  "completed_at": "2026-10-05T19:38:34+09:00",
+  "target_count": 13,
+  "handles": [
+    "PatiSlodays"
+  ],
+  "last_error": "",
+  "next_run_at": "2026-10-19T18:30:00+09:00",
+  "notified_for": "2026-10-05",
+  "accounts_done": {
+    "date": "2026-10-18",
+    "handles": [
+      "PatiSlodays",
+      "touslot_777",
+      "kansai-sloeve"
+    ],
+    "counts": {
+      "PatiSlodays": 7,
+      "touslot_777": 12,
+      "kansai-sloeve": 4
+    }
+  }
+}

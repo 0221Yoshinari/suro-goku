@@ -1,5 +1,5 @@
 {
-  "max_workers": 18,
+  "max_workers": 24,
   "pause_min_sec": 2.0,
   "pause_max_sec": 3.0,
   "comment": "玉屋グループ12店舗・プラザ系列7店舗・123グループ2店舗はテラモバ2直取得。ワンダーランド系列は台データオンラインのモバイル画面。D'station 7店舗とゾーン姪浜・メガフェイス博多はP'sCUBE。その他は GOGOアリーナ天神（Goraggio）・ブーム天神（テラモバ2）。サイトセブン店舗は enabled=false。includes_art_in_total_games は総回転にART/AT中ゲームを含むか（玉屋=false、プラザと123=true）。マルハン系列は source（source_type でも可）を maruhan_app にし、maruhan_hall_id を付ける。通信先は直下の maruhan_app、または店舗ごとの maruhan_app で上書きする。ログインは使わない。マルハンはアプリ専用データのため、定期取得ではスキップする。P'sCUBE は Cloudflare ブロックのため、定期取得ではスキップする。",
@@ -10801,11 +10801,11 @@
         "グランドシップ"
       ],
       "enabled": true,
-      "group": "other",
+      "group": "grand",
       "prefecture": "tokyo",
       "area": "tokyo_east",
-      "source": "teramoba",
-      "source_url": "https://gramoba.pt.teramoba2.com/ship/rack_info_kt?kind_code=21",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/100673",
       "teramoba": {
         "base_url": "https://gramoba.pt.teramoba2.com",
         "department": "ship",
@@ -10819,7 +10819,12 @@
       "includes_art_in_total_games": false,
       "data_public": true,
       "archived": false,
-      "source_note": "台データオンラインが未更新または未公開のためテラモバへ切り替え"
+      "source_note": "テラモバ2障害中。台データが公開中なので、復旧まではこちらから取得する",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "100673",
+        "ps": "S"
+      }
     },
     {
       "id": "daidata-100679",
@@ -10828,11 +10833,11 @@
         "グランドホール西高島平店"
       ],
       "enabled": true,
-      "group": "other",
+      "group": "grand",
       "prefecture": "tokyo",
       "area": "tokyo_ikebukuro",
-      "source": "teramoba",
-      "source_url": "https://gramoba.pt.teramoba2.com/nishitakashimadaira/rack_info_kt?kind_code=21",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/100679",
       "teramoba": {
         "base_url": "https://gramoba.pt.teramoba2.com",
         "department": "nishitakashimadaira",
@@ -10846,7 +10851,12 @@
       "includes_art_in_total_games": false,
       "data_public": true,
       "archived": false,
-      "source_note": "台データオンラインが未更新または未公開のためテラモバへ切り替え"
+      "source_note": "テラモバ2障害中。台データが公開中なので、復旧まではこちらから取得する",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "100679",
+        "ps": "S"
+      }
     },
     {
       "id": "daidata-203350",
@@ -11943,11 +11953,11 @@
         "グランドアクア"
       ],
       "enabled": true,
-      "group": "other",
+      "group": "grand",
       "prefecture": "kanagawa",
       "area": "kanagawa_yokohama",
-      "source": "teramoba",
-      "source_url": "https://gramoba.pt.teramoba2.com/aqua/rack_info_kt?kind_code=21",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/100677",
       "teramoba": {
         "base_url": "https://gramoba.pt.teramoba2.com",
         "department": "aqua",
@@ -11961,7 +11971,12 @@
       "includes_art_in_total_games": false,
       "data_public": true,
       "archived": false,
-      "source_note": "台データオンラインが未更新または未公開のためテラモバへ切り替え"
+      "source_note": "テラモバ2障害中。台データが公開中なので、復旧まではこちらから取得する",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "100677",
+        "ps": "S"
+      }
     },
     {
       "id": "daidata-100669",
@@ -11971,11 +11986,11 @@
         "グランドホール長後"
       ],
       "enabled": true,
-      "group": "other",
+      "group": "grand",
       "prefecture": "kanagawa",
       "area": "kanagawa_shonan",
-      "source": "teramoba",
-      "source_url": "https://gramoba.pt.teramoba2.com/chogo/rack_info_kt?kind_code=21",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/100669",
       "teramoba": {
         "base_url": "https://gramoba.pt.teramoba2.com",
         "department": "chogo",
@@ -11989,7 +12004,12 @@
       "includes_art_in_total_games": false,
       "data_public": true,
       "archived": false,
-      "source_note": "台データオンラインが未更新または未公開のためテラモバへ切り替え"
+      "source_note": "テラモバ2障害中。台データが公開中なので、復旧まではこちらから取得する",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "100669",
+        "ps": "S"
+      }
     },
     {
       "id": "daidata-100678",
@@ -11999,11 +12019,11 @@
         "グランドホール金目"
       ],
       "enabled": true,
-      "group": "other",
+      "group": "grand",
       "prefecture": "kanagawa",
       "area": "kanagawa_shonan",
-      "source": "teramoba",
-      "source_url": "https://gramoba.pt.teramoba2.com/kaname/rack_info_kt?kind_code=21",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/100678",
       "teramoba": {
         "base_url": "https://gramoba.pt.teramoba2.com",
         "department": "kaname",
@@ -12017,7 +12037,12 @@
       "includes_art_in_total_games": false,
       "data_public": true,
       "archived": false,
-      "source_note": "台データオンラインが未更新または未公開のためテラモバへ切り替え"
+      "source_note": "テラモバ2障害中。台データが公開中なので、復旧まではこちらから取得する",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "100678",
+        "ps": "S"
+      }
     },
     {
       "id": "daidata-100676",
@@ -12026,11 +12051,11 @@
         "グランドホール港南店"
       ],
       "enabled": true,
-      "group": "other",
+      "group": "grand",
       "prefecture": "kanagawa",
       "area": "kanagawa_yokohama",
-      "source": "teramoba",
-      "source_url": "https://gramoba.pt.teramoba2.com/konan/rack_info_kt?kind_code=21",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/100676",
       "teramoba": {
         "base_url": "https://gramoba.pt.teramoba2.com",
         "department": "konan",
@@ -12044,7 +12069,12 @@
       "includes_art_in_total_games": false,
       "data_public": true,
       "archived": false,
-      "source_note": "台データオンラインが未更新または未公開のためテラモバへ切り替え"
+      "source_note": "テラモバ2障害中。台データが公開中なので、復旧まではこちらから取得する",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "100676",
+        "ps": "S"
+      }
     },
     {
       "id": "daidata-202709",
@@ -25785,9 +25815,31 @@
       },
       "includes_art_in_total_games": false,
       "data_public": true
+    },
+    {
+      "id": "daidata-101316",
+      "name": "ダイナム・シン四街道千葉本店",
+      "aliases": [
+        "ダイナム・シン四街道千葉本店"
+      ],
+      "enabled": true,
+      "group": "dynam",
+      "prefecture": "chiba",
+      "area": "chiba",
+      "source": "goraggio",
+      "source_url": "https://daidata.goraggio.com/101316",
+      "goraggio": {
+        "base_url": "https://daidata.goraggio.com",
+        "hall_code": "101316",
+        "ps": "S"
+      },
+      "includes_art_in_total_games": false,
+      "data_public": true
     }
   ],
-  "active_scope": "nationwide",
+  "active_scope": "fukuoka_all_tokyo10",
   "scrape_groups_only": false,
-  "scope_comment": "全国版。未アーカイブかつ台データ未公開でない店舗を取得対象にする。未公開とアーカイブは無効のまま。"
+  "acquisition_limited": false,
+  "teramoba_fetch": true,
+  "scope_comment": "2026-10-18 のリリースに合わせ、次の巡回から公開済みホールを全国対象にする。未公開（data_public=false）は無効のまま。テラモバ2は巡回する（teramoba_fetch=true）。P'sCUBE とマルハンは取得経路の制約で巡回時にスキップする。"
 }

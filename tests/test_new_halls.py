@@ -4,7 +4,7 @@ from pathlib import Path
 
 from src.analyzer.judgment import judge_record, load_masters
 from src.scraper.goraggio import fetch_goraggio_hall, parse_model_links, parse_unit_table, select_cycle_halls
-from src.scraper.halls import Hall, area_presets, configured_halls, hall_by_name, hall_groups, hall_locale_index, load_halls, load_halls_config, prefectures
+from src.scraper.halls import Hall, TOKYO_PILOT_HALL_IDS, area_presets, configured_halls, hall_by_name, hall_groups, hall_in_active_scope, hall_locale_index, load_halls, load_halls_config, prefectures
 from src.scraper.pscube import parse_assist_json, parse_pscube_tables
 from src.scraper.registry import list_sources
 from src.scraper.teramoba import _normalize_unit, target_from_hall
@@ -83,20 +83,31 @@ class NewHallConfigTest(unittest.TestCase):
         load_halls_config.cache_clear()
         payload = load_halls_config()
         self.assertFalse(payload.get("scrape_groups_only"))
+        self.assertFalse(payload.get("acquisition_limited"))
+        catalog = [hall.name for hall in load_halls()]
+        self.assertGreaterEqual(len(catalog), 649)
         names = configured_halls()
-        self.assertGreaterEqual(len(names), 649)
         for raw in payload["halls"]:
             public = raw.get("archived") is not True and raw.get("data_public") is not False
             self.assertEqual(bool(raw.get("enabled")), public, raw.get("id"))
         self.assertNotIn("古賀プラザ", names)
         self.assertFalse(hall_by_name("古賀プラザ").enabled)
-        for name in ("GOGOアリーナ天神", "ゾーン姪浜", "メガフェイス博多", "ブーム天神", "玉屋666唐津"):
+        for name in ("GOGOアリーナ天神", "ゾーン姪浜", "メガフェイス博多", "ブーム天神", "ワンダーランド柳川店"):
+            self.assertIn(name, catalog)
             self.assertIn(name, names)
             self.assertTrue(hall_by_name(name).enabled)
+        self.assertIn("玉屋666唐津", catalog)
+        self.assertIn("玉屋666唐津", names)
         self.assertIn("玉屋∞本店", names)
         self.assertIn("プラザ 本店", names)
-        self.assertIn("ワンダーランド柳川店", names)
         self.assertTrue({"tamaya", "plaza", "wonderland"} <= {item["id"] for item in hall_groups()})
+        enabled_names = {hall.name for hall in load_halls()}
+        fukuoka_names = {hall.name for hall in load_halls() if hall.prefecture == "fukuoka"}
+        tokyo_names = {hall.name for hall in load_halls() if hall.id in TOKYO_PILOT_HALL_IDS}
+        self.assertEqual(set(names), enabled_names)
+        self.assertTrue(fukuoka_names | tokyo_names <= set(names))
+        scoped_groups = {item["id"] for item in hall_groups(scoped=True)}
+        self.assertTrue({"tamaya", "plaza", "wonderland", "espace"} <= scoped_groups)
         self.assertEqual(hall_by_name("パーラーゾーン姪浜").name, "ゾーン姪浜")
         self.assertEqual(hall_by_name("GOGOアリーナ天神").source, "goraggio")
         self.assertEqual(hall_by_name("ゾーン姪浜").source, "pscube")
@@ -116,7 +127,14 @@ class NewHallConfigTest(unittest.TestCase):
         self.assertIn("ワンダーランド1188福岡東店", wonderland["halls"])
         self.assertIn("ワンダーランド香椎本館", wonderland["halls"])
         self.assertEqual(hall_by_name("ワンダーランド福岡東").source, "goraggio")
-        self.assertGreaterEqual(len(configured_halls()), 649)
+        self.assertEqual(len(TOKYO_PILOT_HALL_IDS), 10)
+        tokyo = [hall.name for hall in load_halls() if hall.id in TOKYO_PILOT_HALL_IDS]
+        self.assertEqual(len(tokyo), 10)
+        for name in tokyo:
+            self.assertIn(name, names)
+        self.assertEqual(len(names), len(enabled_names))
+        self.assertGreater(len(names), len(fukuoka_names) + len(tokyo_names))
+        self.assertGreater(len(fukuoka_names), 28)
         hakozaki = hall_by_name("マルハン箱崎店")
         self.assertEqual(hakozaki.source, "maruhan_app")
         self.assertTrue(hakozaki.enabled)
@@ -135,10 +153,14 @@ class NewHallConfigTest(unittest.TestCase):
         self.assertEqual(prefs[0]["default_area"], "fukuoka_central")
         self.assertEqual(
             prefs[0]["hall_count"],
-            sum(1 for hall in load_halls() if hall.prefecture == "fukuoka"),
+            sum(1 for hall in load_halls() if hall.prefecture == "fukuoka" and hall_in_active_scope(hall)),
         )
         self.assertGreaterEqual(prefs[0]["hall_count"], 10)
-        self.assertIn("kumamoto", [item["id"] for item in prefs])
+        pref_ids = [item["id"] for item in prefs]
+        self.assertEqual(pref_ids[0], "fukuoka")
+        self.assertIn("tokyo", pref_ids)
+        self.assertIn("saga", pref_ids)
+        self.assertGreater(len(pref_ids), 2)
         fukuoka_areas = [item["id"] for item in area_presets() if item["prefecture"] == "fukuoka"]
         self.assertEqual(
             fukuoka_areas,

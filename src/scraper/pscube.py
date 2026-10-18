@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlparse
 from zoneinfo import ZoneInfo
 
 from src.scraper.base import FetchResult, PROJECT_ROOT
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.browser import chrome_client_identity
 from src.scraper.deadline import hall_timeout_sec, run_within
 from src.scraper.halls import Hall, format_duration, hall_data_dir, halls_for_source, sleep_hall_gap
@@ -402,7 +403,7 @@ class PscubeClient:
         status, _final, body = self.get(url, referer=referer)
         if status == 200 and not _challenge_page(body):
             return body
-        print(f"  HTTP取得では開けないためブラウザで再試行します ({status})", flush=True)
+        emit(f"  HTTP取得では開けないためブラウザで再試行します ({status})", flush=True)
         return _browser_html(url)
 
 
@@ -531,7 +532,7 @@ def _launch_chrome():
         args=["--window-position=-3200,-3200", "--window-size=900,700"],
         ignore_default_args=["--enable-automation", "--enable-unsafe-swiftshader"],
     )
-    print(f"  プロキシ: {proxy_log_label(proxy)}", flush=True)
+    emit(f"  プロキシ: {proxy_log_label(proxy)}", flush=True)
     context = browser.new_context(
         locale="ja-JP",
         timezone_id="Asia/Tokyo",
@@ -562,7 +563,7 @@ def dismiss_line_gate(page) -> dict[str, int]:
     clicked = int(result.get("clicked") or 0)
     removed = int(result.get("removed") or 0)
     if clicked or removed:
-        print(f"  LINE案内を閉じました（click {clicked} / remove {removed}）", flush=True)
+        emit(f"  LINE案内を閉じました（click {clicked} / remove {removed}）", flush=True)
         page.wait_for_timeout(1200)
     return {"clicked": clicked, "removed": removed}
 
@@ -578,11 +579,11 @@ def _apply_turnstile_token(page, url: str) -> bool:
         return False
     from src.scraper.capsolver import CapSolverError, solve_turnstile
 
-    print("  CapSolver で Turnstile を更新します", flush=True)
+    emit("  CapSolver で Turnstile を更新します", flush=True)
     try:
         token = solve_turnstile(url, sitekey, action="")
     except CapSolverError as exc:
-        print(f"  CapSolver では確認を解けませんでした: {exc}", flush=True)
+        emit(f"  CapSolver では確認を解けませんでした: {failure_reason(exc)}", flush=True)
         return False
     page.evaluate(
         """(token) => {
@@ -692,9 +693,9 @@ def _open_slot_list(page, list_url: str) -> dict[str, Any]:
             return payload
         if (isinstance(payload, dict) and payload.get("redirect_captcha")) or _is_captcha_page(page):
             last_error = "確認画面が続いたため、この店舗の台データは取得できませんでした"
-            print(f"  確認画面のため一覧をやり直します ({attempt + 1}/3)", flush=True)
+            emit(f"  確認画面のため一覧をやり直します ({attempt + 1}/3)", flush=True)
         else:
-            print(f"  一覧を読み直します ({attempt + 1}/3)", flush=True)
+            emit(f"  一覧を読み直します ({attempt + 1}/3)", flush=True)
         if attempt < 2:
             page.wait_for_timeout(5000 * (attempt + 1))
     raise PscubeError(last_error)
@@ -773,7 +774,7 @@ def _fetch_netcube_hall(hall: Hall) -> list[dict[str, Any]]:
     """P'sCUBE の機種一覧から、監視対象の台詳細JSONを読む。"""
     base = _hall_base(hall.source_url or "")
     list_url = urljoin(base, "cgi-bin/nc-v03-001.php?cd_ps=2")
-    print(f"  スロット一覧: {list_url}", flush=True)
+    emit(f"  スロット一覧: {list_url}", flush=True)
     _NETCUBE_STATUS.update(limited=False, retry_after=0, remaining=0)
     playwright, browser, page = _launch_chrome()
     listed: dict[str, Any] = {}
@@ -786,19 +787,19 @@ def _fetch_netcube_hall(hall: Hall) -> list[dict[str, Any]]:
         units = netcube_slot_units(listed.get("body") or {})
         if not units:
             raise PscubeError("スロット一覧から監視対象の台番号を読めませんでした")
-        print(f"  監視対象 {len(units)} 台", flush=True)
+        emit(f"  監視対象 {len(units)} 台", flush=True)
         cached = _load_unit_cache(hall)
         rows = list(cached.values())
         pending = [(name, dai) for name, dai in units if dai not in cached]
         if cached:
-            print(f"  当日キャッシュ {len(cached)} 台 / 残り {len(pending)} 台", flush=True)
+            emit(f"  当日キャッシュ {len(cached)} 台 / 残り {len(pending)} 台", flush=True)
         captured: dict[str, Any] = {}
         misses = 0
         for index, (name, dai) in enumerate(pending, start=1):
             detail = urljoin(base, f"cgi-bin/nc-v06-001.php?cd_dai={dai}")
             payload = _read_unit_page(page, detail, captured)
             if captured.get("captcha"):
-                print("  確認画面のため、この台をやり直します", flush=True)
+                emit("  確認画面のため、この台をやり直します", flush=True)
                 page.wait_for_timeout(5000)
                 payload = _read_unit_page(page, detail, captured)
             if captured.get("captcha"):
@@ -810,13 +811,13 @@ def _fetch_netcube_hall(hall: Hall) -> list[dict[str, Any]]:
                     retry_after=retry_after,
                     remaining=sum(1 for _name, dai in units if dai not in cached),
                 )
-                print(
+                emit(
                     f"  アクセス制限のため残りは次回に回します（現在 {len(rows)} 台 / Retry-After {retry_after}秒）",
                     flush=True,
                 )
                 break
             if payload is None and misses == 3:
-                print("  連続で読めないため少し待って再開します", flush=True)
+                emit("  連続で読めないため少し待って再開します", flush=True)
                 page.wait_for_timeout(5000)
                 payload = _read_unit_page(page, detail, captured)
                 if captured.get("limited"):
@@ -826,7 +827,7 @@ def _fetch_netcube_hall(hall: Hall) -> list[dict[str, Any]]:
                         retry_after=retry_after,
                         remaining=sum(1 for _name, dai in units if dai not in cached),
                     )
-                    print(
+                    emit(
                         f"  アクセス制限のため残りは次回に回します（現在 {len(rows)} 台 / Retry-After {retry_after}秒）",
                         flush=True,
                     )
@@ -839,13 +840,13 @@ def _fetch_netcube_hall(hall: Hall) -> list[dict[str, Any]]:
                 misses = 0
             else:
                 misses += 1
-                print(
+                emit(
                     f"    [{index}/{len(pending)}] {name} {dai} を読めませんでした"
                     f" status={captured.get('status')} {captured.get('error') or ''}",
                     flush=True,
                 )
             if index == 1 or index % 20 == 0 or index == len(pending):
-                print(f"    [{index}/{len(pending)}] 取得 {len(rows)} 台", flush=True)
+                emit(f"    [{index}/{len(pending)}] 取得 {len(rows)} 台", flush=True)
             page.wait_for_timeout(1500)
         _save_unit_cache(hall, cached)
         return _watched(rows)
@@ -875,7 +876,7 @@ def fetch_pscube_hall(hall: Hall, client: PscubeClient | None = None) -> list[di
     session = client or PscubeClient()
     if not page_url:
         raise PscubeError(f"{hall.name}: source_url がありません")
-    print(f"P'sCUBEへアクセス: {page_url}", flush=True)
+    emit(f"P'sCUBEへアクセス: {page_url}", flush=True)
     html = session.get_html(page_url)
     list_url, dai_url = discover_json_urls(html, page_url)
     variant = str((hall.source_config or {}).get("variant") or "")
@@ -887,23 +888,23 @@ def fetch_pscube_hall(hall: Hall, client: PscubeClient | None = None) -> list[di
             dai = session.get_json(dai_url, page_url)
             rows = _watched(parse_assist_json(listed, dai, hall.name))
             if rows:
-                print(f"  JSONから監視対象 {len(rows)} 台", flush=True)
+                emit(f"  JSONから監視対象 {len(rows)} 台", flush=True)
                 return rows
         except PscubeError as exc:
-            print(f"  JSON取得をスキップ: {exc}", flush=True)
+            emit(f"  JSON取得をスキップ: {failure_reason(exc)}", flush=True)
     rows = _watched(parse_pscube_tables(html, hall.name))
     if rows:
-        print(f"  HTMLから監視対象 {len(rows)} 台", flush=True)
+        emit(f"  HTMLから監視対象 {len(rows)} 台", flush=True)
         return rows
     links = follow_links(parse_document(html), page_url, page_url)
-    print(f"  台ページ候補: {len(links)}", flush=True)
+    emit(f"  台ページ候補: {len(links)}", flush=True)
     combined: list[dict[str, Any]] = []
     for index, link in enumerate(links, start=1):
-        print(f"  [{index}/{len(links)}] {link}", flush=True)
+        emit(f"  [{index}/{len(links)}] {link}", flush=True)
         try:
             child = session.get_html(link, referer=page_url)
         except PscubeError as exc:
-            print(f"    開けませんでした: {exc}", flush=True)
+            emit(f"    開けませんでした: {failure_reason(exc)}", flush=True)
             continue
         child_list, child_dai = discover_json_urls(child, link)
         if child_list and child_dai:
@@ -918,7 +919,7 @@ def fetch_pscube_hall(hall: Hall, client: PscubeClient | None = None) -> list[di
                     )
                 )
             except PscubeError as exc:
-                print(f"    JSONスキップ: {exc}", flush=True)
+                emit(f"    JSONスキップ: {failure_reason(exc)}", flush=True)
         heading = ""
         for block in parse_document(child):
             if block.kind == "heading" and block.text:
@@ -926,13 +927,13 @@ def fetch_pscube_hall(hall: Hall, client: PscubeClient | None = None) -> list[di
                 break
         combined.extend(_watched(parse_pscube_tables(child, hall.name, fallback_name=heading)))
     deduped = _watched(combined)
-    print(f"  取得 {len(deduped)} 台", flush=True)
+    emit(f"  取得 {len(deduped)} 台", flush=True)
     return deduped
 
 
 def fetch_pscube_data(halls: list[Hall] | None = None) -> FetchResult:
     if (os.getenv("PSCUBE_FETCH") or "").strip() != "1":
-        print("P'sCUBE は Cloudflare ブロックのため、今回の取得からスキップします", flush=True)
+        emit("P'sCUBE は Cloudflare ブロックのため、今回の取得からスキップします", flush=True)
         return FetchResult(
             source="pscube",
             hall_name="P'sCUBE",
@@ -964,7 +965,7 @@ def _fetch_pscube_data_live(halls: list[Hall] | None = None) -> FetchResult:
         if ledger.should_skip(hall.id, "pscube"):
             failed.append(hall.name)
             details.append(failure_record(hall.name, "再試行待ち"))
-            print(f"  {hall.name}: 再試行待ちのためスキップ", flush=True)
+            emit(f"  {hall.name}: 再試行待ちのためスキップ", flush=True)
             continue
         while True:
             try:
@@ -977,7 +978,7 @@ def _fetch_pscube_data_live(halls: list[Hall] | None = None) -> FetchResult:
                 raise
             except Exception as exc:
                 safe = summarize_failure(str(exc))
-                print(f"  {hall.name} の取得失敗: {safe}", flush=True)
+                emit(f"  {hall.name} の取得失敗: {safe}", flush=True)
                 failed.append(hall.name)
                 reasons.append(f"{hall.name}: {safe}")
                 details.append(failure_record(hall.name, safe))
@@ -988,11 +989,11 @@ def _fetch_pscube_data_live(halls: list[Hall] | None = None) -> FetchResult:
             if payload:
                 hall_result = FetchResult(source="pscube", hall_name=hall.name, machines=payload)
                 hall_path = hall_result.write_incoming(hall_data_dir(hall.name, PROJECT_ROOT / "data" / "pscube"))
-                print(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
+                emit(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
             if limited:
                 wait = int(_NETCUBE_STATUS["retry_after"] or 1800)
                 ledger.defer(hall.id, "pscube", "HTTP 429", delay_sec=wait)
-                print(f"  {hall.name}: 一時スキップ（429上限、{wait}秒後に再試行）", flush=True)
+                emit(f"  {hall.name}: 一時スキップ（429上限、{wait}秒後に再試行）", flush=True)
                 if payload:
                     combined.extend(payload)
                     fetched.append(hall.name)
@@ -1005,7 +1006,7 @@ def _fetch_pscube_data_live(halls: list[Hall] | None = None) -> FetchResult:
                 failed.append(hall.name)
                 reasons.append(f"{hall.name}: 0 件")
                 details.append(failure_record(hall.name, "0 件"))
-                print(f"  {hall.name} の取得失敗: 0 件", flush=True)
+                emit(f"  {hall.name} の取得失敗: 0 件", flush=True)
                 break
             combined.extend(payload)
             fetched.append(hall.name)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import random
 import re
 import subprocess
 import tempfile
@@ -21,6 +22,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from src.scraper.base import FetchResult, PROJECT_ROOT
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.halls import Hall, format_duration, hall_data_dir, halls_for_source, pause_range
 from src.scraper.targets import is_watched
 
@@ -33,6 +35,11 @@ CSRF_RE = re.compile(r'csrf-token" content="([^"]+)"', re.I)
 DEFAULT_TIMEOUT = 12
 RENDER_WAIT_SEC = 3.0
 STORAGE_STATE_PATH = PROJECT_ROOT / "data" / "teramoba" / ".auth" / "storage_state.json"
+# 同じ公式ドメインへ同時に当てると CAPTCHA になる。ドメインあたりこの本数まで。
+TERAMOBA_DOMAIN_CONCURRENCY = 1
+# 「サービス復旧のお知らせとお詫び」の「サイトを閲覧する」が書くCookie。10年。
+RECOVERY_DISMISS_COOKIE = "idcf_maintenance_dismissed"
+RECOVERY_DISMISS_MAX_AGE = 60 * 60 * 24 * 365 * 10
 
 
 class TeramobaError(RuntimeError):
@@ -57,6 +64,22 @@ def is_maintenance_page(html: str, page: dict[str, Any] | None = None) -> bool:
         ):
             return True
     return any(token in html for token in ("システム障害に関するお詫び", "idcf_message"))
+
+
+def is_access_interstitial(body: bytes) -> bool:
+    """Cloudflare の確認画面。JSON と Inertia の台データページは通す。"""
+    text = body.decode("utf-8", errors="replace").lstrip()
+    if text.startswith("{") or text.startswith("["):
+        return False
+    if "data-page=" in text[:8000]:
+        return False
+    head = text[:1200].casefold()
+    return any(token in head for token in ("just a moment", "cf-challenge", "ロボットではありません", "captcha"))
+
+
+def is_recovery_notice(page: dict[str, Any] | None) -> bool:
+    """復旧案内のクッション。メンテナンス停止ではなく、「サイトを閲覧する」で通る。"""
+    return str((page or {}).get("component") or "") == "MaintenancePage"
 
 
 @dataclass(frozen=True)
@@ -231,7 +254,11 @@ def persist_protection_cookies(jar: CookieJar, *, origin: str, path: Path | None
     }
     for cookie in jar:
         name = cookie.name or ""
-        if not name.startswith("captchaProtectionKey[") and name not in {"XSRF-TOKEN", "laravel_session"}:
+        if not name.startswith("captchaProtectionKey[") and name not in {
+            "XSRF-TOKEN",
+            "laravel_session",
+            RECOVERY_DISMISS_COOKIE,
+        }:
             continue
         domain = (cookie.domain or host).lstrip(".")
         if host and domain and host != domain and not host.endswith("." + domain) and not domain.endswith(host):
@@ -312,12 +339,24 @@ class TeramobaClient:
     def __init__(self, target: TeramobaTarget) -> None:
         self.target = target
         self.jar = CookieJar()
-        from src.scraper.proxy_config import build_client_opener
+        import secrets
 
-        self.opener = build_client_opener(urllib.request.HTTPCookieProcessor(self.jar))
+        from src.scraper.proxy_config import sticky_proxy_url
+
+        proxy = sticky_proxy_url(f"{target.hall_name}-{secrets.token_hex(3)}")
+        cookie_handler = urllib.request.HTTPCookieProcessor(self.jar)
+        if proxy:
+            self.opener = urllib.request.build_opener(
+                urllib.request.ProxyHandler({"http": proxy, "https": proxy}),
+                cookie_handler,
+            )
+        else:
+            from src.scraper.proxy_config import build_client_opener
+
+            self.opener = build_client_opener(cookie_handler)
         loaded = load_storage_cookies(self.jar, origin=target.origin)
         if loaded:
-            print(f"  保存済みCookie {loaded} 件を読み込み: {storage_state_path()}", flush=True)
+            emit(f"  保存済みCookie {loaded} 件を読み込み: {storage_state_path()}", flush=True)
         self.csrf = ""
         self.hall_id = target.hall_id
         self.kind_code = target.kind_code
@@ -326,6 +365,8 @@ class TeramobaClient:
         self.latest_date = ""
         self.history_day = 7
         self.turnstile_token = ""
+        self._accept_recovery_notice()
+        emit("  復旧案内は「サイトを閲覧する」と同じCookieで通過します", flush=True)
         if self.hall_id:
             self._set_cookie(f"agreeServiceTerm[{self.hall_id}]", "true")
 
@@ -385,8 +426,7 @@ class TeramobaClient:
             if is_pressure(status):
                 pacer.mark_pressure()
                 raise TeramobaError(f"HTTP {status}")
-            folded = body[:400].decode("utf-8", errors="replace").casefold()
-            if any(token in folded for token in ("captcha", "just a moment", "cf-challenge", "ロボットではありません")):
+            if is_access_interstitial(body):
                 pacer.mark_pressure()
                 raise TeramobaError("CAPTCHA")
             pacer.mark_success()
@@ -446,11 +486,51 @@ class TeramobaClient:
         payload = json.loads(unescape(page_match.group(1)))
         return payload if isinstance(payload, dict) else {}
 
-    def open_list_page(self) -> dict[str, Any]:
-        html = self._request(self.target.list_url).decode("utf-8", errors="replace")
+    def _accept_recovery_notice(self) -> None:
+        """「サイトを閲覧する」と同じCookieを保存して、案内ページを通り抜ける。"""
+        parsed = urlparse(self.target.origin)
+        cookie = Cookie(
+            version=0,
+            name=RECOVERY_DISMISS_COOKIE,
+            value="1",
+            port=None,
+            port_specified=False,
+            domain=parsed.hostname or "",
+            domain_specified=True,
+            domain_initial_dot=False,
+            path="/",
+            path_specified=True,
+            secure=parsed.scheme == "https",
+            expires=int(time.time()) + RECOVERY_DISMISS_MAX_AGE,
+            discard=False,
+            comment=None,
+            comment_url=None,
+            rest={"SameSite": "None"},
+            rfc2109=False,
+        )
+        self.jar.set_cookie(cookie)
+
+    def _read_html_page(self, url: str, *, referer: str | None = None) -> tuple[str, dict[str, Any]]:
+        html = self._request(url, referer=referer).decode("utf-8", errors="replace")
         page = self._parse_html(html)
+        if not is_recovery_notice(page):
+            return html, page
+        emit("  復旧案内を検出したため、「サイトを閲覧する」を通過します", flush=True)
+        self._accept_recovery_notice()
+        try:
+            persist_protection_cookies(self.jar, origin=self.target.origin)
+        except OSError as exc:
+            emit(f"  復旧案内のCookieを保存できませんでした: {failure_reason(exc)}", flush=True)
+        html = self._request(url, referer=referer).decode("utf-8", errors="replace")
+        page = self._parse_html(html)
+        if is_recovery_notice(page):
+            raise TeramobaError("復旧案内を通過したあとも台データ画面に進めませんでした")
+        return html, page
+
+    def open_list_page(self) -> dict[str, Any]:
+        html, page = self._read_html_page(self.target.list_url)
         if is_maintenance_page(html, page):
-            print("  店舗ステータス：メンテナンス中（CapSolver は使いません）", flush=True)
+            emit("  店舗ステータス：メンテナンス中（CapSolver は使いません）", flush=True)
             raise TeramobaMaintenance("店舗ステータス：メンテナンス中")
         props = page.get("props") or {}
         info = props.get("hall_informations") or {}
@@ -507,7 +587,7 @@ class TeramobaClient:
                     break
         if not site_key:
             raise TeramobaError("Turnstile の site_key が challenge にありません")
-        print(f"  Turnstile を CapSolver で更新します hall_id={self.hall_id}", flush=True)
+        emit(f"  Turnstile を CapSolver で更新します hall_id={self.hall_id}", flush=True)
         try:
             token = solve_turnstile(self.target.list_url, site_key, action="scraping_protection")
         except CapSolverError as exc:
@@ -521,23 +601,23 @@ class TeramobaClient:
         if not ok:
             raise TeramobaError(f"captcha 検証が拒否されました: {result}")
         persist_protection_cookies(self.jar, origin=self.target.origin)
-        print(f"  captchaProtectionKey[{self.hall_id}] を更新しました", flush=True)
+        emit(f"  captchaProtectionKey[{self.hall_id}] を更新しました", flush=True)
         self._wait_for_rendered_catalog()
 
     def _install_turnstile_token(self, token: str) -> None:
         """検証後の機種一覧・台データ通信へ、同じトークンを Cookie とヘッダーで載せる。"""
         self.turnstile_token = token
         self._set_cookie("cf-turnstile-response", token)
-        print("  cf-turnstile-response を Cookie とリクエストヘッダーへセットしました", flush=True)
+        emit("  cf-turnstile-response を Cookie とリクエストヘッダーへセットしました", flush=True)
 
     def _wait_for_rendered_catalog(self) -> None:
         """トークン反映後、一覧の JavaScript 描画が終わるまで待ってから読み直す。"""
-        print(f"  トークン反映後、描画完了まで {RENDER_WAIT_SEC:.0f}秒待ちます", flush=True)
+        emit(f"  トークン反映後、描画完了まで {RENDER_WAIT_SEC:.0f}秒待ちます", flush=True)
         time.sleep(RENDER_WAIT_SEC)
         try:
             self.open_list_page()
         except TeramobaError as exc:
-            print(f"  一覧の再読込をスキップ: {exc}", flush=True)
+            emit(f"  一覧の再読込をスキップ: {failure_reason(exc)}", flush=True)
         time.sleep(RENDER_WAIT_SEC)
 
     def resolve_slot_kind(self) -> str:
@@ -550,7 +630,7 @@ class TeramobaClient:
         configured = [code for code in self.target.kind_codes if code]
         if len(configured) > 1:
             self.kind_code = configured[0]
-            print(f"  スロット種別: kind_code={','.join(configured)}", flush=True)
+            emit(f"  スロット種別: kind_code={','.join(configured)}", flush=True)
             return configured
         if not self.hall_id:
             return configured or [self.kind_code]
@@ -564,7 +644,7 @@ class TeramobaClient:
         code = str((chosen or {}).get("kind_code") or "").strip()
         if code:
             self.kind_code = code
-            print(f"  スロット種別: {chosen.get('kind_name')} kind_code={code}", flush=True)
+            emit(f"  スロット種別: {chosen.get('kind_name')} kind_code={code}", flush=True)
             return [code]
         return configured or [self.kind_code]
 
@@ -586,12 +666,9 @@ class TeramobaClient:
             f"?kind_code={urllib.parse.quote(self.kind_code)}"
             f"&machine_name={machine_name_enc}"
         )
-        html = self._request(url, referer=self.target.list_url).decode("utf-8", errors="replace")
-        if "protection_redirect" in html and "data-page" in html:
-            page = self._parse_html(html)
-            if (page.get("component") or "") == "protection_redirect":
-                raise TeramobaError("保護ページを解除できませんでした（Cookie または CAPTCHA）")
-        page = self._parse_html(html)
+        html, page = self._read_html_page(url, referer=self.target.list_url)
+        if (page.get("component") or "") == "protection_redirect":
+            raise TeramobaError("保護ページを解除できませんでした（Cookie または CAPTCHA）")
         props = page.get("props") or {}
         data = props.get("data") or {}
         self.key = str(data.get("key") or "")
@@ -603,7 +680,7 @@ class TeramobaClient:
         if not self.latest_date:
             raise TeramobaError("最新営業日（latest_date）がページから取れませんでした")
         if not self.key or not self.iv:
-            print("  暗号化キーなし。平文JSONとして取得します。", flush=True)
+            emit("  暗号化キーなし。平文JSONとして取得します。", flush=True)
 
     def machine_index(self) -> list[dict[str, Any]]:
         path = (
@@ -639,7 +716,7 @@ class TeramobaClient:
         try:
             payload = self.get_json(path)
         except TeramobaError as exc:
-            print(f"    履歴取得失敗: {exc}", flush=True)
+            emit(f"    履歴取得失敗: {failure_reason(exc)}", flush=True)
             return None
         try:
             decrypted = _maybe_decrypt(payload, self.key or None, self.iv or None)
@@ -742,7 +819,7 @@ def _normalize_unit(unit: dict[str, Any], hall_name: str, history: dict[str, Any
 def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
     target = target_from_hall(hall)
     client = TeramobaClient(target)
-    print(f"テラモバ2へアクセス: {target.list_url}", flush=True)
+    emit(f"テラモバ2へアクセス: {target.list_url}", flush=True)
     client.open_list_page()
     client.agree_terms()
     machines: list[dict[str, Any]] = []
@@ -751,14 +828,14 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
     for kind_index, kind in enumerate(kinds, start=1):
         client.kind_code = kind
         if len(kinds) > 1:
-            print(f"  種別 {kind_index}/{len(kinds)} kind_code={kind}", flush=True)
+            emit(f"  種別 {kind_index}/{len(kinds)} kind_code={kind}", flush=True)
         models = client.machine_index()
         if not models:
-            print(f"  kind_code={kind} は 0 件のためスキップ", flush=True)
+            emit(f"  kind_code={kind} は 0 件のためスキップ", flush=True)
             continue
         watched = [m for m in models if is_watched(str(m.get("machine_name") or ""))]
         skipped = len(models) - len(watched)
-        print(
+        emit(
             f"スロット機種数: {len(models)} / 監視対象: {len(watched)}（除外 {skipped}） hall_id={client.hall_id} kind_code={kind}",
             flush=True,
         )
@@ -766,21 +843,21 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
             continue
         first_enc = str(watched[0].get("machine_name_enc") or urllib.parse.quote(str(watched[0].get("machine_name") or "")))
         client.load_session_keys(first_enc)
-        print(f"  対象日: {client.latest_date}", flush=True)
+        emit(f"  対象日: {client.latest_date}", flush=True)
         for index, model in enumerate(watched, start=1):
             label = str(model.get("machine_name") or "")
             enc = str(model.get("machine_name_enc") or urllib.parse.quote(label))
-            print(f"  [{index}/{len(watched)}] {label}", flush=True)
+            emit(f"  [{index}/{len(watched)}] {label}", flush=True)
             try:
                 payload = client.machine_units(enc)
             except TeramobaError as exc:
-                print(f"    一覧を開けませんでした: {exc}", flush=True)
+                emit(f"    一覧を開けませんでした: {failure_reason(exc)}", flush=True)
                 continue
             history = None
             try:
                 history = client.machine_history(enc)
             except TeramobaError as exc:
-                print(f"    履歴スキップ: {exc}", flush=True)
+                emit(f"    履歴スキップ: {failure_reason(exc)}", flush=True)
             units = [payload[key] for key in payload if key != "sum" and isinstance(payload.get(key), dict)]
             rows = []
             for unit in units:
@@ -793,10 +870,10 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
                 seen.add(key)
                 rows.append(row)
             art_n = sum(1 for row in rows if row.get("art"))
-            print(f"    取得 {len(rows)} 台 / ARTあり {art_n}", flush=True)
+            emit(f"    取得 {len(rows)} 台 / ARTあり {art_n}", flush=True)
             machines.extend(rows)
     if not machines:
-        print("監視対象機種が 0 件でした（target_machines.json を確認）", flush=True)
+        emit("監視対象機種が 0 件でした（target_machines.json を確認）", flush=True)
     return machines
 
 
@@ -804,14 +881,14 @@ def _recover_via_browser(hall: Hall) -> list[dict[str, Any]]:
     """HTTP の機種一覧が空のとき、ブラウザ上でトークンを載せて描画完了後に取り直す。"""
     import asyncio
 
-    print(f"  {hall.name}: ブラウザで Turnstile トークンを適用して再取得します", flush=True)
+    emit(f"  {hall.name}: ブラウザで Turnstile トークンを適用して再取得します", flush=True)
     try:
         asyncio.get_running_loop()
         running = True
     except RuntimeError:
         running = False
     if running:
-        print("  実行中のイベントループがあるため、ブラウザ再取得は親タスク側に任せます", flush=True)
+        emit("  実行中のイベントループがあるため、ブラウザ再取得は親タスク側に任せます", flush=True)
         return []
     from src.scraper.teramoba_browser import fetch_halls_via_browser
 
@@ -828,6 +905,25 @@ def _needs_browser_fallback(exc: BaseException) -> bool:
         token in text
         for token in ("CAPTCHA", "Turnstile", "HTTP 403", "機種が 0 件", "保護ページ")
     )
+
+
+def _teramoba_fetch_enabled() -> bool:
+    flag = (os.getenv("TERAMOBA_FETCH") or "").strip().lower()
+    if flag in {"1", "true", "yes", "on"}:
+        return True
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    from src.scraper.halls import load_halls_config
+
+    return load_halls_config().get("teramoba_fetch") is True
+
+
+def _persist_teramoba_hall(hall: Hall, payload: list[dict[str, Any]]) -> None:
+    from src.scraper.incremental import publish_hall_incoming
+
+    hall_result = FetchResult(source="teramoba", hall_name=hall.name, machines=payload)
+    path = hall_result.write_incoming(hall_data_dir(hall.name, PROJECT_ROOT / "data" / "teramoba"))
+    publish_hall_incoming(path, hall.name, "teramoba")
 
 
 def fetch_teramoba_data(halls: list[Hall] | None = None) -> FetchResult:
@@ -847,10 +943,26 @@ async def fetch_teramoba_data_async(halls: list[Hall] | None = None) -> FetchRes
 
     from src.scraper.deadline import hall_timeout_sec
 
+    # インソムニア攻撃でテラモバ2が止まっていた。TERAMOBA_FETCH か halls.json の teramoba_fetch が有効なときだけ取る。
+    if not _teramoba_fetch_enabled():
+        emit("テラモバ2は障害中のため、今回の取得からスキップします", flush=True)
+        return FetchResult(
+            source="teramoba",
+            hall_name="テラモバ2",
+            machines=[],
+            extra={
+                "skipped": True,
+                "reason": "テラモバ2障害中のため一時停止",
+                "halls": [],
+                "failed_halls": [],
+            },
+        )
+
     targets = halls if halls is not None else halls_for_source("teramoba")
     if not targets:
         raise TeramobaError("source=teramoba の有効ホールが config/halls.json にありません")
     from src.scraper.goraggio import select_cycle_halls
+    from src.scraper.halls import prioritize_halls
 
     fetched_names = {
         hall.name
@@ -860,11 +972,11 @@ async def fetch_teramoba_data_async(halls: list[Hall] | None = None) -> FetchRes
     chosen = select_cycle_halls(targets, fetched_names, new_limit=len(targets))
     deferred = len(targets) - len(chosen)
     if deferred:
-        print(
+        emit(
             f"テラモバ2: 未取得のうち {len(chosen) - len(fetched_names)} 店を今回取り、残り {deferred} 店は次回以降",
             flush=True,
         )
-    targets = chosen
+    targets = prioritize_halls(chosen)
     started = time.monotonic()
     combined: list[dict[str, Any]] = []
     fetched: list[str] = []
@@ -872,11 +984,11 @@ async def fetch_teramoba_data_async(halls: list[Hall] | None = None) -> FetchRes
     reasons: list[str] = []
     details: list[dict[str, str]] = []
     state = storage_state_path()
-    print(
+    emit(
         f"巡回ホール（テラモバ2 / ドメイン共通セッション）: {' → '.join(h.name for h in targets)}",
         flush=True,
     )
-    print(f"Cookie: {state} / UA: {saved_user_agent()}", flush=True)
+    emit("保存済みセッションを確認", flush=True)
     if not global_session_ready(state):
         raise TeramobaError(
             "teramoba2.com の共有セッションがありません。"
@@ -887,31 +999,66 @@ async def fetch_teramoba_data_async(halls: list[Hall] | None = None) -> FetchRes
     from src.scraper.halls import max_workers
 
     workers = min(max_workers(), len(targets))
-    print(f"テラモバ2: {len(targets)}店を同時{workers}で取得", flush=True)
+    emit(
+        f"テラモバ2: {len(targets)}店を同時{workers}、同一ドメインは{TERAMOBA_DOMAIN_CONCURRENCY}店まで",
+        flush=True,
+    )
     gate = asyncio.Semaphore(workers)
+    host_gates: dict[str, asyncio.Semaphore] = {}
+
+    def host_gate(hall: Hall) -> asyncio.Semaphore:
+        host = (urlparse(target_from_hall(hall).origin).hostname or "").lower()
+        slot = host_gates.get(host)
+        if slot is None:
+            slot = asyncio.Semaphore(TERAMOBA_DOMAIN_CONCURRENCY)
+            host_gates[host] = slot
+        return slot
 
     from src.scraper.halls import sleep_hall_gap
+    from src.scraper.pace import summarize_failure
+
+    async def _fetch_hall_once(hall: Hall) -> tuple[list[dict[str, Any]] | None, str]:
+        limit = max(hall_timeout_sec(), 300.0)
+        try:
+            payload = await asyncio.wait_for(
+                asyncio.to_thread(fetch_teramoba_hall, hall),
+                timeout=limit,
+            )
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except (TimeoutError, asyncio.TimeoutError):
+            return None, f"{hall.name} が {limit:.0f}秒以内に完了しませんでした"
+        except Exception as exc:
+            return None, str(exc) or "取得失敗"
+        if not payload:
+            return None, "0 件"
+        return payload, ""
 
     async def _take(hall: Hall) -> tuple[Hall, list[dict[str, Any]] | None, str]:
         async with gate:
-            note_progress()
-            try:
+            async with host_gate(hall):
+                note_progress()
+                delay = random.uniform(1.0, 3.0)
+                emit(f"  {hall.name}: ドメイン間隔 {delay:.1f}秒", flush=True)
+                await asyncio.sleep(delay)
                 try:
-                    payload = await asyncio.wait_for(
-                        asyncio.to_thread(fetch_teramoba_hall, hall),
-                        timeout=hall_timeout_sec(),
-                    )
-                except (KeyboardInterrupt, SystemExit):
-                    raise
-                except (TimeoutError, asyncio.TimeoutError):
-                    return hall, None, f"{hall.name} が {hall_timeout_sec():.0f}秒以内に完了しませんでした"
-                except Exception as exc:
-                    return hall, None, str(exc) or "取得失敗"
-                if not payload:
-                    return hall, None, "0 件"
-                return hall, payload, ""
-            finally:
-                await asyncio.to_thread(sleep_hall_gap)
+                    payload, error = await _fetch_hall_once(hall)
+                    if error and any(token in error for token in ("CAPTCHA", "タイムアウト", "秒以内")):
+                        for attempt in (1, 2):
+                            retry_after = random.uniform(18.0, 32.0)
+                            emit(
+                                f"  {hall.name}: {summarize_failure(error)} のため {retry_after:.0f}秒後に再取得（{attempt}/2）",
+                                flush=True,
+                            )
+                            await asyncio.sleep(retry_after)
+                            payload, error = await _fetch_hall_once(hall)
+                            if not error:
+                                break
+                    if payload:
+                        await asyncio.to_thread(_persist_teramoba_hall, hall, payload)
+                    return hall, payload, error
+                finally:
+                    await asyncio.to_thread(sleep_hall_gap)
 
     from src.scraper.pace import failure_record
     from src.scraper.smart_retry import partition_halls
@@ -919,21 +1066,21 @@ async def fetch_teramoba_data_async(halls: list[Hall] | None = None) -> FetchRes
 
     ready, waiting = partition_halls(targets, "teramoba")
     if waiting:
-        print(f"テラモバ2: 再試行待ち {len(waiting)}店をスキップ", flush=True)
+        emit(f"テラモバ2: 再試行待ち {len(waiting)}店をスキップ", flush=True)
     taken = list(await asyncio.gather(*[_take(hall) for hall in ready]))
     taken.extend((hall, None, "再試行待ち") for hall in waiting)
     for hall, payload, error in taken:
         payload, error, _via = finish_hall_attempt(hall, payload, error, "teramoba")
         if error or payload is None:
             safe = error or "取得失敗"
-            print(f"  {hall.name} の取得失敗: {safe}", flush=True)
+            emit(f"  {hall.name} の取得失敗: {safe}", flush=True)
             failed.append(hall.name)
             reasons.append(f"{hall.name}: {safe}")
             details.append(failure_record(hall.name, safe))
             continue
         hall_result = FetchResult(source="teramoba", hall_name=hall.name, machines=payload)
         hall_path = hall_result.write_incoming(hall_data_dir(hall.name, PROJECT_ROOT / "data" / "teramoba"))
-        print(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
+        emit(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
         combined.extend(payload)
         fetched.append(hall.name)
 
@@ -968,7 +1115,7 @@ async def fetch_teramoba_data_async(halls: list[Hall] | None = None) -> FetchRes
         extra=result.extra,
     )
     site7_path = site7_copy.write_incoming(PROJECT_ROOT / "data" / "site7")
-    print(
+    emit(
         f"データ取得完了: {output}（互換コピー: {site7_path} / 対象: {', '.join(h.name for h in targets)} / "
         f"成功: {', '.join(fetched)} / 合計 {len(combined)} 件 / {format_duration(elapsed)}）",
         flush=True,

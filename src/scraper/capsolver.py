@@ -27,12 +27,14 @@ def api_key() -> str:
 
 
 def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    from src.scraper.pace import GENERIC_HTTP_USER_AGENT
+
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         url,
         data=body,
         method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": "tamaya-slot-scraper"},
+        headers={"Content-Type": "application/json", "User-Agent": GENERIC_HTTP_USER_AGENT},
     )
     try:
         with urllib.request.urlopen(request, timeout=40) as response:

@@ -1,0 +1,2523 @@
+{
+  "updated_at": "2026-10-18T18:35:32+09:00",
+  "events": [
+    {
+      "id": "evt-wonderland-20261001",
+      "date": "2026-10-01",
+      "hall_id": "",
+      "group": "wonderland",
+      "event_type": "合同",
+      "event_title": "ワンダーランド全店合同"
+    },
+    {
+      "id": "evt-plaza-honten2-20261001",
+      "date": "2026-10-01",
+      "hall_id": "plaza-honten2",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ取材"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100425",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "カチモリTV",
+      "source": "x:dechau-koshinetsu",
+      "source_key": "x:dechau-koshinetsu:2026-10-18:daidata-100425",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-86e9048bc86e"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101330",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "乱王_東海",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-18:daidata-101330",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "mie"
+      ],
+      "id": "evt-1705ff6c769a"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101409",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［金］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-18:daidata-101409",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "saga"
+      ],
+      "id": "evt-8731c147c1a0"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100160",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［金］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-18:daidata-100160",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-025c5debb02a"
+    },
+    {
+      "date": "2026-10-21",
+      "hall_id": "daidata-100894",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "共創取材_東北",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-21:daidata-100894",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "miyagi"
+      ],
+      "id": "evt-5376099fd9ff"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "wl-hyakunen",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチアワード景品",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:wl-hyakunen",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-826328e8def1"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "wl-ukiha",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "鬼祭取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:wl-ukiha",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-c3ac2182c5f3"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "daidata-100722",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "6がつく日",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:daidata-100722",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-b0bd5eed5c86"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "daidata-100835",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "EXTRA・神威の極",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:daidata-100835",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-2e090940a93b"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "gogo-arena-tenjin",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ULTIMATE 3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:gogo-arena-tenjin",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-3fc20cc40b63"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "tamaya-shingu",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "リニューアルリサーチ取材・ビームヒカリ・超スロット乱王・夏生ひまり・ビーム原333・スロット乱王・くるるぎるる・メガビーム朝倉999・まいまろ・ビーム八女・戦極",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:tamaya-shingu",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-c03ec0db2ab7"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "plaza-tenjin",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう取材(ダイヤ)",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:plaza-tenjin",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-261e310c5d37"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "plaza-3",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロット乱王",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:plaza-3",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-3fe1b9f09e03"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "plaza-arae",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロット乱王",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:plaza-arae",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-6533d918145c"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "dstation-39-nakama",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Dステジャグラー研究所取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:dstation-39-nakama",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-4712339d51eb"
+    },
+    {
+      "date": "2026-10-16",
+      "hall_id": "dstation-39-moji",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Dステジャグラー研究所取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-16:dstation-39-moji",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8816%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-462aada7490b"
+    },
+    {
+      "date": "2026-10-22",
+      "hall_id": "daidata-100894",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百輝萌子",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-22:daidata-100894",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "miyagi"
+      ],
+      "id": "evt-f24fe9228110"
+    },
+    {
+      "date": "2026-10-22",
+      "hall_id": "daidata-101396",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ほしまみ",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-22:daidata-101396",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aichi"
+      ],
+      "id": "evt-feda6720561a"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100644",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "いそまる実践来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100644",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371123.html",
+      "prefectures": [
+        "tochigi"
+      ],
+      "id": "evt-be9b40be2115"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100949",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100949",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-1e3ae100a0d5"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101096",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101096",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-658537815311"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100952",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "7がつく日・狂鬼の宴",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100952",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-50ddc05dfbbd"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100673",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100673",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-9e1e15eb7138"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100915",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "7がつく日・天下無双☆天誅～灼＆閃＆斬～",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100915",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-e8dc5cd9ee99"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100853",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "7がつく日・スロぱちガール来店PS",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100853",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-5b6ef2429bdf"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100854",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "7がつく日・超ちゅんげー玉調査隊来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100854",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-0a74e3b88075"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101271",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "裏天下無双",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101271",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-6015370f1121"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100950",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天下無双・マスターズ(紫)・悪魔のリアル",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100950",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-e9336db13cb8"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100947",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "裏桜梅桃李",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100947",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-21036b3f104a"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100196",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "狂鬼の宴・マスターズ(青)",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100196",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-8f6b664ec8bf"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100951",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天誅～灼＆閃＆斬～",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100951",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-79fe68a13944"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100928",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "SS・紫冥の判沢&ヒカルくん取材",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100928",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-e3cc95d07f47"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100806",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天草超絶ホール応援団来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100806",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-ccbf38eb3e00"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100742",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊チームS/P",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100742",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-0f949dbc01ff"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100791",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "りおねる来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100791",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-613fa60afe21"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100825",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ドラゴン来店取材玉ハイパー",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100825",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-8bc3b263e9f5"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101357",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "神谷玲子来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101357",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371122.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-346c613f5707"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101340",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "7がつく日・アルティメットCG調査隊☆天草超絶ホール応援団来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101340",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-3606fed5236b"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100942",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ来店取材(青)",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100942",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-848c045cb468"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100855",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチガール来店S・タイガー来店取材玉10",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100855",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-135faebdd780"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100856",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロぱちガール来店PS・番組収録",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100856",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-8a7c7ef144b8"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100857",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "SS・摩天楼&判沢くん取材",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100857",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-93b0c3fba484"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100948",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天草超絶ホール応援団来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100948",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-63d5086781ef"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100816",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "こしあん来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100816",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-d85f1057af97"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101304",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "瀬戸麻衣来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101304",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371121.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-1074150d17f3"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100677",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100677",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-2077f6fbebb1"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100956",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ来店取材(橙)",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100956",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-b41ec0457a44"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101082",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロぱちガール来店PS",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101082",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-a9ed1e18d856"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100821",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチガール来店S",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100821",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-98845e6e1d08"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100409",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチガール来店S",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100409",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-3c5cbd10e72f"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100678",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊プレミアムセレクションＳ",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100678",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-9ef026a15f01"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100927",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クイーンズEVOLUTION",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100927",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371120.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-16fb2d29643f"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-101024",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-101024",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-1c92f78f2fde"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100886",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ来店取材(橙)",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100886",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-54841828702e"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100822",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロぱちガール来店PS",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100822",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-7022e612c721"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100814",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ来店for埼玉",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100814",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-8899022b5b03"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100890",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ来店for埼玉",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100890",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-e61171fae160"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100811",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊チームS/P",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100811",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-c8f5ebbb6433"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100349",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊チームＳ",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-17:daidata-100349",
+      "source_url": "https://touslo777souko.blog.jp/archives/35371119.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-e891b74b2662"
+    },
+    {
+      "date": "2026-10-23",
+      "hall_id": "daidata-100897",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百輝萌子",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-23:daidata-100897",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "miyagi"
+      ],
+      "id": "evt-320473c65a9e"
+    },
+    {
+      "date": "2026-10-23",
+      "hall_id": "daidata-100894",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "共創取材_東北",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-23:daidata-100894",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "miyagi"
+      ],
+      "id": "evt-da1b763ae6d6"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "",
+      "group": "plaza",
+      "event_type": "合同",
+      "event_title": "プラザ全店",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:group:plaza",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-fcb5d8778355"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-odo-honkan",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう取材(虹)・スロパチアワード景品",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-odo-honkan",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-375f55d9800d"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-higashiaikawa",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "MEGA赤鬼取材・鬼祭取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-higashiaikawa",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-ac2ff5a28a9a"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-mizuma",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "アメイジング取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-mizuma",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-7ce5ec815ee3"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-kashii-honkan",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-kashii-honkan",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-e2d4108e2fd2"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-kashii-2",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-kashii-2",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-79f82a4330cc"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-fukuoka-higashi",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-fukuoka-higashi",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-694b213e1e60"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "wl-ukiha",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:wl-ukiha",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-e3ea93b5b136"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100835",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100835",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-dc58538945c9"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "gogo-arena-tenjin",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "7がつく日",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:gogo-arena-tenjin",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-f525410d9ff4"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100975",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天地繫栄",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100975",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-6c0b28b33d2c"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100972",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100972",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-75935dfbd6d4"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100968",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100968",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-7eeac882ac84"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "super-dstation-39-fukuoka",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "フェノメノン5000・かなでかな",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:super-dstation-39-fukuoka",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-32f840f3d8b6"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "super-dstation-39-chikushino",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天上アカネ",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:super-dstation-39-chikushino",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-976408eba992"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "super-dstation-39-ito",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "あいちゃむ",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:super-dstation-39-ito",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-ec6220a5a662"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "dstation-39-nakama",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "リバイバルBD",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:dstation-39-nakama",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-90183244f10d"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "dstation-39-moji",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "皇帝のリアル・アテナスロットワンCB300・でちゃう取材(虹)・カチモリTV",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:dstation-39-moji",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-c079dc0bc0a1"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "tamaya-munakata",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超極誓取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:tamaya-munakata",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-8e6707bec319"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "tamaya-muromi",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "玉屋取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:tamaya-muromi",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-71974e1f3f5a"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "tamaya-shingu",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "リニューアルリサーチ取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:tamaya-shingu",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-19f3c2ba90be"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100658",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "GC取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100658",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-a2d8627066e2"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100655",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "GC取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100655",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-e490672ef7da"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100656",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "GC取材・アウトバーンブリッツ・戦極 電光石火",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100656",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-ac40b10df02d"
+    },
+    {
+      "date": "2026-10-17",
+      "hall_id": "daidata-100251",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "戦極 電光石火・テンガイ八女・三大天・パサージュ456BJ・3×3STAR取材・パサージュGT600北方・まるみつ大橋・トレハン・まるみつ葛原・ニコピー・清水あ",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-17:daidata-100251",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8817%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-a133005fc182"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "wl-fukuoka-higashi",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチアワード景品",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:wl-fukuoka-higashi",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-c12b4dad36c4"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "wl-kashii-2",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:wl-kashii-2",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-dafcf6a94ddf"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "wl-sue",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "鬼祭取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:wl-sue",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-c513b4a074da"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "wl-yanagawa",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "柳川祭取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:wl-yanagawa",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-f0e8be1fc85d"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "wl-nishijin",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "アメイジング取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:wl-nishijin",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-88ab73de328c"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100974",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:daidata-100974",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-dc8166cbcb17"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100975",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "リバイバルD",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:daidata-100975",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-aa0c88b8d28b"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100973",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天地繫栄",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:daidata-100973",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-ecb4d0fe6d5a"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "tamaya-honten",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "TAMAYA∞PACHI取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:tamaya-honten",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-ab350f6cd75d"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "tamaya-muromi",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "TAMAYA∞PACHI取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:tamaya-muromi",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-8a0e602ca533"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "tamaya-shingu",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "狂鬼の宴・TAMAYA∞PACHI取材・まるみつ大橋・ULTIMATE 3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:tamaya-shingu",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-f7c3f702794b"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "plaza-hakata",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:plaza-hakata",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-8d3ac1e6d781"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "plaza-3",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "3×3STAR取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:plaza-3",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-74b99e9413b3"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "plaza-honten2",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百獣撮ゾウ",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:plaza-honten2",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-9d2d7c7316a1"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "plaza-honten",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう取材(ダイヤ)",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:plaza-honten",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-54af48f43df6"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "super-dstation-39-fukuoka",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "コウイチ・ヴァンルージュ獄条",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:super-dstation-39-fukuoka",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-eec4a4f783ba"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "super-dstation-39-chikushino",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ドテチン",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:super-dstation-39-chikushino",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-51665cef4772"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "super-dstation-39-ito",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ほしみちゃん",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:super-dstation-39-ito",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-ce4dc1754be8"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "dstation-39-nakama",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百獣撮ゾウ",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:dstation-39-nakama",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-b4fa24d01fa5"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "dstation-39-moji",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "極誓取材・テンガイ八女・スロパチアワード景品・エムザス笹丘・安藤まい・エムザス小笹・望月咲",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-18:dstation-39-moji",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8818%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-91ba22073708"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100644",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "覇王のリアル",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100644",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373074.html",
+      "prefectures": [
+        "tochigi"
+      ],
+      "id": "evt-693fc5f5a564"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100825",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "8がつく日・ドラゴン来店取材玉ハイパー",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100825",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-e5dfed115c0b"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100951",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100951",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-87735841fcd6"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101271",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-101271",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-82c3da6527c3"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100950",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "8がつく日・裏天下無双",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100950",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-31ac8c11f7d8"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100260",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天下無双",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100260",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-d4beb1e07411"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100952",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "裏パス",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100952",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-8a4b799fb988"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100196",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天誅～灼＆閃＆斬～",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100196",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-8c183bcf6425"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100742",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊チームS/P",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100742",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-973fefc000ff"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100947",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "S級ホール調査-極-",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100947",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-554b09cfda15"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100854",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "タイガー来店取材玉20",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100854",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-ac1581b097b0"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100853",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "タイガー来店取材玉10",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100853",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-9c9dd0495119"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100632",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "皇帝のリアル",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100632",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373073.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-a4c10e2e1b02"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100855",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "マスターズ(赤)・タイガー来店取材玉10・半転全昇",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100855",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373072.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-1fdbda51ef44"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101039",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-101039",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373071.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-6f80cc1bc107"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101082",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "8がつく日・すろぱちガール来店P",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-101082",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373071.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-c9e2c8b91470"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100841",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロぱちガール来店PS",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100841",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373071.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-df069fde82a5"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100821",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチガール来店S・来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100821",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373071.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-dfe61d42c48d"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101417",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊SUPERトリプルＳ",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-101417",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373071.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-8be3aedd821f"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100886",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチガール来店S・タイガー来店取材玉10",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100886",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373070.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-1d7f09d09a7d"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100822",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロぱちガール来店PS",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100822",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373070.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-aa5cb1151c46"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100818",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "パチンコ必勝本DVD収録※守山アニキ・Q太・満井あゆみ・アスカ・さやか・玉城マイ・そふぃー・美咲・かつなり来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-100818",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373070.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-3818e4236c0e"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101287",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "クロロ調査隊チームS/P",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-18:daidata-101287",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373070.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-175c79b6a68b"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101083",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "8がつく日・BUZZ取材",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-101083",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-32d71caa2300"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100704",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100704",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-9c3ffd08193e"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100847",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スーパーハリウッド高槻・スロパチ景品入荷",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100847",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-b6d4bb4c4164"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100846",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "8がつく日",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100846",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-496152c6b9c8"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100706",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "10月来店スケジュール",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100706",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-64d0b7b63c16"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101255",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "10月来店スケジュール",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-101255",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-76f89c3123c3"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100696",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "10月来店スケジュール",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100696",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-b678cae9cb01"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100698",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "10月来店スケジュール",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100698",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-30d1bf80fa6d"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100709",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スクープTV全力取材パープル",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100709",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-609b94826f32"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100646",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ペカ電子取材",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100646",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-4ae213e83873"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101298",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "明日パチ潜入取材(超)・遊馬来店",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-101298",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-1e224e47b74d"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-101305",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "あちゃん来店",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-101305",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-bc0d12cb2347"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100458",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "アミューズ三ノ宮",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100458",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%85%b5%e5%ba%ab%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "hyogo"
+      ],
+      "id": "evt-fa56fdee27d6"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100703",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "花鳥風月取材-風-",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100703",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%85%b5%e5%ba%ab%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "hyogo"
+      ],
+      "id": "evt-2e286bb48cab"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100708",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "8がつく日・ジャンバリ潜入来店取材(炎)",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100708",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e4%ba%ac%e9%83%bd%e5%ba%9c%e3%83%bb%e5%a5%88%e8%89%af%e7%9c%8c%e3%83%bb%e5%92%8c%e6%ad%8c%e5%b1%b1%e7%9c%8c%e3%83%bb%e6%bb%8b%e8%b3%80%e7%9c%8c-4/",
+      "prefectures": [
+        "wakayama",
+        "shiga",
+        "kyoto",
+        "nara"
+      ],
+      "id": "evt-60283c7c11a1"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100501",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "PS調査員来店(虹)",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-18:daidata-100501",
+      "source_url": "https://kansai-sloeve.com/2026/10/17/10%e6%9c%8818%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e4%ba%ac%e9%83%bd%e5%ba%9c%e3%83%bb%e5%a5%88%e8%89%af%e7%9c%8c%e3%83%bb%e5%92%8c%e6%ad%8c%e5%b1%b1%e7%9c%8c%e3%83%bb%e6%bb%8b%e8%b3%80%e7%9c%8c-4/",
+      "prefectures": [
+        "wakayama",
+        "shiga",
+        "kyoto",
+        "nara"
+      ],
+      "id": "evt-7535b323af0f"
+    },
+    {
+      "date": "2026-10-24",
+      "hall_id": "daidata-101330",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "堕ねんじぇるの天使か悪魔か",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-24:daidata-101330",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "mie"
+      ],
+      "id": "evt-25b34c8ff0e0"
+    },
+    {
+      "date": "2026-10-24",
+      "hall_id": "daidata-100661",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう!プライム",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-24:daidata-100661",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aichi"
+      ],
+      "id": "evt-4ab0498c92b0"
+    },
+    {
+      "date": "2026-10-18",
+      "hall_id": "daidata-100542",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "SLOT HUNTER",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-18:daidata-100542",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-eac3e53ebcd5"
+    },
+    {
+      "date": "2026-10-24",
+      "hall_id": "daidata-100542",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "SLOT HUNTER",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-24:daidata-100542",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-8cf1aa3807f5"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100975",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "9がつく日",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:daidata-100975",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-2f2fe0e4b6b6"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "tamaya-zassho",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう取材(虹)・香里奈・メガビーム朝倉999・Mayu",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:tamaya-zassho",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-238bbbb82fc9"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100658",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "愛華",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:daidata-100658",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-1dfdd5a3ec35"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100652",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "たろっぷ",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:daidata-100652",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-47da53309d84"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "plaza-hakata",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超極誓取材",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:plaza-hakata",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-397ba395124b"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "plaza-honten2",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロット乱王",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:plaza-honten2",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-8d1bb65f768e"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "plaza-3",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロット乱王・ベルエアMAX広川・3×3STAR取材・まりえーる・ベルエアMAX本城・トレハン・ぴーちゃん・ゆう坊",
+      "source": "x:PatiSlodays",
+      "source_key": "x:PatiSlodays:2026-10-19:plaza-3",
+      "source_url": "https://slotoshihall.com/2026%e5%b9%b410%e6%9c%8819%e6%97%a5%e6%98%8e%e6%97%a5%e3%81%ae%e3%82%aa%e3%82%b7%e3%83%9b%e3%83%bc%e3%83%ab/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-cb654e0efc34"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100644",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "9がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100644",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373091.html",
+      "prefectures": [
+        "tochigi"
+      ],
+      "id": "evt-07004d9d381a"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100260",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "9がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100260",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373090.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-61606b899ab7"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100733",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "9がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100733",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373090.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-b3be99fc58bd"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100951",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天下無双",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100951",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373090.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-dec935b12407"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-101271",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "天草超絶ホール応援団来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-101271",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373090.html",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-c4c61c1e384f"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100942",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "SS・CUBEくん&判沢くん取材",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100942",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373089.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-fc595ed16caa"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100855",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "全知全能（オールマイティ）",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100855",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373089.html",
+      "prefectures": [
+        "chiba"
+      ],
+      "id": "evt-aea5d0809c9a"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-101082",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチガール来店S",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-101082",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373088.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-113d3d1e8e78"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100677",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ライテン※辻ヤスシ来店",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100677",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373088.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-3e94be4011d2"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100676",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロッター✕ワールドALL STAR【神】",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100676",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373088.html",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-9377f7ba239e"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100349",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "9がつく日",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100349",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373087.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-88dcd2a09232"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100890",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スロパチ来店for埼玉",
+      "source": "x:touslot_777",
+      "source_key": "x:touslot_777:2026-10-19:daidata-100890",
+      "source_url": "https://touslo777souko.blog.jp/archives/35373087.html",
+      "prefectures": [
+        "saitama"
+      ],
+      "id": "evt-f7edeee81b17"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100458",
+      "group": "",
+      "event_type": "特定日",
+      "event_title": "9がつく日",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-19:daidata-100458",
+      "source_url": "https://kansai-sloeve.com/2026/10/18/10%e6%9c%8819%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%85%b5%e5%ba%ab%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "hyogo"
+      ],
+      "id": "evt-e2666e885943"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100460",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "9がつく日・ジャンバリ潜入来店取材炎・ヨシノブ来店",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-19:daidata-100460",
+      "source_url": "https://kansai-sloeve.com/2026/10/18/10%e6%9c%8819%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%85%b5%e5%ba%ab%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "hyogo"
+      ],
+      "id": "evt-b3a2408455a4"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-100211",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "◆奈良県",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-19:daidata-100211",
+      "source_url": "https://kansai-sloeve.com/2026/10/18/10%e6%9c%8819%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e4%ba%ac%e9%83%bd%e5%ba%9c%e3%83%bb%e5%a5%88%e8%89%af%e7%9c%8c%e3%83%bb%e5%92%8c%e6%ad%8c%e5%b1%b1%e7%9c%8c%e3%83%bb%e6%bb%8b%e8%b3%80%e7%9c%8c-4/",
+      "prefectures": [
+        "wakayama",
+        "shiga",
+        "kyoto",
+        "nara"
+      ],
+      "id": "evt-2e4ec05784e6"
+    },
+    {
+      "date": "2026-10-19",
+      "hall_id": "daidata-101259",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "PS調査員来店(虹)",
+      "source": "x:kansai-sloeve",
+      "source_key": "x:kansai-sloeve:2026-10-19:daidata-101259",
+      "source_url": "https://kansai-sloeve.com/2026/10/18/10%e6%9c%8819%e6%97%a5-%e6%98%8e%e6%97%a5%e3%81%ae%e5%a4%a7%e9%98%aa%e3%81%99%e3%82%8d%e3%81%84%e3%81%b9-4/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-95a76cbab923"
+    },
+    {
+      "date": "2026-10-25",
+      "hall_id": "daidata-100368",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう!取材（金）",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-25:daidata-100368",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aomori"
+      ],
+      "id": "evt-b7cae2d234b6"
+    },
+    {
+      "date": "2026-10-25",
+      "hall_id": "daidata-100602",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう!取材（金）",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-25:daidata-100602",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "iwate"
+      ],
+      "id": "evt-7375fd6c13f5"
+    },
+    {
+      "date": "2026-10-25",
+      "hall_id": "daidata-100541",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう!取材（金）",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-25:daidata-100541",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "iwate"
+      ],
+      "id": "evt-732fe4f02dfc"
+    },
+    {
+      "date": "2026-10-25",
+      "hall_id": "daidata-101034",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超パチンコ乱王［北海道・東北］",
+      "source": "x:dechau-tohoku",
+      "source_key": "x:dechau-tohoku:2026-10-25:daidata-101034",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "iwate"
+      ],
+      "id": "evt-8139ab764fce"
+    },
+    {
+      "date": "2026-10-24",
+      "hall_id": "daidata-101204",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "乱王_東海",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-24:daidata-101204",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "shizuoka"
+      ],
+      "id": "evt-bf502fa01a8c"
+    },
+    {
+      "date": "2026-10-25",
+      "hall_id": "daidata-101409",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ひまりンピック",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-25:daidata-101409",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "saga"
+      ],
+      "id": "evt-44c0567660fd"
+    }
+  ],
+  "dismissed": []
+}

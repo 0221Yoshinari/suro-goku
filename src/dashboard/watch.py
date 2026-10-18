@@ -83,7 +83,7 @@ def build_watch_payload() -> dict[str, Any]:
                     "patterns": list(target.patterns),
                     "marked": True,
                     "found_in_last_fetch": bool(names),
-                    "site7_names": names,
+                    "matched_names": names,
                     "unit_count": hit["unit_count"],
                 }
             )
@@ -97,6 +97,11 @@ def build_watch_payload() -> dict[str, Any]:
         )
 
     log = parse_scheduler_log()
+    last_event = log.get("last_event")
+    if isinstance(last_event, dict):
+        from src.scraper.log_safe import redact
+
+        log = {**log, "last_event": {**last_event, "message": redact(str(last_event.get("message") or ""))}}
     window = schedule_window()
     now = datetime.now(TOKYO)
     state = read_schedule_state()

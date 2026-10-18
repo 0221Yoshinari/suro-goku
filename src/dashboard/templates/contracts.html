@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>契約管理 | スロ極</title>
+    <link rel="stylesheet" href="/static/styles.css?v=56" />
+    <link rel="stylesheet" href="/static/admin.css?v=3" />
+    <link rel="stylesheet" href="/static/contracts.css?v=1" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <p class="eyebrow">管理者トークンで保護</p>
+        <h1>契約・無料体験</h1>
+      </div>
+      <div class="top-actions">
+        <a class="button-link" href="/master-panel-x7k3q9">機種マスター</a>
+        <a class="button-link" href="/master-panel-x7k3q9/halls">ホール管理</a>
+        <form method="post" action="/logout" class="logout-form">
+          <button type="submit">ログアウト</button>
+        </form>
+      </div>
+    </header>
+
+    <p class="admin-note">
+      Stripe のサブスクリプション通知で同期した会員です。時刻は日本時間です。
+    </p>
+    <p id="contract-status" class="admin-status" role="status"></p>
+    <p id="contract-error" class="error hidden" role="alert"></p>
+
+    <section class="stats" aria-label="契約の概要">
+      <button type="button" class="stat contract-stat" data-filter="all">
+        <p class="stat-label">総会員数</p>
+        <p class="stat-value" id="kpi-total">—</p>
+      </button>
+      <button type="button" class="stat contract-stat" data-filter="trialing">
+        <p class="stat-label">無料体験中</p>
+        <p class="stat-value" id="kpi-trialing">—</p>
+      </button>
+      <button type="button" class="stat contract-stat" data-filter="active">
+        <p class="stat-label">有料課金中</p>
+        <p class="stat-value" id="kpi-active">—</p>
+      </button>
+      <button type="button" class="stat contract-stat" data-filter="ending_this_week">
+        <p class="stat-label">今週体験終了</p>
+        <p class="stat-value" id="kpi-ending">—</p>
+        <p class="stat-note" id="kpi-week"></p>
+      </button>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head contract-toolbar">
+        <div>
+          <h2>ユーザー契約</h2>
+          <p class="hint" id="contract-summary">メールアドレス、名前、Customer ID で探せます。</p>
+        </div>
+        <div class="contract-tools">
+          <label class="contract-search">
+            <span>検索</span>
+            <input id="contract-query" type="search" maxlength="200" placeholder="メール / 名前 / Customer ID" autocomplete="off" />
+          </label>
+          <div class="contract-filters" role="tablist" aria-label="ステータス">
+            <button type="button" class="filter-tab is-on" data-filter="all" role="tab" aria-selected="true">全員</button>
+            <button type="button" class="filter-tab" data-filter="trialing" role="tab" aria-selected="false">無料体験中</button>
+            <button type="button" class="filter-tab" data-filter="active" role="tab" aria-selected="false">有料中</button>
+            <button type="button" class="filter-tab" data-filter="past_due" role="tab" aria-selected="false">決済失敗</button>
+            <button type="button" class="filter-tab" data-filter="canceled" role="tab" aria-selected="false">解約済</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table contract-table">
+          <thead>
+            <tr>
+              <th>ステータス</th>
+              <th>メール / 名前</th>
+              <th>契約開始</th>
+              <th>無料期間</th>
+              <th>フェーズ</th>
+              <th>次回請求</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="contract-rows"></tbody>
+        </table>
+      </div>
+      <p id="contract-empty" class="empty hidden">該当する会員はいません。</p>
+    </section>
+    <script src="/static/contracts.js?v=1"></script>
+  </body>
+</html>

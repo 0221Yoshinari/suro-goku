@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Roboto+Mono:wght@600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=65" />
+    <link rel="stylesheet" href="/static/styles.css?v=70" />
   </head>
   <body>
     <header class="top">
@@ -23,9 +23,10 @@
           <p id="judged-at" class="meta judged-meta">読み込み中…</p>
         </div>
         <div class="action-buttons">
-          <a class="button-link" href="/master-panel-x7k3q9/halls">ホール管理</a>
           <button type="button" id="reload-btn">再読み込み</button>
-          <button type="button" id="judge-btn" class="primary">再判定する</button>
+          <form method="post" action="/logout" class="logout-form">
+            <button type="submit">ログアウト</button>
+          </form>
         </div>
       </div>
       <nav class="main-tabs" role="tablist" aria-label="表示の切り替え">
@@ -36,7 +37,13 @@
       </nav>
     </header>
 
-    <div class="nav-dock">
+    <div class="nav-dock" id="nav-dock">
+    <button type="button" id="nav-dock-toggle" class="nav-dock-toggle" aria-expanded="true" aria-controls="nav-dock-body">
+      <span class="nav-dock-toggle-icon" aria-hidden="true">▴</span>
+      <span class="nav-dock-toggle-label">全6・56・456を格納</span>
+    </button>
+    <div id="nav-dock-body" class="nav-dock-body">
+    <div class="nav-dock-body-inner">
     <div id="joint-announce" class="joint-announce" aria-live="polite">
       <p class="joint-announce-empty">📢 本日の合同取材: 本日開催予定の合同取材はありません</p>
     </div>
@@ -72,6 +79,15 @@
           </button>
         </div>
       </div>
+      <button type="button" id="juggler-mode" class="juggler-switch" aria-pressed="false">
+        <span class="juggler-switch-track" aria-hidden="true"></span>
+        <span class="juggler-switch-copy">
+          <span class="juggler-switch-label">ジャグラーモード</span>
+          <span class="juggler-switch-hint">エリアの全6・全56・全456</span>
+        </span>
+      </button>
+    </div>
+    </div>
     </div>
     </div>
 
@@ -104,6 +120,17 @@
     </div>
     <p id="hall-fetched-stamp" class="hall-fetched">店舗データの取得日時を確認中…</p>
     <div id="hall-event-badges" class="event-badges hall-event-badges hidden"></div>
+
+    <section id="section-juggler" class="panel panel-juggler">
+      <div class="panel-head">
+        <h2>ジャグラーモード</h2>
+        <p id="juggler-meta" class="hint">選択中のエリアで、合算とREGが設定ラインに乗ったジャグラーを全6・全56・全456で出します。</p>
+      </div>
+      <div id="juggler-summary" class="juggler-summary" aria-label="ジャグラー島の集計"></div>
+      <div id="juggler-area-hot" class="juggler-area-hot"></div>
+      <div id="juggler-islands" class="juggler-islands"></div>
+      <p id="juggler-empty" class="empty hidden">この範囲にジャグラー島はありません。</p>
+    </section>
 
     <section class="stats" aria-label="集計">
       <article class="stat stat-jump" data-jump="section-list" role="button" tabindex="0">
@@ -308,6 +335,6 @@
     </div>
     <p id="signal-toast" class="signal-toast" role="status" aria-live="polite"></p>
     <button type="button" id="to-top" class="to-top" aria-label="ページトップに戻る">▲ TOP</button>
-    <script src="/static/app.js?v=65"></script>
+    <script src="/static/app.js?v=70"></script>
   </body>
 </html>

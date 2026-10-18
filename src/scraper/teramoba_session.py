@@ -7,6 +7,7 @@ import re
 import time
 from pathlib import Path
 
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.browser import (
     browser_session,
     hall_switch_pause,
@@ -45,7 +46,7 @@ async def _click_agree(page) -> bool:
     except Exception:
         clicked = False
     if clicked:
-        print("  同意するを JS で押しました", flush=True)
+        emit("  同意するを JS で押しました", flush=True)
         return True
     for selector in AGREE_CHECKS:
         loc = page.locator(selector)
@@ -58,7 +59,7 @@ async def _click_agree(page) -> bool:
             try:
                 if await box.is_visible():
                     await box.click(timeout=1500)
-                    print("  チェックボックスを押しました", flush=True)
+                    emit("  チェックボックスを押しました", flush=True)
             except Exception:
                 continue
     for selector in AGREE_BUTTONS:
@@ -69,7 +70,7 @@ async def _click_agree(page) -> bool:
             target = loc.first
             if await target.is_visible():
                 await target.click(timeout=2500)
-                print(f"  同意ボタンを押しました ({selector})", flush=True)
+                emit(f"  同意ボタンを押しました ({selector})", flush=True)
                 return True
         except Exception:
             continue
@@ -123,7 +124,7 @@ async def _click_turnstile(page) -> bool:
             try:
                 loc = frame.locator(selector).first
                 await loc.click(timeout=2000)
-                print("  Turnstile 枠をクリックしました", flush=True)
+                emit("  Turnstile 枠をクリックしました", flush=True)
                 return True
             except Exception:
                 continue
@@ -131,7 +132,7 @@ async def _click_turnstile(page) -> bool:
     try:
         if await loc.count():
             await loc.first.click(timeout=2000)
-            print("  Turnstile iframe をクリックしました", flush=True)
+            emit("  Turnstile iframe をクリックしました", flush=True)
             return True
     except Exception:
         pass
@@ -150,19 +151,19 @@ async def _wait_unlocked(page, context, hall_id: int, kind_code: str, wait_sec: 
     last_verify = None
     clicked_agree = False
     last_cf = 0.0
-    print("  画面で利用規約に同意し、CAPTCHA が出たらチェックを入れてください。", flush=True)
-    print("  台一覧（DOM）が表示されるまで待ちます。", flush=True)
+    emit("  画面で利用規約に同意し、CAPTCHA が出たらチェックを入れてください。", flush=True)
+    emit("  台一覧（DOM）が表示されるまで待ちます。", flush=True)
     while time.monotonic() < deadline:
         rows = await _dom_machine_count(page)
         if rows > 0:
-            print(f"  解除確認: DOM 機種行 {rows}", flush=True)
+            emit(f"  解除確認: DOM 機種行 {rows}", flush=True)
             return True
         try:
             count = await _machine_count(page, hall_id, kind_code)
         except Exception:
             count = 0
         if count > 0:
-            print(f"  解除確認: API 機種 {count}", flush=True)
+            emit(f"  解除確認: API 機種 {count}", flush=True)
             return True
         if not clicked_agree:
             clicked_agree = await _click_agree(page)
@@ -176,11 +177,11 @@ async def _wait_unlocked(page, context, hall_id: int, kind_code: str, wait_sec: 
             challenge = {}
         should_verify = bool(isinstance(challenge, dict) and challenge.get("should_verify"))
         if should_verify != last_verify:
-            print(f"  captcha should_verify={should_verify}", flush=True)
+            emit(f"  captcha should_verify={should_verify}", flush=True)
             last_verify = should_verify
         remaining = int(deadline - time.monotonic())
         if remaining in (120, 90, 60, 30, 15):
-            print(f"  同意完了を待っています（残り約{remaining}秒）", flush=True)
+            emit(f"  同意完了を待っています（残り約{remaining}秒）", flush=True)
         await page.wait_for_timeout(1200)
     return (await _dom_machine_count(page)) > 0
 
@@ -205,28 +206,28 @@ async def _establish_detail_session(page, context, hall: Hall, *, wait_sec: floa
         await page.wait_for_timeout(800)
     name = await _first_watched_name(page)
     if not name:
-        print("  監視対象の1機種目が見つかりません", flush=True)
+        emit("  監視対象の1機種目が見つかりません", flush=True)
         return False
-    print(f"\n===== 詳細認証: {hall.name} / {name} =====", flush=True)
+    emit(f"\n===== 詳細認証: {hall.name} / {name} =====", flush=True)
     row = page.locator("tr.teram2-link-block").filter(has=page.get_by_text(name, exact=True))
     if await row.count() == 0:
-        print("  機種行をクリックできません", flush=True)
+        emit("  機種行をクリックできません", flush=True)
         return False
     await row.first.click()
     await page.wait_for_timeout(1200)
-    print(f"  開いた: {page.url}", flush=True)
-    print("  Turnstile の「私はロボットではありません」にチェックを入れ、「同意する」を押してください。", flush=True)
-    print("  台番号の表が出るまで、この画面のまま待ちます。", flush=True)
+    emit(f"  開いた: {page.url}", flush=True)
+    emit("  Turnstile の「私はロボットではありません」にチェックを入れ、「同意する」を押してください。", flush=True)
+    emit("  台番号の表が出るまで、この画面のまま待ちます。", flush=True)
     deadline = time.monotonic() + max(30.0, wait_sec)
     while time.monotonic() < deadline:
         if await page.locator("th", has_text="台番号").count():
             from src.scraper.teramoba_browser import _parse_standlist
 
             units = await _parse_standlist(page)
-            print(f"  詳細通過: {name} / {len(units)} 台", flush=True)
+            emit(f"  詳細通過: {name} / {len(units)} 台", flush=True)
             if units:
                 sample = units[0]
-                print(
+                emit(
                     "  サンプル: "
                     f"台番号={sample.get('rack_no')} BB={sample.get('bonus_1')} "
                     f"RB={sample.get('bonus_2')} ART={sample.get('bonus_3')} "
@@ -237,16 +238,16 @@ async def _establish_detail_session(page, context, hall: Hall, *, wait_sec: floa
             return True
         remaining = int(deadline - time.monotonic())
         if remaining in (120, 90, 60, 30, 15):
-            print(f"  詳細の同意を待っています（残り約{remaining}秒 / {page.url}）", flush=True)
+            emit(f"  詳細の同意を待っています（残り約{remaining}秒 / {page.url}）", flush=True)
         await page.wait_for_timeout(1000)
-    print("  制限時間内に台詳細へ進めませんでした", flush=True)
+    emit("  制限時間内に台詳細へ進めませんでした", flush=True)
     return False
 
 
 async def unlock_hall(page, context, hall: Hall, *, wait_sec: float) -> bool:
     target = target_from_hall(hall)
-    print(f"\n===== 規約同意: {hall.name} ({target.department}) =====", flush=True)
-    print(f"  開く: {target.list_url}", flush=True)
+    emit(f"\n===== 規約同意: {hall.name} ({target.department}) =====", flush=True)
+    emit(f"  開く: {target.list_url}", flush=True)
     await page.goto(target.list_url, wait_until="domcontentloaded", timeout=60000)
     await page.wait_for_timeout(1200)
     hall_id = target.hall_id
@@ -254,20 +255,20 @@ async def unlock_hall(page, context, hall: Hall, *, wait_sec: float) -> bool:
         match = re.search(r'name="hall_id" content=(\d+)', await page.content())
         hall_id = int(match.group(1)) if match else None
     if not hall_id:
-        print("  hall_id を特定できませんでした", flush=True)
+        emit("  hall_id を特定できませんでした", flush=True)
         return False
     if await _wait_unlocked(page, context, hall_id, target.kind_code, wait_sec):
         return await _establish_detail_session(page, context, hall, wait_sec=wait_sec)
-    print("  制限時間内に台一覧の DOM を確認できませんでした", flush=True)
+    emit("  制限時間内に台一覧の DOM を確認できませんでした", flush=True)
     frames = [frame.url for frame in page.frames]
-    print(f"  frames: {frames}", flush=True)
+    emit(f"  frames: {frames}", flush=True)
     shot = Path("data/teramoba/debug-last-hall.png")
     shot.parent.mkdir(parents=True, exist_ok=True)
     try:
         await page.screenshot(path=str(shot), full_page=True)
-        print(f"  画面を保存: {shot}", flush=True)
+        emit(f"  画面を保存: {shot}", flush=True)
     except Exception as exc:
-        print(f"  画面保存に失敗: {exc}", flush=True)
+        emit(f"  画面保存に失敗: {failure_reason(exc)}", flush=True)
     return False
 
 
@@ -282,9 +283,9 @@ async def refresh_teramoba_session(
         raise RuntimeError("source=teramoba の有効ホールがありません")
     profile = teramoba_browser_profile()
     os.environ.setdefault("PLAYWRIGHT_CHANNEL", "chrome")
-    print("headed ブラウザでテラモバ2の規約同意を順に通します。", flush=True)
-    print("CAPTCHA が出た店舗は、画面上でチェックを完了してください。", flush=True)
-    print(f"永続プロファイル: {profile}", flush=True)
+    emit("headed ブラウザでテラモバ2の規約同意を順に通します。", flush=True)
+    emit("CAPTCHA が出た店舗は、画面上でチェックを完了してください。", flush=True)
+    emit(f"永続プロファイル: {profile}", flush=True)
 
     ok: list[str] = []
     failed: list[str] = []
@@ -294,14 +295,14 @@ async def refresh_teramoba_session(
         context = session.context
         for index, hall in enumerate(targets, start=1):
             target = target_from_hall(hall)
-            print(f"\n[{index}/{len(targets)}] {hall.name}", flush=True)
+            emit(f"\n[{index}/{len(targets)}] {hall.name}", flush=True)
             if skip_unlocked:
                 try:
                     await page.goto(target.list_url, wait_until="domcontentloaded", timeout=60000)
                     await page.wait_for_timeout(800)
                     rows = await _dom_machine_count(page)
                     if rows > 0:
-                        print(f"  一覧は解除済み（DOM 機種行 {rows}）。詳細認証へ進みます", flush=True)
+                        emit(f"  一覧は解除済み（DOM 機種行 {rows}）。詳細認証へ進みます", flush=True)
                         if await _establish_detail_session(page, context, hall, wait_sec=wait_sec):
                             skipped.append(hall.name)
                         else:
@@ -310,7 +311,7 @@ async def refresh_teramoba_session(
                             await hall_switch_pause()
                         continue
                 except Exception as exc:
-                    print(f"  事前確認をスキップして同意画面へ: {exc}", flush=True)
+                    emit(f"  事前確認をスキップして同意画面へ: {failure_reason(exc)}", flush=True)
             if await unlock_hall(page, context, hall, wait_sec=wait_sec):
                 ok.append(hall.name)
             else:
@@ -318,10 +319,10 @@ async def refresh_teramoba_session(
             if index < len(targets):
                 await hall_switch_pause()
 
-    print(
+    emit(
         f"\n規約同意完了: 成功 {len(ok)} / 既存解除 {len(skipped)} / 失敗 {len(failed)} / 対象 {len(targets)}",
         flush=True,
     )
     if failed:
-        print("失敗: " + " / ".join(failed), flush=True)
+        emit("失敗: " + " / ".join(failed), flush=True)
     return profile

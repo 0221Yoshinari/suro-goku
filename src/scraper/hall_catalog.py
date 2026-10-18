@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.halls import (
     GROUP_INCLUDES_ART_IN_TOTAL_GAMES,
     HALLS_CONFIG_PATH,
@@ -469,8 +470,8 @@ def fetch_catalog(
         try:
             html = get(url)
         except (OSError, urllib.error.URLError, TimeoutError) as exc:
-            errors.append(f"daidata {label}: {exc}")
-            print(f"台データ {label} を取得できませんでした: {exc}", flush=True)
+            errors.append(f"daidata {label}: {failure_reason(exc)}")
+            emit(f"台データ {label} を取得できませんでした: {failure_reason(exc)}", flush=True)
             time.sleep(pause_sec)
             continue
         rows = parse_daidata_store_list(html, prefecture_name=label)
@@ -482,27 +483,27 @@ def fetch_catalog(
             seen_daidata.add(store_id)
             halls.append(row)
             fresh += 1
-        print(f"台データ {label}: {fresh} 件", flush=True)
+        emit(f"台データ {label}: {fresh} 件", flush=True)
         time.sleep(pause_sec)
     seen_teramoba: set[str] = set()
     for url in collect_teramoba_seeds(halls_payload, targets):
         try:
             html = get(url)
         except (OSError, urllib.error.URLError, TimeoutError) as exc:
-            errors.append(f"teramoba {url}: {exc}")
-            print(f"テラモバを取得できませんでした: {url} {exc}", flush=True)
+            errors.append(f"teramoba: {failure_reason(exc)}")
+            emit(f"テラモバを取得できませんでした: {url} {failure_reason(exc)}", flush=True)
             time.sleep(pause_sec)
             continue
         row = parse_teramoba_hall_page(html, url)
         if row is None:
-            errors.append(f"teramoba {url}: 店舗情報なし")
-            print(f"テラモバの店舗情報を読めませんでした: {url}", flush=True)
+            errors.append("teramoba: 店舗情報なし")
+            emit(f"テラモバの店舗情報を読めませんでした: {url}", flush=True)
         else:
             key = f"{row.get('host')}/{row.get('store_id')}"
             if key not in seen_teramoba:
                 seen_teramoba.add(key)
                 halls.append(row)
-                print(f"テラモバ {row.get('name')}", flush=True)
+                emit(f"テラモバ {row.get('name')}", flush=True)
         time.sleep(pause_sec)
     return {
         "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -779,7 +780,7 @@ def main(argv: list[str] | None = None) -> None:
         halls_payload = json.loads(args.halls.read_text(encoding="utf-8"))
         document = fetch_catalog(targets=targets, halls_payload=halls_payload, pause_sec=args.pause)
         path = save_master(document, args.master)
-        print(
+        emit(
             f"店舗マスター {path} / {document['count']} 件 / {document.get('sources')} / 失敗 {len(document.get('errors') or [])}",
             flush=True,
         )
@@ -793,7 +794,7 @@ def main(argv: list[str] | None = None) -> None:
             register_enabled=True if args.enable_new else None,
         )
         save_halls_payload(halls_payload, args.halls)
-        print(
+        emit(
             "登録 "
             f"追加={summary['added']} 更新={summary['updated']} "
             f"既存={summary['unchanged']} 対象外={summary['skipped']} "

@@ -13,6 +13,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from src.dashboard.hall_admin import list_hall_rows
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.hall_catalog import (
     apply_catalog,
     archive_hall,
@@ -132,11 +133,11 @@ def discover_teramoba_urls(
                 urls.append(url)
 
     for host in hosts:
-        print(f"テラモバ検索: {host}", flush=True)
+        emit(f"テラモバ検索: {host}", flush=True)
         absorb(search_teramoba(f"site:{host}", getter, pause_sec=0))
         time.sleep(pause_sec)
     for label in prefecture_labels:
-        print(f"テラモバ検索: {label}", flush=True)
+        emit(f"テラモバ検索: {label}", flush=True)
         absorb(search_teramoba(f'site:pt.teramoba2.com "{label}"', getter, pause_sec=0))
         time.sleep(pause_sec)
     return urls
@@ -162,14 +163,14 @@ def fetch_teramoba_records(urls: list[str], get: Get | None = None, *, pause_sec
         try:
             html = getter(url)
         except (OSError, urllib.error.URLError, TimeoutError) as exc:
-            print(f"テラモバ取得失敗 {url}: {exc}", flush=True)
+            emit(f"テラモバ取得失敗 {url}: {failure_reason(exc)}", flush=True)
             time.sleep(pause_sec)
             continue
         row = parse_teramoba_hall_page(html, url)
         if row is not None:
             rows.append(row)
             if index % 25 == 0:
-                print(f"テラモバ店舗 {index}/{len(urls)} 読込 {len(rows)} 件", flush=True)
+                emit(f"テラモバ店舗 {index}/{len(urls)} 読込 {len(rows)} 件", flush=True)
         time.sleep(pause_sec)
     return rows
 
@@ -180,7 +181,7 @@ def grandgroup_urls(get: Get | None = None) -> list[str]:
     try:
         index_html = getter("https://grandgroup.jp/")
     except (OSError, urllib.error.URLError, TimeoutError) as exc:
-        print(f"グランドグループ公式を開けませんでした: {exc}", flush=True)
+        emit(f"グランドグループ公式を開けませんでした: {failure_reason(exc)}", flush=True)
         return []
     pages = ["https://grandgroup.jp/"]
     for match in urllib.parse.unquote(index_html).split("https://grandgroup.jp/"):
@@ -226,7 +227,7 @@ def probe_daidata_states(store_ids: list[str], *, workers: int = 4) -> dict[str,
             states[store_id] = state
             done += 1
             if done % 40 == 0 or done == len(store_ids):
-                print(f"台データ再検証 {done}/{len(store_ids)}", flush=True)
+                emit(f"台データ再検証 {done}/{len(store_ids)}", flush=True)
     return states
 
 
@@ -271,7 +272,7 @@ def backfill_alternate_sources(
         name = str(hall.get("name") or "").strip()
         if not name or alternate_record(name, "daidata", records):
             continue
-        print(f"別ソース検索: {name}", flush=True)
+        emit(f"別ソース検索: {name}", flush=True)
         urls = search_teramoba(f'"{name}" site:pt.teramoba2.com', getter, pause_sec=0)
         rows = fetch_teramoba_records(urls[:4], getter, pause_sec=0.1)
         matched = [row for row in rows if names_match(name, str(row.get("name") or ""))]
@@ -367,16 +368,16 @@ def coverage_table(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def print_coverage(table: list[dict[str, Any]]) -> None:
-    print("都道府県\t有効\t成功\tエラー\t未取得\t未公開\tアーカイブ\t10店以上", flush=True)
+    emit("都道府県\t有効\t成功\tエラー\t未取得\t未公開\tアーカイブ\t10店以上", flush=True)
     for row in table:
-        print(
+        emit(
             f"{row['label']}\t{row['enabled']}\t{row['ok']}\t{row['error']}\t{row['pending']}\t"
             f"{row['unpublished']}\t{row['archived']}\t{'yes' if row['meets_minimum'] else 'no'}",
             flush=True,
         )
     enabled = sum(row["enabled"] for row in table)
     short = [row["label"] for row in table if not row["meets_minimum"]]
-    print(f"有効合計 {enabled} / 10店未満 {len(short)} 県: {', '.join(short) if short else 'なし'}", flush=True)
+    emit(f"有効合計 {enabled} / 10店未満 {len(short)} 県: {', '.join(short) if short else 'なし'}", flush=True)
 
 
 def run_repair(*, pause_sec: float = 0.35, search_pause_sec: float = 0.8) -> dict[str, Any]:
@@ -385,18 +386,18 @@ def run_repair(*, pause_sec: float = 0.35, search_pause_sec: float = 0.8) -> dic
     targets = load_targets()
     targets["prefectures"] = all_prefecture_slugs()
     halls_payload = load_halls_config()
-    print("台データオンラインの全国一覧を取り直します", flush=True)
+    emit("台データオンラインの全国一覧を取り直します", flush=True)
     fetched = fetch_catalog(targets=targets, halls_payload=halls_payload, pause_sec=pause_sec, opener=desktop_get)
     master = load_master()
     merged = merge_master_rows(master, list(fetched.get("halls") or []))
-    print(f"台データ反映 追加={merged['added']} 更新={merged['updated']}", flush=True)
+    emit(f"台データ反映 追加={merged['added']} 更新={merged['updated']}", flush=True)
 
     hosts = parse_hackertarget_hosts(desktop_get("https://api.hackertarget.com/hostsearch/?q=teramoba2.com"))
     for host in configured_teramoba_hosts(halls_payload):
         if host not in hosts:
             hosts.append(host)
     labels = thin_prefecture_labels(list(master.get("halls") or []))
-    print(f"テラモバ探索 ホスト {len(hosts)} / 10店未満の県 {len(labels)}", flush=True)
+    emit(f"テラモバ探索 ホスト {len(hosts)} / 10店未満の県 {len(labels)}", flush=True)
     urls = grandgroup_urls(desktop_get)
     urls.extend(
         discover_teramoba_urls(hosts=hosts, prefecture_labels=labels, get=desktop_get, pause_sec=search_pause_sec)
@@ -408,11 +409,11 @@ def run_repair(*, pause_sec: float = 0.35, search_pause_sec: float = 0.8) -> dic
         if key and key not in seen_dept:
             seen_dept.add(key)
             deduped.append(url)
-    print(f"テラモバ店舗ページ {len(deduped)} 件を読みます", flush=True)
+    emit(f"テラモバ店舗ページ {len(deduped)} 件を読みます", flush=True)
     teramoba_rows = fetch_teramoba_records(deduped, desktop_get, pause_sec=0.2)
     merged_tera = merge_master_rows(master, teramoba_rows)
     save_master(master)
-    print(f"テラモバ反映 追加={merged_tera['added']} 更新={merged_tera['updated']} 読込={len(teramoba_rows)}", flush=True)
+    emit(f"テラモバ反映 追加={merged_tera['added']} 更新={merged_tera['updated']} 読込={len(teramoba_rows)}", flush=True)
 
     summary = apply_catalog(master, halls_payload, targets, register_enabled=False)
     closed = archive_closed(halls_payload)
@@ -425,7 +426,7 @@ def run_repair(*, pause_sec: float = 0.35, search_pause_sec: float = 0.8) -> dic
         store_id = hall_store_id(hall)
         if store_id:
             store_ids.append(store_id)
-    print(f"有効な台データ店舗 {len(store_ids)} 件の取得元を再検証します", flush=True)
+    emit(f"有効な台データ店舗 {len(store_ids)} 件の取得元を再検証します", flush=True)
     states = probe_daidata_states(store_ids)
     backfill = backfill_alternate_sources(
         halls_payload,
@@ -456,7 +457,7 @@ def run_repair(*, pause_sec: float = 0.35, search_pause_sec: float = 0.8) -> dic
         "below_minimum": [row["label"] for row in table if not row["meets_minimum"]],
         "table": table,
     }
-    print(
+    emit(
         "結果 "
         f"有効 {before_enabled} → {enabled}（差 {enabled - before_enabled}） "
         f"新規登録={summary['added']} 取得元変更={fallback['reassigned']} "

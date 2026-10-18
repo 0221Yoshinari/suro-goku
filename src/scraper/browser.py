@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
+from src.scraper.log_safe import emit, failure_reason
+
 load_dotenv()
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -91,7 +93,7 @@ def teramoba_browser_profile() -> Path:
             return [n for n in names if n.startswith("Singleton") or n in {"DevToolsActivePort", "lockfile"}]
 
         shutil.copytree(LEGACY_TERAMOBA_PROFILE, dest, ignore=_ignore)
-        print(f"既存プロファイルを引き継ぎ: {LEGACY_TERAMOBA_PROFILE} → {dest}", flush=True)
+        emit(f"既存プロファイルを引き継ぎ: {LEGACY_TERAMOBA_PROFILE} → {dest}", flush=True)
     dest.mkdir(parents=True, exist_ok=True)
     return dest
 
@@ -102,7 +104,7 @@ async def hall_switch_pause(*, lo: float | None = None, hi: float | None = None)
 
         lo, hi = pause_range()
     delay = random.uniform(lo if lo is not None else 1.0, hi if hi is not None else 3.0)
-    print(f"  次店舗まで {delay:.1f}s 待機", flush=True)
+    emit(f"  次店舗まで {delay:.1f}s 待機", flush=True)
     await asyncio.sleep(delay)
     return delay
 
@@ -119,7 +121,7 @@ async def human_pause(reason: str = "") -> float:
 
     delay = get_pacer().interval()
     label = f"（{reason}）" if reason else ""
-    print(f"    {delay:.1f}秒待機{label}", flush=True)
+    emit(f"    {delay:.1f}秒待機{label}", flush=True)
     await asyncio.sleep(delay)
     return delay
 
@@ -233,7 +235,7 @@ async def save_session_snapshot(context, page, profile: Path) -> Path:
     cookies = payload["cookies"]
     local_n = len((payload["local_storage"][0]["items"] or {}))
     session_n = len((payload["session_storage"][0]["items"] or {}))
-    print(
+    emit(
         f"ストレージを保存: {path} / cookies {len(cookies)} / localStorage {local_n} / sessionStorage {session_n}",
         flush=True,
     )
@@ -265,21 +267,21 @@ def _storage_restore_script(payload: dict[str, Any]) -> str:
 async def install_session_restore(context, profile: Path) -> None:
     path = session_snapshot_path(profile)
     if not path.is_file():
-        print("保存済みストレージスナップショットはありません", flush=True)
+        emit("保存済みストレージスナップショットはありません", flush=True)
         return
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        print(f"ストレージスナップショットを読めません: {exc}", flush=True)
+        emit(f"ストレージスナップショットを読めません: {failure_reason(exc)}", flush=True)
         return
     cookies = [item for item in (payload.get("cookies") or []) if isinstance(item, dict) and item.get("name")]
     if cookies:
         try:
             await context.add_cookies(cookies)
         except Exception as exc:
-            print(f"Cookie の復元を一部スキップ: {exc}", flush=True)
+            emit(f"Cookie の復元を一部スキップ: {failure_reason(exc)}", flush=True)
     await context.add_init_script(_storage_restore_script(payload))
-    print(
+    emit(
         f"ストレージを復元: cookies {len(cookies)} / UA {payload.get('user_agent') or 'プロファイル既定'}",
         flush=True,
     )
@@ -346,7 +348,7 @@ async def browser_session(
         headless = (os.getenv("SCRAPER_HEADLESS") or os.getenv("SITE7_HEADLESS") or "1") != "0"
 
     async with async_playwright() as playwright:
-        print("ブラウザを起動中...", flush=True)
+        emit("ブラウザを起動中...", flush=True)
         identity = chrome_client_identity()
         # chromium_sandbox=True でないと Playwright が --no-sandbox を足し、
         # 公式 Chrome が「サポートされていないコマンドラインフラグ」を出して
@@ -365,14 +367,14 @@ async def browser_session(
         channel = (os.getenv("PLAYWRIGHT_CHANNEL") or "").strip()
         if channel:
             launch_kwargs["channel"] = channel
-            print(
+            emit(
                 f"Chrome channel={channel} / UA Chrome/{identity['major']} / sec-ch-ua={identity['sec_ch_ua']}",
                 flush=True,
             )
         proxy = proxy_settings()
         if proxy:
             launch_kwargs["proxy"] = proxy
-            print(f"プロキシ: {_proxy_log_label(proxy)}", flush=True)
+            emit(f"プロキシ: {_proxy_log_label(proxy)}", flush=True)
 
         stealth_announced = False
         native_chrome = bool(channel) and user_data_dir is not None
@@ -387,20 +389,20 @@ async def browser_session(
                 except Exception:
                     pass
                 if not stealth_announced:
-                    print("Stealth: native-chrome (webdriver のみ隠蔽)", flush=True)
+                    emit("Stealth: native-chrome (webdriver のみ隠蔽)", flush=True)
                     stealth_announced = True
                 page.on("dialog", lambda dialog: asyncio.create_task(dialog.accept()))
                 return
             plugin = await apply_stealth(page)
             page.on("dialog", lambda dialog: asyncio.create_task(dialog.accept()))
             if not stealth_announced:
-                print(f"Stealth: {plugin}", flush=True)
+                emit(f"Stealth: {plugin}", flush=True)
                 stealth_announced = True
 
         if user_data_dir is not None:
             user_data_dir.mkdir(parents=True, exist_ok=True)
             context_kwargs = context_options(None, user_agent=user_agent, native_chrome=True)
-            print(f"永続プロファイル: {user_data_dir}", flush=True)
+            emit(f"永続プロファイル: {user_data_dir}", flush=True)
             context = await playwright.chromium.launch_persistent_context(
                 str(user_data_dir),
                 **launch_kwargs,
@@ -436,7 +438,7 @@ async def browser_session(
             if storage_state is not None and run.save_storage:
                 storage_state.parent.mkdir(parents=True, exist_ok=True)
                 await context.storage_state(path=str(storage_state))
-                print(f"セッションを保存: {storage_state}", flush=True)
+                emit(f"セッションを保存: {storage_state}", flush=True)
             await context.close()
             if browser is not None:
                 await browser.close()

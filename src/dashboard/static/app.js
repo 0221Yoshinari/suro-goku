@@ -47,6 +47,7 @@ let groupFilter = "tamaya";
 let hallFilter = "";
 const PREF_STORAGE_KEY = "slgoku-prefecture";
 const AREA_STORAGE_KEY = "slgoku-area";
+const JUGGLER_STORAGE_KEY = "slgoku-juggler-mode";
 const DEFAULT_PREF = "fukuoka";
 const DEFAULT_AREA = "fukuoka_central";
 const PREF_LABELS = {
@@ -127,6 +128,7 @@ function writeStored(key, value) {
 
 let prefectureFilter = readStored(PREF_STORAGE_KEY, DEFAULT_PREF);
 let areaFilter = readStored(AREA_STORAGE_KEY, DEFAULT_AREA);
+let jugglerMode = readStored(JUGGLER_STORAGE_KEY, "0") === "1";
 let digitHall = "all";
 let mainView = "stores";
 let categoryFilter = "all";
@@ -210,6 +212,28 @@ function avgSettingTier(value) {
 
 function settingTierClass(value) {
   return `setting-tier setting-tier-${avgSettingTier(value)}`;
+}
+
+function peakAvgSetting(digits) {
+  let peak = null;
+  for (const row of digits || []) {
+    const value = Number(row?.avg_setting);
+    if (!Number.isFinite(value)) {
+      continue;
+    }
+    if (peak === null || value > peak) {
+      peak = value;
+    }
+  }
+  return peak;
+}
+
+function isPeakAvgSetting(row, peak) {
+  if (peak === null) {
+    return false;
+  }
+  const value = Number(row?.avg_setting);
+  return Number.isFinite(value) && value === peak;
 }
 
 function formatCompactCount(value) {
@@ -638,7 +662,7 @@ function renderWatchHall() {
       item.marked ? "取得対象" : "-",
       item.display_name,
       item.type_label || item.type,
-      item.site7_names?.length ? item.site7_names.join(" / ") : "直近データなし",
+      item.matched_names?.length ? item.matched_names.join(" / ") : "直近データなし",
       item.found_in_last_fetch ? `${item.unit_count}台` : "-",
     ];
     cells.forEach((value, index) => {
@@ -1288,10 +1312,12 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
     title.append(text(`${board.hall_name}　全${board.unit_count || 0}台`));
     const grid = document.createElement("div");
     grid.className = "hall-digit-grid";
+    const peak = peakAvgSetting(board.digits);
     (board.digits || []).forEach((row) => {
+      const peaked = isPeakAvgSetting(row, peak);
       const card = document.createElement("article");
       card.id = hallDigitAnchor(board.hall_name, row.digit);
-      card.className = `hall-digit-card card-${row.status || "NORMAL"}`;
+      card.className = `hall-digit-card card-${row.status || "NORMAL"}${peaked ? " is-setting-peak" : ""}`;
       const head = document.createElement("div");
       head.className = "hall-digit-head";
       const num = document.createElement("p");
@@ -1308,7 +1334,7 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
       const settingLabel = document.createElement("span");
       settingLabel.append(text("平均推測設定"));
       const settingValue = document.createElement("strong");
-      settingValue.className = settingTierClass(row.avg_setting);
+      settingValue.className = `${settingTierClass(row.avg_setting)}${peaked ? " setting-peak" : ""}`;
       settingValue.append(text(formatAvgSettingValue(row.avg_setting)));
       setting.append(settingLabel, settingValue);
       const dl = document.createElement("dl");
@@ -1332,11 +1358,12 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
     thead.append(headRow);
     const tbody = document.createElement("tbody");
     (board.digits || []).forEach((row) => {
+      const peaked = isPeakAvgSetting(row, peak);
       const tr = document.createElement("tr");
-      tr.className = `row-${row.status || ""}`;
+      tr.className = `row-${row.status || ""}${peaked ? " is-setting-peak" : ""}`;
       [
         { value: String(row.digit) },
-        { value: formatAvgSetting(row.avg_setting), tier: true },
+        { value: formatAvgSetting(row.avg_setting), tier: true, peak: peaked },
         { value: formatNumber(row.unit_count) },
         { value: formatNumber(row.total_games) },
         { value: formatNumber(row.avg_games) },
@@ -1344,7 +1371,7 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
       ].forEach((cell) => {
         const td = document.createElement("td");
         if (cell.tier) {
-          td.className = settingTierClass(row.avg_setting);
+          td.className = `${settingTierClass(row.avg_setting)}${cell.peak ? " setting-peak" : ""}`;
         } else if (cell.hit) {
           td.className = "metric-hit";
         }
@@ -1874,7 +1901,7 @@ function renderCategoryFilters(groups) {
     const id = button.dataset.category || "all";
     const base = id === "all" ? "すべて" : categoryLabel(id);
     button.replaceChildren(text(`${base}（${counts[id] || 0}）`));
-    button.classList.toggle("is-active", categoryFilter === id);
+    button.classList.toggle("is-active", (jugglerMode ? "juggler" : categoryFilter) === id);
   });
 }
 
@@ -2006,6 +2033,17 @@ function makeCrossHallCell(hall) {
   odds.className = "odds";
   odds.append(text(isAtType(hall) ? `初当り ${formatOdds(hall.synthetic_probability)}` : `合成 ${formatOdds(hall.synthetic_probability)} / REG ${formatOdds(hall.rb_probability)}`));
   cell.append(name, line, odds);
+  if (jugglerMode) {
+    const island = ((payload.juggler && payload.juggler.islands) || []).find((item) =>
+      item.hall_name === hall.hall_name && (item.machine_names || []).includes(hall.machine_name) && item.hot
+    );
+    if (island && island.badge_label) {
+      const mark = document.createElement("span");
+      mark.className = `juggler-badge juggler-badge-${island.badge || "none"}`;
+      mark.append(text(island.badge_label));
+      cell.append(mark);
+    }
+  }
   return cell;
 }
 
@@ -2065,7 +2103,10 @@ function renderCross() {
   const hallGroups = buildHallGroupIndex();
   const needle = machineQuery.trim().toLowerCase();
   const visible = groups
-    .filter((group) => categoryFilter === "all" || group.category === categoryFilter)
+    .filter((group) => {
+      const activeCategory = jugglerMode ? "juggler" : categoryFilter;
+      return activeCategory === "all" || group.category === activeCategory;
+    })
     .filter((group) => !needle || `${group.name} ${group.halls.map((item) => item.machine_name).join(" ")}`.toLowerCase().includes(needle))
     .map((group) => {
       const halls = group.halls.filter((hall) => {
@@ -2099,6 +2140,9 @@ function renderCross() {
     if (crossGroupFilter !== "all") {
       const selected = (payload.hall_groups || []).find((group) => group.id === crossGroupFilter);
       notes.push(`${selected?.label || "選択系列"}のみ`);
+    }
+    if (jugglerMode) {
+      notes.push("ジャグラーモード");
     }
     crossSummaryEl.textContent = `全${hallCount}店舗を機種単位で比較。${visible.length}機種を表示中。${notes.join("。")}。`;
   }
@@ -2170,7 +2214,7 @@ function focusHall(hall) {
     render();
   }
   requestAnimationFrame(() => {
-    document.getElementById("section-all-high")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(jugglerMode ? "section-juggler" : "section-all-high")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -2408,6 +2452,317 @@ function renderSelectedHallEvents() {
   }
 }
 
+function formatJugglerOdds(value) {
+  if (value == null || value === "") {
+    return "-";
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "-";
+  }
+  const rounded = Math.round(n * 10) / 10;
+  const body = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `1/${body}`;
+}
+
+function formatGames(value) {
+  if (value == null || value === "") {
+    return "-";
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "-";
+  }
+  return n.toLocaleString("ja-JP");
+}
+
+function formatDiff(value) {
+  if (value == null || value === "") {
+    return "-";
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "-";
+  }
+  const body = Math.abs(Math.round(n)).toLocaleString("ja-JP");
+  if (n > 0) {
+    return `+${body}`;
+  }
+  if (n < 0) {
+    return `-${body}`;
+  }
+  return "0";
+}
+
+function jugglerMetric(label, value, className, note) {
+  const cell = document.createElement("div");
+  cell.className = className ? `juggler-metric ${className}` : "juggler-metric";
+  const caption = document.createElement("span");
+  caption.append(text(label));
+  const strong = document.createElement("strong");
+  strong.append(text(value));
+  cell.append(caption, strong);
+  if (note) {
+    const hint = document.createElement("small");
+    hint.append(text(note));
+    cell.append(hint);
+  }
+  return cell;
+}
+
+function slumpGraph(points, kind, { mini = false } = {}) {
+  const values = (points || []).map((point) => Number(point.diff)).filter((value) => Number.isFinite(value));
+  const wrap = document.createElement("div");
+  wrap.className = mini ? "juggler-mini-slump" : "juggler-slump";
+  if (!mini) {
+    const caption = document.createElement("p");
+    caption.className = "juggler-slump-caption";
+    const captionText = kind === "history"
+      ? "スランプ推移（差枚）"
+      : kind === "units"
+        ? "台番号順の差枚"
+        : "差枚の推移データなし";
+    caption.append(text(captionText));
+    wrap.append(caption);
+  }
+  if (values.length < 2) {
+    if (mini) {
+      wrap.append(text("-"));
+    }
+    return wrap;
+  }
+  const width = mini ? 88 : 220;
+  const height = mini ? 28 : 48;
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = max - min || 1;
+  const coords = values.map((value, index) => {
+    const x = 2 + (index / (values.length - 1)) * (width - 4);
+    const y = height - 2 - ((value - min) / span) * (height - 4);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const zeroY = height - 2 - ((0 - min) / span) * (height - 4);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("class", mini ? "juggler-mini-svg" : "juggler-slump-svg");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", kind === "history" ? "スランプ推移" : "台ごとの差枚");
+  const zero = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  zero.setAttribute("x1", "0");
+  zero.setAttribute("x2", String(width));
+  zero.setAttribute("y1", zeroY.toFixed(1));
+  zero.setAttribute("y2", zeroY.toFixed(1));
+  zero.setAttribute("class", "juggler-slump-zero");
+  const poly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  poly.setAttribute("points", coords.join(" "));
+  poly.setAttribute("class", values[values.length - 1] >= 0 ? "juggler-slump-line is-plus" : "juggler-slump-line is-minus");
+  svg.append(zero, poly);
+  wrap.append(svg);
+  return wrap;
+}
+
+function jugglerIslandsInArea() {
+  return ((payload.juggler && payload.juggler.islands) || []).filter((island) => inArea(island.hall_name));
+}
+
+function jugglerIslandsForView() {
+  const areaIslands = jugglerIslandsInArea();
+  const q = query.trim();
+  if (!q) {
+    return areaIslands;
+  }
+  return areaIslands.filter((island) => {
+    const hay = `${island.family_label || ""} ${(island.machine_names || []).join(" ")} ${island.hall_name || ""}`;
+    return hay.includes(q);
+  });
+}
+
+function jugglerBarNote(island, field) {
+  const bars = island.bars || {};
+  const six = bars["6"] && bars["6"][field];
+  const five = bars["5"] && bars["5"][field];
+  const parts = [];
+  if (six != null) {
+    parts.push(`設定6 ${formatJugglerOdds(six)}`);
+  }
+  if (five != null) {
+    parts.push(`設定5 ${formatJugglerOdds(five)}`);
+  }
+  return parts.join(" / ");
+}
+
+function renderJugglerUnitTable(island) {
+  const units = island.units || [];
+  const wrap = document.createElement("div");
+  wrap.className = "unit-table-wrap";
+  const table = document.createElement("table");
+  table.className = "unit-table";
+  const head = document.createElement("tr");
+  ["台番号", "総回転", "BIG", "REG", "合算", "REG確率", "差枚", "推移"].forEach((label) => {
+    const th = document.createElement("th");
+    th.append(text(label));
+    head.append(th);
+  });
+  const thead = document.createElement("thead");
+  thead.append(head);
+  const tbody = document.createElement("tbody");
+  units.forEach((unit) => {
+    const tr = document.createElement("tr");
+    if (unit.hot) {
+      tr.className = "juggler-unit-hot";
+    }
+    const regClass = unit.hot ? "metric-hit" : "";
+    const cells = [
+      formatNumber(unit.dai_no),
+      formatGames(unit.total_games),
+      formatNumber(unit.bb_count),
+      formatNumber(unit.rb_count),
+      formatJugglerOdds(unit.synthetic_probability),
+      formatJugglerOdds(unit.rb_probability),
+      formatDiff(unit.diff_medals),
+    ];
+    cells.forEach((value, index) => {
+      const td = document.createElement("td");
+      if (index === 5) {
+        td.className = regClass;
+      }
+      td.append(text(value));
+      tr.append(td);
+    });
+    const graphCell = document.createElement("td");
+    graphCell.append(slumpGraph(unit.slump, "history", { mini: true }));
+    tr.append(graphCell);
+    tbody.append(tr);
+  });
+  table.append(thead, tbody);
+  wrap.append(table);
+  return wrap;
+}
+
+function renderJugglerIsland(island) {
+  const card = document.createElement("article");
+  card.className = `juggler-island juggler-island-${island.badge || "none"}${island.hot ? " is-hot" : ""}${island.low_sample ? " is-low-sample" : ""}`;
+  const head = document.createElement("div");
+  head.className = "juggler-island-head";
+  const title = document.createElement("h3");
+  title.append(text(island.family_label || "ジャグラー"));
+  const hall = document.createElement("button");
+  hall.type = "button";
+  hall.className = "juggler-island-hall";
+  hall.append(text(`${island.hall_name || "-"}　${formatNumber(island.unit_count)}台`));
+  hall.addEventListener("click", () => focusHall(island.hall_name));
+  head.append(title, hall);
+  if (island.badge_label) {
+    const badge = document.createElement("span");
+    badge.className = `juggler-badge juggler-badge-${island.badge || "none"}`;
+    badge.append(text(island.badge_label));
+    head.append(badge);
+  }
+  const score = document.createElement("span");
+  score.className = "juggler-score";
+  score.append(text(`島スコア ${formatNumber(island.score)}`));
+  head.append(score);
+  const metrics = document.createElement("div");
+  metrics.className = "juggler-metrics";
+  const regHot = island.reg_meets_setting_5 ? "is-reg is-hot" : "is-reg";
+  const synHot = island.meets_setting_5 ? "is-hot" : "";
+  metrics.append(
+    jugglerMetric("総回転", formatGames(island.total_games), "", `平均 ${formatGames(island.avg_games)}G`),
+    jugglerMetric("BIG", formatNumber(island.bb_count)),
+    jugglerMetric("REG", formatNumber(island.rb_count)),
+    jugglerMetric("合算確率", formatJugglerOdds(island.synthetic_probability), synHot, jugglerBarNote(island, "synthetic")),
+    jugglerMetric("REG確率", formatJugglerOdds(island.rb_probability), regHot, jugglerBarNote(island, "rb")),
+    jugglerMetric("差枚", formatDiff(island.diff_medals), "is-diff", island.diff_label || ""),
+    slumpGraph(island.slump, island.slump_kind),
+  );
+  const details = document.createElement("details");
+  details.className = "juggler-units";
+  const summary = document.createElement("summary");
+  summary.append(text(`台別（総回転・BIG/REG・合算・REG・差枚） ${formatNumber(island.unit_count)}台`));
+  details.append(summary, renderJugglerUnitTable(island));
+  card.append(head, metrics, details);
+  if (island.low_sample) {
+    const note = document.createElement("p");
+    note.className = "juggler-low-sample";
+    const avg = island.avg_games == null ? "" : `（${formatGames(island.avg_games)}G）`;
+    note.append(text(`平均回転が低い${avg}`));
+    card.append(note);
+  }
+  return card;
+}
+
+function renderJugglerBucket(badge, label, hint, rows) {
+  const section = document.createElement("section");
+  section.className = `juggler-bucket juggler-bucket-${badge}`;
+  const head = document.createElement("div");
+  head.className = "juggler-bucket-head";
+  const title = document.createElement("h3");
+  title.append(text(label));
+  const count = document.createElement("span");
+  count.className = `juggler-badge juggler-badge-${badge}`;
+  count.append(text(`${rows.length}島`));
+  head.append(title, count);
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.append(text(hint));
+  section.append(head, note);
+  if (!rows.length) {
+    const blank = document.createElement("p");
+    blank.className = "juggler-bucket-empty";
+    blank.append(text("このエリアに該当なし"));
+    section.append(blank);
+    return section;
+  }
+  rows.forEach((island) => section.append(renderJugglerIsland(island)));
+  return section;
+}
+
+function renderJuggler() {
+  const meta = document.getElementById("juggler-meta");
+  const summary = document.getElementById("juggler-summary");
+  const hotRoot = document.getElementById("juggler-area-hot");
+  const list = document.getElementById("juggler-islands");
+  const empty = document.getElementById("juggler-empty");
+  if (!list || !summary) {
+    return;
+  }
+  const area = activeArea();
+  const place = area && area.id !== "all" ? area.label : (activePrefecture() ? prefectureLabel(activePrefecture().id, activePrefecture().label) : "このエリア");
+  const islands = jugglerIslandsForView();
+  const buckets = [
+    ["all6", "全6", islands.filter((island) => island.badge === "all6"), "合算とREGがどちらも設定6ライン"],
+    ["high56", "全56", islands.filter((island) => island.badge === "high56"), "合算とREGがどちらも設定5ライン"],
+    ["high456", "全456", islands.filter((island) => island.badge === "high456"), "合算とREGがどちらも設定4ライン"],
+  ];
+  const shown = buckets.reduce((sum, bucket) => sum + bucket[2].length, 0);
+  if (meta) {
+    meta.textContent = `${place}のジャグラーです。店舗を切り替えなくても、合算とREGが設定ラインに乗った島を全6・全56・全456で出します。平均回転が低い島には注意書きを付けます。`;
+  }
+  summary.replaceChildren();
+  [
+    ["全6", `${buckets[0][2].length}`],
+    ["全56", `${buckets[1][2].length}`],
+    ["全456", `${buckets[2][2].length}`],
+  ].forEach(([label, value]) => {
+    const article = document.createElement("article");
+    const caption = document.createElement("p");
+    caption.className = "stat-label";
+    caption.append(text(label));
+    const strong = document.createElement("p");
+    strong.className = "stat-value";
+    strong.append(text(value));
+    article.append(caption, strong);
+    summary.append(article);
+  });
+  if (hotRoot) {
+    hotRoot.replaceChildren();
+    hotRoot.hidden = true;
+  }
+  list.replaceChildren();
+  buckets.forEach(([badge, label, rows, hint]) => list.append(renderJugglerBucket(badge, label, hint, rows)));
+  empty?.classList.toggle("hidden", shown > 0);
+}
+
 function renderStore() {
   const scoped = hallItems(machineList());
   const results = searched(scoped);
@@ -2423,6 +2778,9 @@ function renderStore() {
   renderCards(results);
   renderHallDigitBoards(storeDigitBoardEl, hallBoardsForView(hallFilter));
   renderTable(results);
+  if (jugglerMode) {
+    renderJuggler();
+  }
 }
 
 function inPrefecture(hall) {
@@ -2618,6 +2976,11 @@ function renderJointAnnounce() {
 }
 
 function render() {
+  document.body.classList.toggle("is-juggler-mode", jugglerMode);
+  const jugglerToggle = document.getElementById("juggler-mode");
+  if (jugglerToggle) {
+    jugglerToggle.setAttribute("aria-pressed", jugglerMode ? "true" : "false");
+  }
   ensureSelection();
   renderAreaFilters();
   renderHallFilters();
@@ -2691,7 +3054,7 @@ async function loadJudgments(force) {
 
 async function loadJudgmentsNow(force) {
   showError("");
-  const pref = prefectureFilter || "fukuoka";
+  const pref = prefectureFilter || DEFAULT_PREF;
   const response = await fetch(`/api/judgments?prefecture=${encodeURIComponent(pref)}`);
   if (redirectIfUnauthorized(response)) {
     return;
@@ -2750,7 +3113,7 @@ reloadBtn.addEventListener("click", () => {
     .catch((err) => showError(err.message))
     .finally(() => setButtonBusy(reloadBtn, false));
 });
-judgeBtn.addEventListener("click", () => {
+judgeBtn?.addEventListener("click", () => {
   rerunJudgment().catch((err) => showError(err.message));
 });
 watchBtn?.addEventListener("click", () => {
@@ -2803,9 +3166,23 @@ watchHallSelectEl?.addEventListener("change", () => {
 });
 document.querySelectorAll("#category-filters .filter").forEach((button) => {
   button.addEventListener("click", () => {
-    categoryFilter = button.dataset.category || "all";
+    const next = button.dataset.category || "all";
+    if (jugglerMode && next !== "juggler") {
+      jugglerMode = false;
+      writeStored(JUGGLER_STORAGE_KEY, "0");
+    }
+    categoryFilter = next;
     render();
   });
+});
+document.getElementById("juggler-mode")?.addEventListener("click", () => {
+  jugglerMode = !jugglerMode;
+  writeStored(JUGGLER_STORAGE_KEY, jugglerMode ? "1" : "0");
+  if (jugglerMode && mainView !== "stores" && mainView !== "machines") {
+    setMainView("stores");
+    return;
+  }
+  render();
 });
 document.getElementById("cross-data-only")?.addEventListener("click", () => {
   crossDataOnly = !crossDataOnly;
@@ -2839,6 +3216,38 @@ document.querySelectorAll("#status-filters .filter").forEach((button) => {
 document.querySelectorAll(".signal-jump").forEach((button) => {
   button.addEventListener("click", () => jumpToSignal(button.dataset.signal || ""));
 });
+
+function setNavDockCollapsed(collapsed) {
+  const dock = document.getElementById("nav-dock");
+  const toggle = document.getElementById("nav-dock-toggle");
+  const label = toggle?.querySelector(".nav-dock-toggle-label");
+  if (!dock || !toggle) {
+    return;
+  }
+  dock.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  if (label) {
+    label.textContent = collapsed ? "全6・56・456を表示" : "全6・56・456を格納";
+  }
+  try {
+    sessionStorage.setItem("suro-nav-dock-collapsed", collapsed ? "1" : "0");
+  } catch {
+    /* 保存できなくても表示の切り替えは行う */
+  }
+}
+
+document.getElementById("nav-dock-toggle")?.addEventListener("click", () => {
+  const dock = document.getElementById("nav-dock");
+  setNavDockCollapsed(!dock?.classList.contains("is-collapsed"));
+});
+
+try {
+  if (sessionStorage.getItem("suro-nav-dock-collapsed") === "1") {
+    setNavDockCollapsed(true);
+  }
+} catch {
+  /* 前回の開閉状態が読めなくても、開いた状態から始める */
+}
 
 document.querySelectorAll(".stat-jump").forEach((card) => {
   const activate = () => {

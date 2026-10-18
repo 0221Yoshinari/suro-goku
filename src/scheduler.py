@@ -10,7 +10,6 @@ import os
 import sys
 import threading
 import time
-import traceback
 from datetime import datetime, timedelta, time as dt_time
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -28,7 +27,7 @@ HARD_STOP = "23:00"
 LOCK_PATH = PROJECT_ROOT / "data" / "logs" / "scheduler.lock"
 STATE_PATH = PROJECT_ROOT / "data" / "logs" / "scheduler_state.json"
 LOG_DIR = PROJECT_ROOT / "data" / "logs"
-DEFAULT_CYCLE_BUDGET_SEC = 5 * 60 * 60
+DEFAULT_CYCLE_BUDGET_SEC = 60 * 60
 DEFAULT_STALL_SEC = 20 * 60
 
 
@@ -193,6 +192,24 @@ def is_business_hours(now: datetime | None = None) -> bool:
     return stamp >= start or stamp < end
 
 
+def past_hard_stop(now: datetime | None = None) -> bool:
+    """23:00以降は、動いている巡回も打ち切る。"""
+    current = _aware(now or datetime.now(TOKYO))
+    stamp = current.timetz().replace(tzinfo=None)
+    return stamp >= _parse_hhmm(HARD_STOP)
+
+
+def touch_running_state() -> None:
+    """生存確認だけ更新する。次回予定の時刻は動かさない。"""
+    current = read_schedule_state() or {}
+    raw = str(current.get("next_run_at") or "")
+    try:
+        nxt = _aware(datetime.fromisoformat(raw)) if raw else datetime.now(TOKYO)
+    except ValueError:
+        nxt = datetime.now(TOKYO)
+    write_schedule_state(next_run_at=nxt, running=True)
+
+
 def write_schedule_state(*, next_run_at: datetime, running: bool) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -226,8 +243,10 @@ def scheduler_process_alive(pid: int | None) -> bool:
 
 
 def _log(message: str) -> None:
+    from src.scraper.log_safe import redact
+
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    line = f"{datetime.now(TOKYO).strftime('%Y-%m-%d %H:%M:%S')} {message}"
+    line = f"{datetime.now(TOKYO).strftime('%Y-%m-%d %H:%M:%S')} {redact(message)}"
     print(line, flush=True)
     with (LOG_DIR / "scheduler.log").open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")
@@ -249,30 +268,30 @@ def _acquire_lock():
 
 
 def _ensure_public_dashboard() -> None:
+    """取得の開始時に公開URLを読み取る。トンネルは止めても作り直さない。"""
     from src.scraper.site7 import _load_dotenv
-    from src.tunnel import announce_public_url, ensure_public_url, tunnel_enabled
+    from src.tunnel import current_public_url, tunnel_enabled
 
     _load_dotenv(PROJECT_ROOT / ".env")
     if not tunnel_enabled():
         return
-    try:
-        port = int(os.getenv("DASHBOARD_PORT") or "8000")
-        url, created = ensure_public_url(port)
+    url = current_public_url()
+    if url:
         _log(f"外部公開URL: {url}")
-        if created:
-            announce_public_url(url)
-    except Exception as exc:
-        _log(f"外部公開トンネルを開始できませんでした: {exc}")
 
 
 def run_cycle() -> dict:
     from src.scraper.halls import load_halls_config
 
     load_halls_config.cache_clear()
-    write_schedule_state(next_run_at=datetime.now(TOKYO), running=True)
+    started_at = datetime.now(TOKYO)
+    write_schedule_state(next_run_at=next_run_at(started_at, started_at), running=True)
     _ensure_public_dashboard()
     halls = configured_halls()
     _log(f"取得開始（{len(halls)}店舗）")
+    from src.dashboard.judgment_sync import start_sync_thread
+
+    start_sync_thread()
     started = time.monotonic()
     from src.scraper.fetch_all import fetch_configured
 
@@ -285,10 +304,17 @@ def run_cycle() -> dict:
     result = run_source(source_id, input_path=incoming)
     judgment = result["judgment"]
     extra = getattr(fetched, "extra", None) or {}
+    if isinstance(extra, dict):
+        from src.scraper.hall_store import persist_fetched_halls
+
+        persist_fetched_halls(judgment, list(extra.get("halls") or []))
     if isinstance(extra, dict) and extra.get("failed_halls"):
         judgment["failed_halls"] = extra["failed_halls"]
     if isinstance(extra, dict) and extra.get("failure_details"):
         judgment["failure_details"] = extra["failure_details"]
+        for item in extra["failure_details"]:
+            if isinstance(item, dict) and item.get("hall"):
+                _log(f"取得失敗 {item.get('hall')}: {item.get('reason') or '取得失敗'}")
     elapsed = extra.get("elapsed_sec") if isinstance(extra, dict) else None
     if elapsed is None:
         elapsed = time.monotonic() - started
@@ -311,7 +337,7 @@ def run_cycle() -> dict:
     return result
 
 
-def _watch_cycle(started: float, stop: threading.Event) -> None:
+def _watch_cycle(started: float, stop: threading.Event, *, enforce_hard_stop: bool) -> None:
     """取得本体が固まっても、別スレッドから巡回を終わらせて常駐を再起動する。"""
     from src.scraper.deadline import idle_seconds
     from src.scraper.deadline import note_progress
@@ -327,9 +353,12 @@ def _watch_cycle(started: float, stop: threading.Event) -> None:
             stall_limit=stall_sec(),
         )
         try:
-            write_schedule_state(next_run_at=datetime.now(TOKYO), running=True)
+            touch_running_state()
         except OSError:
             pass
+        if enforce_hard_stop and past_hard_stop():
+            _log("23:00を過ぎたため巡回を打ち切り、常駐を再起動します")
+            os._exit(75)
         if reason == "idle":
             _log(f"巡回が {idle / 60:.0f}分進んでいないため打ち切り、常駐を再起動します")
             os._exit(75)
@@ -354,6 +383,7 @@ def run_once(*, require_hours: bool) -> int:
     watcher = threading.Thread(
         target=_watch_cycle,
         args=(time.monotonic(), stop_watch),
+        kwargs={"enforce_hard_stop": require_hours},
         name="cycle-watch",
         daemon=True,
     )
@@ -363,9 +393,11 @@ def run_once(*, require_hours: bool) -> int:
         run_cycle()
         return 0
     except Exception as exc:
-        _log(f"失敗: {exc}")
-        _log(traceback.format_exc().rstrip())
-        notify_error(str(exc))
+        from src.scraper.log_safe import failure_reason
+
+        reason = failure_reason(exc)
+        _log(f"失敗: {reason}")
+        notify_error(reason)
         return 1
     finally:
         stop_watch.set()
@@ -379,7 +411,9 @@ def run_once(*, require_hours: bool) -> int:
                     f"added={watched.get('added', 0)} updated={watched.get('updated', 0)}"
                 )
         except Exception as exc:
-            _log(f"Xイベント監視に失敗: {exc}")
+            from src.scraper.log_safe import failure_reason
+
+            _log(f"Xイベント監視に失敗: {failure_reason(exc)}")
         from src.scraper.deadline import abandoned_threads
 
         if abandoned_threads():
@@ -434,8 +468,9 @@ def run_loop() -> int:
             if code != 0:
                 _log("今回の巡回は失敗。次の間隔まで待機します")
         except Exception as exc:
-            _log(f"巡回ループで例外を捕捉しました。次の間隔まで継続します: {exc}")
-            _log(traceback.format_exc().rstrip())
+            from src.scraper.log_safe import failure_reason
+
+            _log(f"巡回ループで例外を捕捉しました。次の間隔まで継続します: {failure_reason(exc)}")
             time.sleep(60)
     return 0
 

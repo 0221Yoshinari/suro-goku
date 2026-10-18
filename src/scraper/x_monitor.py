@@ -592,7 +592,9 @@ def fetch_x_browser_posts(handle: str) -> list[dict]:
             texts = [item.inner_text() for item in page.locator("article").all()[:8]]
             browser.close()
     except Exception as exc:
-        _log(f"@{handle} のブラウザ取得に失敗: {exc}")
+        from src.scraper.log_safe import failure_reason
+
+        _log(f"@{handle} のブラウザ取得に失敗: {failure_reason(exc)}")
         return []
     now = datetime.now(JST)
     posts = []
@@ -669,8 +671,11 @@ def _sync_unlocked(*, force: bool = False) -> dict:
             try:
                 posts = fetch_account_posts(account, cache)
             except Exception as exc:
-                errors.append(f"{handle}: {exc}")
-                _log(f"@{handle} の取得に失敗: {exc}")
+                from src.scraper.log_safe import failure_reason
+
+                reason = failure_reason(exc)
+                errors.append(f"{handle}: {reason}")
+                _log(f"@{handle} の取得に失敗: {reason}")
                 continue
             post_count += len(posts)
             used_accounts.append(handle)
@@ -683,11 +688,13 @@ def _sync_unlocked(*, force: bool = False) -> dict:
                 ready_counts[handle] = len(names)
         result = apply_auto_events(incoming, refreshed_sources=refreshed_sources)
     except Exception as exc:
-        errors.append(str(exc))
+        from src.scraper.log_safe import failure_reason
+
+        errors.append(failure_reason(exc))
         result = {"added": 0, "updated": 0, "removed": 0}
         incoming = []
         ready_counts = {}
-        _log(f"Xイベント監視に失敗: {exc}")
+        _log(f"Xイベント監視に失敗: {failure_reason(exc)}")
     else:
         for handle, count in ready_counts.items():
             _mark_account_done(now, handle, count)
@@ -746,7 +753,9 @@ def _loop() -> None:
         try:
             sync_x_events()
         except Exception as exc:
-            _log(f"Xイベント監視ループで例外: {exc}")
+            from src.scraper.log_safe import failure_reason
+
+            _log(f"Xイベント監視ループで例外: {failure_reason(exc)}")
         nxt = next_attempt_at()
         if nxt <= datetime.now(JST):
             nxt = datetime.now(JST) + timedelta(minutes=5)
@@ -1204,7 +1213,9 @@ def _notify_capture(target_date: str, hall_count: int, handles: list[str]) -> bo
 
         return notify_event_capture(target_date=target_date, hall_count=hall_count, handles=handles)
     except Exception as exc:
-        _log(f"Discord通知に失敗: {exc}")
+        from src.scraper.log_safe import failure_reason
+
+        _log(f"Discord通知に失敗: {failure_reason(exc)}")
         return False
 
 
@@ -1235,8 +1246,10 @@ def _write_state(payload: dict) -> None:
 
 
 def _log(message: str) -> None:
+    from src.scraper.log_safe import redact
+
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    line = f"{datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')} {message}"
+    line = f"{datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')} {redact(message)}"
     print(line, flush=True)
     with LOG_PATH.open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")

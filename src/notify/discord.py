@@ -165,12 +165,14 @@ def send_webhook(content: str) -> int:
     url = webhook_url()
     if not url:
         raise RuntimeError("DISCORD_WEBHOOK_URL が未設定です")
+    from src.scraper.pace import GENERIC_HTTP_USER_AGENT
+
     body = json.dumps({"content": content}, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
         url,
         data=body,
         method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": "tamaya-slot-scraper"},
+        headers={"Content-Type": "application/json", "User-Agent": GENERIC_HTTP_USER_AGENT},
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:

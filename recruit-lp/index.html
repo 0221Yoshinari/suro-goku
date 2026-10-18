@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFF8F6">
+  <meta name="description" content="Rose Lumièreの求人。エリア最高峰の還元率、全額日払い、未経験歓迎、完全自由シフト。まずはLINEで相談できます。">
+  <title>Rose Lumière｜未経験から日給5万円｜求人</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    :root {
+      --pink: #ff69b4;
+      --pink-soft: #ffb6c1;
+      --rose: #c45278;
+      --rose-deep: #8d3654;
+      --ink: #3a272d;
+      --muted: #7d6570;
+      --gold: #d4a017;
+      --gold-bright: #ffd700;
+      --line: #06c755;
+      --line-dark: #05a347;
+      --bg: #fff8f6;
+      --card: #ffffff;
+      --line-soft: rgba(196, 82, 120, 0.14);
+      --shadow: 0 14px 40px rgba(141, 54, 84, 0.08);
+      --header: 64px;
+      --sticky: 78px;
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; scroll-padding-bottom: 110px; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 100% -10%, rgba(255, 182, 193, 0.45), transparent 60%),
+        radial-gradient(700px 380px at -10% 20%, rgba(255, 215, 0, 0.16), transparent 55%),
+        var(--bg);
+      line-height: 1.75;
+      padding-bottom: calc(var(--sticky) + 28px + env(safe-area-inset-bottom));
+    }
+    img { max-width: 100%; }
+    a { color: inherit; }
+    button, input, select, textarea { font-family: inherit; }
+
+    .wrap { width: min(1080px, calc(100% - 36px)); margin: 0 auto; }
+    .section { padding: 72px 0; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+      color: var(--rose);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 18px;
+      height: 1px;
+      background: var(--gold);
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-family: "Shippori Mincho", serif;
+      font-size: clamp(28px, 6vw, 40px);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      line-height: 1.35;
+    }
+    .lead { margin: 0 0 28px; color: var(--muted); }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      height: var(--header);
+      display: flex;
+      align-items: center;
+      backdrop-filter: blur(16px);
+      background: rgba(255, 248, 246, 0.88);
+      border-bottom: 1px solid rgba(255, 182, 193, 0.45);
+    }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: min(1080px, calc(100% - 36px)); margin: 0 auto; }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: "Shippori Mincho", serif; font-weight: 700; letter-spacing: 0.04em; }
+    .logo-mark {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: grid; place-items: center;
+      color: #6b4516;
+      background: linear-gradient(145deg, #fff4c8, #ffd700 45%, #e8b86d);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+    }
+    .logo small { display: block; font-family: "Noto Sans JP", sans-serif; font-size: 10px; letter-spacing: 0.18em; color: var(--muted); font-weight: 500; }
+    .nav { display: none; gap: 18px; }
+    .nav a { text-decoration: none; font-size: 14px; color: var(--rose-deep); }
+
+    .hero { padding: 28px 0 20px; }
+    .hero-grid { display: grid; gap: 22px; }
+    .kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: 999px;
+      background: #fff; color: var(--rose-deep);
+      border: 1px solid var(--pink-soft);
+      font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+    }
+    h1 { margin: 14px 0 12px; font-family: "Shippori Mincho", serif; font-weight: 600; line-height: 1.25; letter-spacing: 0.03em; }
+    .h1-kicker { display: block; font-size: clamp(22px, 5.4vw, 34px); }
+    .h1-main { display: block; margin-top: 6px; font-size: clamp(34px, 9vw, 62px); }
+    .h1-main .num {
+      background: linear-gradient(180deg, #ffe58a, #e0b15a);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero p { margin: 0 0 18px; color: var(--muted); }
+    .hero-actions, .cta-row { display: grid; gap: 10px; }
+    .note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 54px; padding: 12px 18px; border-radius: 999px;
+      border: 0; text-decoration: none; font-weight: 700; letter-spacing: 0.04em;
+      cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-line { background: var(--line); color: #fff; box-shadow: 0 10px 24px rgba(6, 199, 85, 0.28); }
+    .btn-line:hover { background: var(--line-dark); }
+    .btn-phone { background: #fff; color: var(--rose-deep); border: 1.5px solid #f3c3d0; }
+    .btn-gold {
+      color: #5c3d12;
+      background: linear-gradient(135deg, #fff3c4 0%, #ffd700 42%, #e7b656 100%);
+      box-shadow: 0 10px 24px rgba(212, 160, 23, 0.28);
+    }
+    .btn-block { width: 100%; }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(255, 182, 193, 0.65);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+    .pay-label { margin: 0; font-size: 13px; letter-spacing: 0.12em; color: var(--rose); font-weight: 700; }
+    .pay-num { margin: 4px 0 12px; font-family: "Shippori Mincho", serif; font-size: 40px; line-height: 1.1; }
+    .pay-num span { font-size: 16px; margin-left: 4px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .pills li { padding: 6px 10px; border-radius: 999px; background: #fff6f8; color: var(--rose-deep); font-size: 12px; font-weight: 700; }
+
+    .cards { display: grid; gap: 14px; }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 182, 193, 0.35);
+    }
+    .icon-bubble {
+      width: 52px; height: 52px; border-radius: 16px;
+      display: grid; place-items: center;
+      margin-bottom: 12px;
+      color: var(--rose-deep);
+      background: linear-gradient(160deg, #fff, #ffe4ec);
+      font-size: 22px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.03em; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .salary-grid { display: grid; gap: 14px; }
+    .person { position: relative; overflow: hidden; }
+    .person .tag {
+      display: inline-block; margin-bottom: 8px; padding: 4px 10px; border-radius: 999px;
+      background: #fff1f5; color: var(--rose); font-size: 12px; font-weight: 700;
+    }
+    .person.featured { background: linear-gradient(180deg, #fffaf0, #fff); border-color: rgba(224, 177, 90, 0.7); }
+    .card .income {
+      margin: 6px 0 10px;
+      font-family: "Shippori Mincho", serif;
+      font-size: 40px;
+      line-height: 1;
+      color: var(--rose-deep);
+      letter-spacing: 0.02em;
+    }
+    .card .income small {
+      font-family: "Noto Sans JP", sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      margin-right: 6px;
+      color: var(--rose);
+    }
+    .meta { margin: 0; color: var(--muted); font-size: 14px; }
+    .reasons { display: grid; gap: 10px; margin-top: 14px; }
+    .reason { display: flex; gap: 10px; align-items: flex-start; background: #fff; border-radius: 16px; padding: 14px; border: 1px solid var(--line-soft); }
+    .reason i { color: var(--gold); margin-top: 3px; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 18px; overflow: hidden; font-size: 14px; }
+    th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #f6e4ea; }
+    th { background: #fff4f7; color: var(--rose-deep); font-weight: 700; }
+    .table-wrap { overflow-x: auto; border-radius: 18px; box-shadow: var(--shadow); }
+
+    .safety { display: grid; gap: 12px; }
+    .safety article { display: flex; gap: 14px; align-items: flex-start; }
+    .safety h3 { margin: 0 0 4px; font-size: 16px; }
+    .safety p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .steps { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; counter-reset: step; }
+    .steps li { background: #fff; border-radius: 20px; padding: 18px; box-shadow: var(--shadow); }
+    .step-no { font-family: "Shippori Mincho", serif; color: var(--gold); font-size: 13px; letter-spacing: 0.14em; }
+    .steps h3 { margin: 4px 0 6px; font-size: 18px; }
+    .steps p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .faq { display: grid; gap: 10px; }
+    .faq-item { background: #fff; border-radius: 18px; border: 1px solid rgba(255, 182, 193, 0.4); overflow: hidden; }
+    .faq-q {
+      width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer;
+      display: flex; align-items: center; gap: 12px; padding: 16px 18px; min-height: 60px;
+      font-size: 15px; font-weight: 700; color: var(--ink);
+    }
+    .q-mark { color: var(--rose); font-family: "Shippori Mincho", serif; }
+    .faq-q span:nth-child(2) { flex: 1; }
+    .chev { color: var(--rose); transition: transform .2s ease; }
+    .faq-item.is-open .chev { transform: rotate(45deg); }
+    .faq-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s ease; }
+    .faq-item.is-open .faq-panel { grid-template-rows: 1fr; }
+    .faq-panel-inner { overflow: hidden; }
+    .faq-panel p { margin: 0; padding: 0 18px 16px 42px; color: var(--muted); font-size: 14px; }
+
+    .apply-box { background: #fff; border-radius: 28px; padding: 22px 18px 24px; box-shadow: var(--shadow); border: 1px solid rgba(255, 182, 193, 0.45); }
+    .form { display: grid; gap: 12px; margin-top: 18px; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+    input, select, textarea {
+      width: 100%; border: 1px solid #f0d0da; background: #fffdfd; border-radius: 14px;
+      padding: 12px 14px; font-size: 16px; color: var(--ink);
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #e0b15a; border-color: transparent; }
+    .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; color: var(--muted); }
+    .check input { width: auto; margin-top: 4px; }
+    .error { margin: 0; color: #b4234a; font-size: 13px; font-weight: 700; }
+    .thanks { text-align: center; padding: 24px 8px; }
+    .thanks i { font-size: 36px; color: var(--line); }
+    .hidden { display: none; }
+
+    .site-footer { padding: 28px 0 12px; color: var(--muted); font-size: 12px; text-align: center; }
+    .sticky-cta {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(255, 248, 246, 0.94);
+      border-top: 1px solid rgba(255, 182, 193, 0.7);
+      backdrop-filter: blur(12px);
+    }
+
+    @media (min-width: 760px) {
+      .nav { display: flex; }
+      .hero { padding-top: 48px; }
+      .hero-grid { grid-template-columns: 1.2fr 0.8fr; align-items: center; gap: 36px; }
+      .hero-actions, .cta-row { grid-template-columns: 1fr 1fr; }
+      .cards, .salary-grid { grid-template-columns: 1fr 1fr 1fr; }
+      .salary-grid.people { grid-template-columns: 1fr 1fr; }
+      .safety { grid-template-columns: 1fr 1fr; }
+      .steps { grid-template-columns: 1fr 1fr 1fr; }
+      .apply-box { padding: 36px; }
+      .reasons { grid-template-columns: 1fr 1fr 1fr; }
+      .sticky-cta { display: flex; justify-content: center; }
+      .sticky-cta .btn { width: 240px; flex: 0 0 auto; }
+    }
+  </style>
+</head>
+<body id="top">
+  <!-- 差し替え: 店名 Rose Lumière / LINE URL / 電話番号 -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href="#top">
+        <span class="logo-mark"><i class="fa-solid fa-gem"></i></span>
+        <span>Rose Lumière<small>RECRUIT</small></span>
+      </a>
+      <nav class="nav" aria-label="ページ内">
+        <a href="#merits">メリット</a>
+        <a href="#salary">給与</a>
+        <a href="#safety">安心</a>
+        <a href="#flow">流れ</a>
+        <a href="#faq">FAQ</a>
+        <a href="#apply">応募</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="kicker"><i class="fa-solid fa-sparkles"></i> 20代・30代の女性が活躍中</p>
+          <h1>
+            <span class="h1-kicker">エリア最高峰の還元率！</span>
+            <span class="h1-main">初心者でも<br>日給<span class="num">5</span>万円確約</span>
+          </h1>
+          <p>清潔感のある店舗で、未経験から自分のペースで。全額日払い・週1日から、まずは話を聞くだけでも大丈夫です。</p>
+          <div class="hero-actions">
+            <a class="btn btn-line" href="https://line.me/R/ti/p/@roselumiere" target="_blank" rel="noopener">
+              <i class="fa-brands fa-line"></i> LINEで応募する
+            </a>
+            <a class="btn btn-phone" href="tel:0120000000">
+              <i class="fa-solid fa-phone"></i> 電話で応募する
+            </a>
+          </div>
+          <p class="note">※金額はモデルケースです。勤務時間やコースにより前後します。18歳未満の応募は受け付けていません。</p>
+        </div>
+        <aside class="glass" aria-label="給与の目安">
+          <p class="pay-label">TODAY'S GUIDE</p>
+          <p class="pay-num">50,000<span>円〜 / 日</span></p>
+          <ul class="pills">
+            <li>バック率 70%</li>
+            <li>全額日払い</li>
+            <li>週1・短時間OK</li>
+            <li>手ぶら体入OK</li>
+          </ul>
+          <div class="cta-row" style="margin-top:16px">
+            <a class="btn btn-gold btn-block" href="#apply">1分で応募する</a>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="merits">
+      <div class="wrap">
+        <p class="eyebrow">MERIT</p>
+        <h2>当店の3大メリット</h2>
+        <p class="lead">はじめての方でも、生活に合わせて続けられる条件をそろえています。</p>
+        <div class="cards">
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-solid fa-yen-sign"></i></div>
+            <h3>全額日払いOK</h3>
+            <p>働いたその日に、お給料を全額お渡しします。明日の予定に合わせて、すぐ受け取れます。</p>
+          </article>
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-solid fa-seedling"></i></div>
+            <h3>未経験大歓迎・充実の研修</h3>
+            <p>接客もお仕事の流れも、女性スタッフが隣で教えます。知識ゼロからで問題ありません。</p>
+          </article>
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-regular fa-calendar-check"></i></div>
+            <h3>完全自由シフト</h3>
+            <p>週1日・短時間だけでもOK。学校や本業、プライベートを優先して入れます。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="salary">
+      <div class="wrap">
+        <p class="eyebrow">SALARY</p>
+        <h2>給与シミュレーション</h2>
+        <p class="lead">還元率の高さが、未経験でも収入につながります。金額はいずれもモデルケースです。</p>
+        <div class="salary-grid people">
+          <article class="card person">
+            <span class="tag">未経験スタート</span>
+            <h3>Aさん・24歳</h3>
+            <p class="income"><small>月収</small>80万円</p>
+            <p class="meta">週3日 / 1日4時間。研修期間を終えて2ヶ月目の目安です。</p>
+          </article>
+          <article class="card person featured">
+            <span class="tag">がっつり稼ぐ</span>
+            <h3>Bさん・29歳</h3>
+            <p class="income"><small>月収</small>150万円</p>
+            <p class="meta">週5日 / 1日6時間。指名がついてきた半年目の目安です。</p>
+          </article>
+        </div>
+        <div class="table-wrap" style="margin-top:16px">
+          <table>
+            <thead>
+              <tr><th>働き方</th><th>出勤</th><th>1日の目安</th><th>月収目安</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Aさん</td><td>週3・4時間</td><td>約6.5万円</td><td>80万円</td></tr>
+              <tr><td>Bさん</td><td>週5・6時間</td><td>約7.5万円</td><td>150万円</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="reasons">
+          <div class="reason"><i class="fa-solid fa-crown"></i><div><strong>バック率70%</strong><p class="meta">エリアでも上位の還元率。日払いでも率は変わりません。</p></div></div>
+          <div class="reason"><i class="fa-solid fa-heart"></i><div><strong>指名・オプションも還元</strong><p class="meta">本指名や追加コースも、きちんとお給料に反映します。</p></div></div>
+          <div class="reason"><i class="fa-solid fa-shield-heart"></i><div><strong>引かれものが少ない</strong><p class="meta">雑費をわかりやすく提示。もらえる金額を面接で先に説明します。</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="safety">
+      <div class="wrap">
+        <p class="eyebrow">SAFETY</p>
+        <h2>安心・安全のサポート</h2>
+        <p class="lead">身バレと安全が気になる方へ。面接の前に、対策だけでも相談できます。</p>
+        <div class="safety">
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-solid fa-user-secret"></i></div>
+            <div>
+              <h3>身バレ対策</h3>
+              <p>写真加工・顔出しなしOK。掲載前に必ずご本人の確認を取ります。</p>
+            </div>
+          </article>
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-solid fa-train"></i></div>
+            <div>
+              <h3>面接交通費支給</h3>
+              <p>面接に来ていただいた交通費をお渡しします。遠方の方もご相談ください。</p>
+            </div>
+          </article>
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-solid fa-bag-shopping"></i></div>
+            <div>
+              <h3>手ぶら体入OK</h3>
+              <p>衣装・小物は店で用意。荷物を増やさず、その日のうちに体験できます。</p>
+            </div>
+          </article>
+          <article class="card">
+            <div class="icon-bubble"><i class="fa-solid fa-lock"></i></div>
+            <div>
+              <h3>身の安全を完全ガード</h3>
+              <p>待機場所の管理、送迎、女性スタッフの連絡体制で、一人にしません。</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="flow">
+      <div class="wrap">
+        <p class="eyebrow">FLOW</p>
+        <h2>お仕事開始までの流れ</h2>
+        <p class="lead">むずかしい手続きはありません。最短だと、相談したその日にスタートできます。</p>
+        <ol class="steps">
+          <li>
+            <div class="step-no">STEP 1</div>
+            <h3>LINEで気軽に応募・相談</h3>
+            <p>名前はニックネームで大丈夫。聞きたいことだけ送ってください。</p>
+          </li>
+          <li>
+            <div class="step-no">STEP 2</div>
+            <h3>手ぶらで面接・体験入店</h3>
+            <p>店舗の雰囲気と条件を確認してから決められます。無理な勧誘はしません。</p>
+          </li>
+          <li>
+            <div class="step-no">STEP 3</div>
+            <h3>即日日払いで給与GET</h3>
+            <p>体験で働いた分も、その日に全額お支払いします。</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="wrap">
+        <p class="eyebrow">FAQ</p>
+        <h2>よくある質問</h2>
+        <div class="faq" id="faq-list">
+          <article class="faq-item">
+            <button class="faq-q" aria-expanded="false"><span class="q-mark">Q</span><span>本当に未経験でも働けますか？</span><i class="fa-solid fa-plus chev"></i></button>
+            <div class="faq-panel"><div class="faq-panel-inner"><p>はい。在籍の多くが未経験スタートです。言葉づかいや流れは、女性スタッフが勤務前に丁寧に説明します。</p></div></div>
+          </article>
+          <article class="faq-item">
+            <button class="faq-q" aria-expanded="false"><span class="q-mark">Q</span><span>顔出しや写真掲載は必須ですか？</span><i class="fa-solid fa-plus chev"></i></button>
+            <div class="faq-panel"><div class="faq-panel-inner"><p>必須ではありません。顔出しなし、加工ありのどちらも選べます。掲載内容は公開前にご確認いただきます。</p></div></div>
+          </article>
+          <article class="faq-item">
+            <button class="faq-q" aria-expanded="false"><span class="q-mark">Q</span><span>日払いは本当にその日ですか？</span><i class="fa-solid fa-plus chev"></i></button>
+            <div class="faq-panel"><div class="faq-panel-inner"><p>勤務終了後、その日のうちに全額お渡しします。週払いに切り替えることもできます。</p></div></div>
+          </article>
+          <article class="faq-item">
+            <button class="faq-q" aria-expanded="false"><span class="q-mark">Q</span><span>週1日、短時間だけでも大丈夫ですか？</span><i class="fa-solid fa-plus chev"></i></button>
+            <div class="faq-panel"><div class="faq-panel-inner"><p>大丈夫です。シフトは希望を聞いて組みます。テスト期間だけ短時間、という始め方もできます。</p></div></div>
+          </article>
+          <article class="faq-item">
+            <button class="faq-q" aria-expanded="false"><span class="q-mark">Q</span><span>面接には何を持っていけばいいですか？</span><i class="fa-solid fa-plus chev"></i></button>
+            <div class="faq-panel"><div class="faq-panel-inner"><p>身分証だけで大丈夫です。衣装や履歴書は不要です。交通費は面接時にお渡しします。</p></div></div>
+          </article>
+          <article class="faq-item">
+            <button class="faq-q" aria-expanded="false"><span class="q-mark">Q</span><span>年齢制限はありますか？</span><i class="fa-solid fa-plus chev"></i></button>
+            <div class="faq-panel"><div class="faq-panel-inner"><p>18歳以上の方を対象にしています。20代・30代の方が中心ですが、それ以外の年代もご相談ください。</p></div></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="apply">
+      <div class="wrap">
+        <p class="eyebrow">ENTRY</p>
+        <h2>まずは気軽に相談</h2>
+        <p class="lead">LINEが一番はやいです。電話とフォームからも受け付けています。</p>
+        <div class="apply-box">
+          <div class="cta-row">
+            <a class="btn btn-line" href="https://line.me/R/ti/p/@roselumiere" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINEで応募する</a>
+            <a class="btn btn-phone" href="tel:0120000000"><i class="fa-solid fa-phone"></i> 0120-000-000</a>
+          </div>
+          <form class="form" id="entry-form" novalidate>
+            <label>お名前（ニックネーム可）
+              <input name="name" required maxlength="40" autocomplete="nickname" placeholder="例）さくら">
+            </label>
+            <label>年齢
+              <input name="age" type="number" inputmode="numeric" min="18" max="60" required placeholder="18">
+            </label>
+            <label>電話番号
+              <input name="tel" type="tel" inputmode="tel" required placeholder="09012345678" autocomplete="tel">
+            </label>
+            <label>希望の連絡方法
+              <select name="contact" required>
+                <option value="">選択してください</option>
+                <option>LINE</option>
+                <option>電話</option>
+                <option>どちらでも</option>
+              </select>
+            </label>
+            <label>質問・希望シフト（任意）
+              <textarea name="message" maxlength="400" placeholder="週1から始めたい、顔出しなし希望、など"></textarea>
+            </label>
+            <label class="check">
+              <input type="checkbox" name="agree" required>
+              <span>18歳以上であることに同意し、入力内容を選考連絡に使うことに同意します。</span>
+            </label>
+            <p class="error hidden" id="form-error" role="alert"></p>
+            <button class="btn btn-gold btn-block" type="submit">この内容で応募する</button>
+          </form>
+          <div class="thanks hidden" id="thanks">
+            <i class="fa-solid fa-circle-check"></i>
+            <h3>送信しました</h3>
+            <p>担当からご連絡します。お急ぎの方はLINEからもどうぞ。</p>
+            <a class="btn btn-line" href="https://line.me/R/ti/p/@roselumiere" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINEを開く</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Rose Lumière 求人案内（サンプル）</p>
+      <p>18歳未満の方の応募・入店はお断りしています。給与はモデルケースであり、成果を保証するものではありません。</p>
+    </div>
+  </footer>
+
+  <div class="sticky-cta" role="region" aria-label="固定の応募ボタン">
+    <a class="btn btn-line" href="https://line.me/R/ti/p/@roselumiere" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINE応募</a>
+    <a class="btn btn-phone" href="tel:0120000000"><i class="fa-solid fa-phone"></i> 電話応募</a>
+  </div>
+
+  <script>
+    document.querySelectorAll(".faq-q").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var item = button.closest(".faq-item");
+        var open = item.classList.toggle("is-open");
+        button.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+      link.addEventListener("click", function (event) {
+        var id = link.getAttribute("href");
+        if (id.length < 2) return;
+        var target = document.querySelector(id);
+        if (!target) return;
+        event.preventDefault();
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    var form = document.getElementById("entry-form");
+    var error = document.getElementById("form-error");
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      error.classList.add("hidden");
+      var data = new FormData(form);
+      var age = Number(data.get("age"));
+      var tel = String(data.get("tel") || "").replace(/[-\s]/g, "");
+      if (data.get("age") !== "" && age < 18) {
+        error.textContent = "18歳未満の方はご応募いただけません。";
+        error.classList.remove("hidden");
+        return;
+      }
+      if (!form.checkValidity()) {
+        error.textContent = "未入力の項目があります。ニックネーム、年齢、電話番号、連絡方法、同意を確認してください。";
+        error.classList.remove("hidden");
+        return;
+      }
+      if (!/^0\d{9,10}$/.test(tel)) {
+        error.textContent = "電話番号はハイフンなしの10〜11桁で入力してください。";
+        error.classList.remove("hidden");
+        return;
+      }
+      form.classList.add("hidden");
+      document.getElementById("thanks").classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>

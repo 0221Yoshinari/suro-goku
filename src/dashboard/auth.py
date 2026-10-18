@@ -15,8 +15,12 @@ from urllib.parse import unquote
 
 from src.dashboard.members import authorize_member_request
 from src.dashboard.members import close_member_session
+from src.dashboard.members import issue_member_session
 from src.dashboard.members import member_session_live
 from src.dashboard.members import open_member_session
+from src.dashboard.members import open_password_session
+from src.dashboard.members import present_member
+from src.dashboard.members import register_account
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -31,7 +35,7 @@ MASTER_UNLOCK_PATH = f"{MASTER_PANEL_PREFIX}/unlock"
 DEFAULT_PASSWORD = "2026"
 DEFAULT_SESSION_DAYS = 7
 DEFAULT_MASTER_HOURS = 12
-_MASTER_HTML_PATHS = {MASTER_PANEL_PREFIX, f"{MASTER_PANEL_PREFIX}/halls"}
+_MASTER_HTML_PATHS = {MASTER_PANEL_PREFIX, f"{MASTER_PANEL_PREFIX}/halls", f"{MASTER_PANEL_PREFIX}/contracts"}
 _TOKEN_WARNING_SENT = False
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 _LOGIN_TEMPLATE = None
@@ -289,20 +293,48 @@ def public_demo_mode() -> bool:
 
 
 _OPEN_TOOL_PATHS = {"/", "/api/judgments", "/api/hall-catalog", "/api/watch-config"}
+_BILLING_PATHS = {"/billing", "/checkout"}
 
 
 def open_tool_mode() -> bool:
-    """リリース前。Render ではリンクを開くと、パスワードなしでツール画面になる。"""
+    """確認用。DASHBOARD_OPEN=1 のときだけ、ログインなしでツール画面を開く。"""
     flag = (os.getenv("DASHBOARD_OPEN") or "").strip().lower()
-    if flag in {"0", "false", "no", "off"}:
-        return False
+    return flag in {"1", "true", "yes", "on"}
+
+
+_OPERATOR_STATIC = {
+    "/static/admin.js",
+    "/static/admin.css",
+    "/static/halls.js",
+    "/static/contracts.js",
+    "/static/contracts.css",
+}
+_API_DOC_PATHS = {"/docs", "/redoc", "/openapi.json"}
+
+
+def api_docs_enabled() -> bool:
+    """本番では API 仕様を出さない。DASHBOARD_API_DOCS が明示されたときはそれに従う。"""
+    flag = (os.getenv("DASHBOARD_API_DOCS") or "").strip().lower()
     if flag in {"1", "true", "yes", "on"}:
         return True
-    return (os.getenv("RENDER") or "").strip().lower() in {"1", "true", "yes"}
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    if (os.getenv("RENDER") or "").strip().lower() in {"1", "true", "yes"}:
+        return False
+    env = (os.getenv("ENVIRONMENT") or os.getenv("ENV") or os.getenv("APP_ENV") or "").strip().lower()
+    return env not in {"prod", "production"}
+
+
+def is_api_doc_path(path: str) -> bool:
+    return path in _API_DOC_PATHS or path.startswith("/docs/")
+
+
+def is_operator_static(path: str) -> bool:
+    return path in _OPERATOR_STATIC
 
 
 def is_public_path(path: str) -> bool:
-    if path in {"/health", "/login", "/logout", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook", "/api/internal/hall-judgments", "/demo-secret", "/pr-demo"}:
+    if path in {"/health", "/login", "/logout", "/register", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook", "/api/internal/hall-judgments", "/demo-secret", "/pr-demo"}:
         return True
     if path.startswith("/legal/") or path.startswith("/static/"):
         return True
@@ -373,11 +405,24 @@ async def auth_middleware(request: Request, call_next):
         if path.startswith("/api/"):
             return JSONResponse({"detail": "Not Found"}, status_code=404, headers={"Cache-Control": "no-store"})
         return HTMLResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
+    if is_api_doc_path(path) and not api_docs_enabled():
+        return HTMLResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
+    if is_operator_static(path):
+        if is_staff(request):
+            return await call_next(request)
+        return HTMLResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
     if is_public_path(path):
         return await call_next(request)
     kind, denial = _access_kind(request)
     if denial is not None:
         return denial
+    if kind == "member_inactive" and path not in _BILLING_PATHS:
+        detail = getattr(request.state, "member_block_detail", "") or "利用権限がありません"
+        if path.startswith("/api/") or _wants_json(request):
+            return JSONResponse({"detail": detail}, status_code=403, headers={"Cache-Control": "no-store"})
+        response = RedirectResponse("/billing", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        return response
     if kind == "anonymous":
         if path.startswith("/api/") or _wants_json(request):
             return JSONResponse({"detail": "ログインが必要です"}, status_code=401, headers={"Cache-Control": "no-store"})
@@ -402,7 +447,7 @@ async def auth_middleware(request: Request, call_next):
         if path == MASTER_UNLOCK_PATH and request.method.upper() == "POST":
             return await call_next(request)
         if request.method.upper() == "GET" and path in _MASTER_HTML_PATHS:
-            return render_master_unlock()
+            return render_master_unlock(next_path=path)
         return JSONResponse({"detail": "認証が必要です"}, status_code=401, headers={"Cache-Control": "no-store"})
     return await call_next(request)
 
@@ -416,14 +461,25 @@ async def login_get(request: Request) -> Response:
             return RedirectResponse("/", status_code=302)
     notice = _LOGIN_NOTICES.get((request.query_params.get("notice") or "").strip(), "")
     if is_authenticated(request):
-        return RedirectResponse(safe_next(request.query_params.get("next")), status_code=303)
+        return RedirectResponse(_authenticated_next(request), status_code=303)
     return render_login(error=notice, next_path=request.query_params.get("next") or "/")
 
 
 async def login_post(request: Request) -> Response:
     form = parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True)
-    password = (form.get("password") or [""])[0].strip()
+    email = (form.get("email") or [""])[0].strip()
+    raw_password = (form.get("password") or [""])[0]
+    password = raw_password.strip()
     next_path = safe_next((form.get("next") or ["/"])[0])
+    if email:
+        member_id, session_id, error = open_password_session(email, raw_password, client_ip(request), client_fp(request))
+        if error:
+            return render_login(error=error, next_path=next_path)
+        if not member_id or not session_id:
+            return render_login(error="メールアドレスまたはパスワードが違います", next_path=next_path)
+        response = RedirectResponse(_after_member_login(member_id, next_path), status_code=303)
+        apply_member_cookie(response, request, member_id, session_id)
+        return response
     if passwords_match(password):
         if not shared_password_enabled():
             return render_login(
@@ -513,6 +569,9 @@ def _access_kind(request: Request) -> tuple[str, Response | None]:
     state, detail = authorize_member_request(claims[0], claims[1], client_fp(request), client_ip(request))
     if state == "ok":
         return "member", None
+    if state == "inactive":
+        request.state.member_block_detail = detail or "利用権限がありません"
+        return "member_inactive", None
     status_code = 403 if state == "revoked" else 401
     return "anonymous", _member_denied(request, detail or "ログインが必要です", status_code)
 
@@ -527,6 +586,92 @@ def _member_denied(request: Request, detail: str, status_code: int) -> Response:
     page = render_login(error=detail, next_path=target)
     page.status_code = status_code
     return page
+
+
+def _authenticated_next(request: Request) -> str:
+    target = safe_next(request.query_params.get("next"))
+    claims = member_token_claims(request.cookies.get(COOKIE_NAME))
+    if not claims:
+        return target
+    view = present_member(claims[0])
+    if view and view.get("is_active"):
+        return target
+    if target in _BILLING_PATHS:
+        return target
+    return "/billing"
+
+
+def _after_member_login(member_id: str, next_path: str) -> str:
+    view = present_member(member_id)
+    if view and view.get("is_active"):
+        return next_path
+    if next_path in _BILLING_PATHS:
+        return next_path
+    return "/billing"
+
+
+def render_register(error: str = "") -> HTMLResponse:
+    template = (_TEMPLATES_DIR / "register.html").read_text(encoding="utf-8")
+    error_html = f'<p class="login-error" role="alert">{html.escape(error)}</p>' if error else ""
+    body = template.replace("__ERROR__", error_html)
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
+
+
+async def register_get(request: Request) -> Response:
+    if public_demo_mode():
+        return RedirectResponse("/demo-secret", status_code=302)
+    if open_tool_mode():
+        return RedirectResponse("/", status_code=302)
+    if is_authenticated(request):
+        return RedirectResponse(_authenticated_next(request), status_code=303)
+    return render_register()
+
+
+async def register_post(request: Request) -> Response:
+    form = parse_qs((await request.body()).decode("utf-8", errors="replace"), keep_blank_values=True)
+    email = (form.get("email") or [""])[0]
+    password = (form.get("password") or [""])[0]
+    member_id, error = register_account(email, password)
+    if error or not member_id:
+        return render_register(error=error or "処理に失敗しました。しばらくしてから再度お試しください。")
+    session_id = issue_member_session(member_id, client_ip(request), client_fp(request))
+    if not session_id:
+        return render_register(error="処理に失敗しました。しばらくしてから再度お試しください。")
+    response = RedirectResponse("/billing", status_code=303)
+    apply_member_cookie(response, request, member_id, session_id)
+    return response
+
+
+def billing_get(request: Request) -> Response:
+    claims = member_token_claims(request.cookies.get(COOKIE_NAME))
+    if not claims or not member_session_live(claims[0], claims[1], client_fp(request), client_ip(request)):
+        return RedirectResponse("/login?next=/billing", status_code=303)
+    member = present_member(claims[0])
+    if not member:
+        return RedirectResponse("/login?next=/billing", status_code=303)
+    template = (_TEMPLATES_DIR / "billing.html").read_text(encoding="utf-8")
+    active = bool(member.get("is_active"))
+    if active:
+        lead = "利用できます。ツールの画面を開けます。"
+        action = '<form method="get" action="/" class="login-form"><button type="submit" class="primary">ツールを開く</button></form>'
+    else:
+        status = str(member.get("status") or "")
+        if status in {"", "incomplete"}:
+            lead = "まだ申し込み前です。7日間は無料です。期間中に解約すれば、料金はかかりません。"
+        else:
+            message = str(member.get("message") or "お申し込みが必要です。")
+            lead = f"{message} 7日間は無料です。期間中に解約すれば、料金はかかりません。"
+        action = (
+            '<form method="get" action="/checkout" class="login-form">'
+            '<button type="submit" class="primary">7日間無料で申し込む</button>'
+            "</form>"
+        )
+    body = (
+        template.replace("__EMAIL__", html.escape(str(member.get("email") or "")))
+        .replace("__LEAD__", html.escape(lead))
+        .replace("__ACTION__", action)
+    )
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 
 def _wants_json(request: Request) -> bool:

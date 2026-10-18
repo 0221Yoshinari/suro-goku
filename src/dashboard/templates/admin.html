@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>機種マスター管理</title>
     <link rel="stylesheet" href="/static/styles.css?v=56" />
-    <link rel="stylesheet" href="/static/admin.css?v=2" />
+    <link rel="stylesheet" href="/static/admin.css?v=3" />
   </head>
   <body>
     <header class="top">
@@ -15,6 +15,7 @@
       </div>
       <div class="top-actions">
         <a class="button-link" href="/master-panel-x7k3q9/halls">ホール管理</a>
+        <a class="button-link" href="/master-panel-x7k3q9/contracts">契約管理</a>
         <a class="button-link" href="/">ダッシュボード</a>
         <button type="button" id="rejudge-btn" class="primary">保存した値で再判定</button>
         <form method="post" action="/logout" class="logout-form">
@@ -24,7 +25,7 @@
     </header>
 
     <p id="admin-note" class="admin-note">
-      手修正はデータ上書きとして保存され、次の40分巡回と「再判定」で公表値より優先されます。
+      参照数値の保存はマスターの上書きです。次の40分巡回と「再判定」で、自動判定とジャグラー島のスコアがこの値を使います。
     </p>
     <p id="admin-status" class="admin-status" role="status"></p>
     <p id="admin-error" class="error hidden" role="alert"></p>
@@ -80,34 +81,66 @@
 
     <section class="panel admin-panel">
       <div class="panel-head">
-        <h2>登録機種と理論値</h2>
+        <h2>設定判定の参照数値</h2>
         <p class="hint" id="master-summary">機種を読み込み中…</p>
+        <p class="hint" id="logic-summary"></p>
       </div>
+      <form id="create-master-form" class="create-master">
+        <div class="create-head">
+          <h3>新規機種</h3>
+          <p class="hint">機種名と設定6の初当り（Aタイプは合算）を入れると、判定マスターへ追加されます。設定5・4を空にすると設定6から算出します。</p>
+        </div>
+        <div class="create-grid">
+          <label>機種名<input id="new-name" type="text" maxlength="80" required placeholder="スマスロ○○" /></label>
+          <label>種別
+            <select id="new-type">
+              <option value="AT">AT機</option>
+              <option value="A">Aタイプ</option>
+            </select>
+          </label>
+          <label>初当り対象
+            <select id="new-hit" disabled title="AT機の初当りはRB固定">
+              <option value="rb">RB（初当り）</option>
+              <option value="combined">合算</option>
+              <option value="bb">BB</option>
+            </select>
+          </label>
+          <label>規定G<input id="new-min-games" type="number" min="1" max="100000" step="1" value="3000" /></label>
+          <label>朝一G<input id="new-early-games" type="number" min="1" max="100000" step="1" value="300" /></label>
+        </div>
+        <div class="create-levels" id="new-levels"></div>
+        <label class="create-note">備考<textarea id="new-note" maxlength="400" placeholder="根拠、出典、更新理由"></textarea></label>
+        <div class="event-actions">
+          <button type="submit" id="create-master" class="primary">マスターへ追加</button>
+        </div>
+      </form>
       <div class="toolbar admin-toolbar">
         <label class="search">
           <span class="sr-only">機種名で検索</span>
-          <input id="master-search" type="search" placeholder="機種名・シリーズ" />
+          <input id="master-search" type="search" placeholder="機種名・シリーズ・備考" />
         </label>
         <div class="filters" role="group" aria-label="表示の絞り込み">
           <button type="button" class="filter is-active" data-master-filter="all">すべて</button>
           <button type="button" class="filter" data-master-filter="A">Aタイプ</button>
           <button type="button" class="filter" data-master-filter="AT">AT機</button>
           <button type="button" class="filter" data-master-filter="override">補正あり</button>
+          <button type="button" class="filter" data-master-filter="added">追加機種</button>
         </div>
       </div>
       <div class="table-wrap">
-        <table class="admin-table">
+        <table class="admin-table criteria-table">
           <thead>
             <tr>
               <th>機種</th>
-              <th>タイプ</th>
-              <th>初当り</th>
+              <th>種別</th>
+              <th>設定1</th>
+              <th>設定2</th>
+              <th>設定3</th>
+              <th>設定4</th>
+              <th>設定5</th>
               <th>設定6</th>
-              <th>全56</th>
-              <th>全456</th>
-              <th>REG 6</th>
-              <th>REG 56</th>
-              <th>REG 456</th>
+              <th>閾値</th>
+              <th>備考</th>
               <th></th>
             </tr>
           </thead>
@@ -159,6 +192,6 @@
       <p id="inspection-empty" class="empty hidden">この条件の判定結果はありません。</p>
     </section>
 
-    <script src="/static/admin.js?v=5"></script>
+    <script src="/static/admin.js?v=6"></script>
   </body>
 </html>

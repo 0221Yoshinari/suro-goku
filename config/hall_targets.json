@@ -59,7 +59,9 @@
     {"id": "espace", "label": "エスパス", "keywords": ["エスパス"]},
     {"id": "face", "label": "フェイス", "keywords": ["フェイス"]},
     {"id": "gaia", "label": "ガイア", "keywords": ["ガイア"]},
-    {"id": "island", "label": "アイランド", "keywords": ["ISLAND", "アイランド"]}
+    {"id": "island", "label": "アイランド", "keywords": ["ISLAND", "アイランド"]},
+    {"id": "grand", "label": "グランド", "keywords": ["グランド"]},
+    {"id": "dynam", "label": "ダイナム", "keywords": ["ダイナム"]}
   ],
   "teramoba_seeds": []
 }

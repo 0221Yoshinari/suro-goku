@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from src.scraper.base import PROJECT_ROOT, FetchResult
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.halls import Hall, format_duration, hall_data_dir, halls_for_source, load_halls_config, sleep_hall_gap
 from src.scraper.pscube import _as_int, _dai_no, _row_from_counts
 from src.scraper.targets import is_watched
@@ -401,32 +402,32 @@ def fetch_maruhan_hall(
     if config.fixture_path:
         payload = _load_fixture(config.fixture_path)
     elif mocked:
-        print(
+        emit(
             f"{hall.name}: base_url と maruhan_hall_id が未設定のため、テスト用の台データで変換します",
             flush=True,
         )
         payload = mock_guest_payload(hall.name)
     else:
         session = client or MaruhanClient(config)
-        print(f"マルハンアプリ（ゲスト）へアクセス: {hall.name} hall_id={config.hall_id}", flush=True)
+        emit(f"マルハンアプリ（ゲスト）へアクセス: {hall.name} hall_id={config.hall_id}", flush=True)
         payload = session.get_json(config.machines_path)
     rows = [row for row in map_maruhan_payload(payload, hall.name) if is_watched(str(row.get("machine_name") or ""))]
     if mocked:
         for row in rows:
             row["mock"] = True
     if config.fixture_path or not config.history_path:
-        print(f"  取得 {len(rows)} 台", flush=True)
+        emit(f"  取得 {len(rows)} 台", flush=True)
         return rows
     session = client or MaruhanClient(config)
     for index, row in enumerate(rows):
         if index:
             delay = wait_between_requests(config, sleeper=sleeper, rng=rng)
-            print(f"  履歴の前に {delay:.1f}秒 待機", flush=True)
+            emit(f"  履歴の前に {delay:.1f}秒 待機", flush=True)
         history_payload = session.get_json(config.history_path, dai_no=row["dai_no"], machine_name=row["machine_name"])
         history = map_history(history_payload)
         if history:
             row["history"] = history
-    print(f"  取得 {len(rows)} 台", flush=True)
+    emit(f"  取得 {len(rows)} 台", flush=True)
     return rows
 
 
@@ -439,7 +440,7 @@ def fetch_maruhan_data(
     # アプリ専用の台データは、ブラウザ向けの取得経路では読めない。後回しにする。
     if (os.getenv("MARUHAN_FETCH") or "").strip() == "1":
         return _fetch_maruhan_data_live(halls, sleeper=sleeper, rng=rng)
-    print("マルハンはアプリ専用データのため、今回の取得からスキップします", flush=True)
+    emit("マルハンはアプリ専用データのため、今回の取得からスキップします", flush=True)
     return FetchResult(
         source=SOURCE_ID,
         hall_name="マルハン",
@@ -471,14 +472,14 @@ def _fetch_maruhan_data_live(
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as exc:
-            print(f"  {hall.name} の取得失敗: {exc}", flush=True)
+            emit(f"  {hall.name} の取得失敗: {failure_reason(exc)}", flush=True)
             failed.append(hall.name)
-            reasons.append(f"{hall.name}: {exc}")
+            reasons.append(f"{hall.name}: {failure_reason(exc)}")
             continue
         if not payload:
             failed.append(hall.name)
             reasons.append(f"{hall.name}: 0 件")
-            print(f"  {hall.name} の取得失敗: 0 件", flush=True)
+            emit(f"  {hall.name} の取得失敗: 0 件", flush=True)
             continue
         hall_result = FetchResult(
             source=SOURCE_ID,
@@ -487,7 +488,7 @@ def _fetch_maruhan_data_live(
             extra={"mock": uses_mock(config_for_hall(hall))},
         )
         hall_path = hall_result.write_incoming(hall_data_dir(hall.name, PROJECT_ROOT / "data" / SOURCE_ID))
-        print(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
+        emit(f"  {hall.name}: {len(payload)} 件を {hall_path} に保存", flush=True)
         combined.extend(payload)
         fetched.append(hall.name)
         if uses_mock(config_for_hall(hall)):

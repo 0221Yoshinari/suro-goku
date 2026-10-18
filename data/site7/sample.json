@@ -1,0 +1,25 @@
+{
+  "hall_name": "玉屋本店",
+  "machines": [
+    {
+      "machine_name": "マイジャグラーV",
+      "total_games": 11571,
+      "bb": 52,
+      "rb": 53,
+      "合成確率": "1/110.2"
+    },
+    {
+      "machine_name": "ネオアイム",
+      "total_games": 99555,
+      "bb": 368,
+      "rb": 235,
+      "合成確率": "1/165.1"
+    },
+    {
+      "machine_name": "プリズムナナ",
+      "total_games": 9734,
+      "hits": 36,
+      "合成確率": 270.4
+    }
+  ]
+}

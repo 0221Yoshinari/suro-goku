@@ -36,6 +36,7 @@ DESKTOP_USER_AGENTS = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
     "(KHTML, like Gecko) Version/17.5 Safari/605.1.15",
 )
+GENERIC_HTTP_USER_AGENT = DESKTOP_USER_AGENTS[0]
 
 
 class AccessPacer:
@@ -187,6 +188,8 @@ def summarize_failure(error: str) -> str:
         return "メンテナンス中"
     if "メンテナンス" in text:
         return "メンテナンス画面"
+    if "復旧案内" in text:
+        return "復旧案内を通過できず"
     return "取得失敗"
 
 

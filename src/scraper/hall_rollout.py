@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from src.analyzer.judgment import DEFAULT_OUTPUT_DIR, judge_records
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.hall_catalog import save_halls_payload
 from src.scraper.halls import HALLS_CONFIG_PATH, PROJECT_ROOT, load_halls_config
 from src.scraper.registry import get_source
@@ -85,7 +86,7 @@ def _wait_for_scheduler() -> None:
     from src.scheduler import lock_is_held
 
     while lock_is_held():
-        print("定期巡回が動いているため、終わるまで待ちます", flush=True)
+        emit("定期巡回が動いているため、終わるまで待ちます", flush=True)
         time.sleep(20)
 
 
@@ -158,7 +159,7 @@ def run_rollout(
     ]
     if limit is not None:
         pending = pending[: max(0, limit)]
-    print(f"順次有効化: 残り {len(pending)} 店 / 間隔 {pause_sec:.0f} 秒", flush=True)
+    emit(f"順次有効化: 残り {len(pending)} 店 / 間隔 {pause_sec:.0f} 秒", flush=True)
     enabled = 0
     errors = 0
     for index, hall in enumerate(pending, start=1):
@@ -166,32 +167,32 @@ def run_rollout(
         name = str(hall.get("name"))
         source = str(hall.get("source") or "")
         _wait_for_scheduler()
-        print(f"[{index}/{len(pending)}] {name} を有効にして取得します", flush=True)
+        emit(f"[{index}/{len(pending)}] {name} を有効にして取得します", flush=True)
         _set_enabled(hall_id, True, halls_path)
         ok, machines, reason = asyncio.run(fetch_one(name))
         if not ok:
             _set_enabled(hall_id, False, halls_path)
             failed[hall_id] = reason
             errors += 1
-            print(f"  失敗したため無効に戻しました: {reason}", flush=True)
+            emit(f"  失敗したため無効に戻しました: {reason}", flush=True)
             save_state(state, state_path)
             time.sleep(fail_pause_sec)
             continue
         try:
             merge_hall_judgment(name, machines, source)
         except Exception as exc:
-            print(f"  判定の結合に失敗しました: {exc}", flush=True)
+            emit(f"  判定の結合に失敗しました: {failure_reason(exc)}", flush=True)
         if hall_id not in done:
             state.setdefault("completed", []).append(hall_id)
         enabled += 1
-        print(f"  取得 {len(machines)} 件。有効のままにします", flush=True)
+        emit(f"  取得 {len(machines)} 件。有効のままにします", flush=True)
         save_state(state, state_path)
         if index < len(pending):
             time.sleep(pause_sec)
     os.environ.pop("SITE7_HALL_NAMES", None)
     load_halls_config.cache_clear()
     summary = {"enabled": enabled, "failed": errors, "remaining_checked": len(pending)}
-    print(f"完了 有効化={enabled} 失敗={errors}", flush=True)
+    emit(f"完了 有効化={enabled} 失敗={errors}", flush=True)
     return summary
 
 

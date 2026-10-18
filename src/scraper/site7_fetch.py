@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from dotenv import load_dotenv
 
 from src.scraper.base import FetchResult
+from src.scraper.log_safe import emit, failure_reason
 from src.scraper.deadline import hall_timeout_sec
 from src.scraper.browser import browser_session, human_pause, short_pause, type_like_human
 from src.scraper.halls import (
@@ -139,7 +140,7 @@ async def wait_if_captcha(page, *, timeout_sec: float | None = None) -> bool:
     wait_sec = captcha_wait_sec() if timeout_sec is None else timeout_sec
     if wait_sec <= 0 or not await is_captcha(page):
         return False
-    print(
+    emit(
         f"CAPTCHA を検出。ブラウザで「私はロボットではありません」を解除してください（最大 {wait_sec:.0f} 秒）",
         flush=True,
     )
@@ -148,14 +149,14 @@ async def wait_if_captcha(page, *, timeout_sec: float | None = None) -> bool:
     while time.monotonic() < deadline:
         now = time.monotonic()
         if now >= next_notice:
-            print(f"  残り {deadline - now:.0f} 秒。チェックボックスをクリックしてください。", flush=True)
+            emit(f"  残り {deadline - now:.0f} 秒。チェックボックスをクリックしてください。", flush=True)
             next_notice = now + 10
         await asyncio.sleep(2)
         if not await is_captcha(page):
-            print("CAPTCHA 解除を確認しました。", flush=True)
+            emit("CAPTCHA 解除を確認しました。", flush=True)
             await asyncio.sleep(1.5)
             return True
-    print(CAPTCHA_MSG, flush=True)
+    emit(CAPTCHA_MSG, flush=True)
     raise CaptchaRequired()
 
 
@@ -164,10 +165,10 @@ async def guard_page(page) -> None:
         if captcha_wait_sec() > 0:
             await wait_if_captcha(page)
             if await is_captcha(page):
-                print(CAPTCHA_MSG, flush=True)
+                emit(CAPTCHA_MSG, flush=True)
                 raise CaptchaRequired()
         else:
-            print(CAPTCHA_MSG, flush=True)
+            emit(CAPTCHA_MSG, flush=True)
             raise CaptchaRequired()
     if await is_account_restricted(page):
         raise RuntimeError(RESTRICTED_MSG)
@@ -223,7 +224,7 @@ async def session_looks_logged_in(page) -> bool:
 
 
 async def login(page):
-    print("サイトセブン ログインページへアクセス中...")
+    emit("サイトセブン ログインページへアクセス中...")
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
     await accept_cookie(page)
     await human_pause("ログイン画面")
@@ -247,7 +248,7 @@ async def login(page):
     await guard_page(page)
     if not await session_looks_logged_in(page):
         raise RuntimeError("ログインに失敗しました。メールアドレスまたはパスワードを確認してください。")
-    print(f"ログイン完了: {page.url}", flush=True)
+    emit(f"ログイン完了: {page.url}", flush=True)
 
 
 async def ensure_session(page, storage_path: Path, *, allow_login: bool = True) -> None:
@@ -258,24 +259,24 @@ async def ensure_session(page, storage_path: Path, *, allow_login: bool = True) 
         async with _LOGIN_LOCK:
             await login(page)
         return
-    print(f"保存済みセッションを使用: {storage_path}", flush=True)
+    emit(f"保存済みセッションを使用: {storage_path}", flush=True)
     await page.goto(MYPAGE_URL, wait_until="domcontentloaded", timeout=60000)
     await accept_cookie(page)
     await human_pause("セッション確認")
     await guard_page(page)
     if await session_looks_logged_in(page):
-        print("セッション有効。再ログインを省略してマイページを利用します。", flush=True)
+        emit("セッション有効。再ログインを省略してマイページを利用します。", flush=True)
         return
     if await page_requires_login(page):
         if not allow_login:
             raise SessionExpired("セッション無効です。同時ログインを避けるためこのワーカーでは再ログインしません。")
-        print("セッション無効のため再ログインします。", flush=True)
+        emit("セッション無効のため再ログインします。", flush=True)
         async with _LOGIN_LOCK:
             await login(page)
         return
     if not allow_login:
         raise SessionExpired("セッション無効です。同時ログインを避けるためこのワーカーでは再ログインしません。")
-    print("マイホールが見つからないため再ログインします。", flush=True)
+    emit("マイホールが見つからないため再ログインします。", flush=True)
     async with _LOGIN_LOCK:
         await login(page)
 
@@ -303,17 +304,14 @@ async def _hall_debug(page) -> str:
     try:
         info = await page.evaluate(
             """() => ({
-                url: location.href,
-                title: document.title,
                 slot: !!document.querySelector('table.slot'),
                 listClick: typeof listClick,
                 loginForm: !!document.querySelector('#mypage_email'),
-                body: (document.body.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 280),
             })"""
         )
-        return str(info)
-    except Exception as exc:
-        return f"url={page.url} debug_failed={exc}"
+        return f"slot={info.get('slot')} listClick={info.get('listClick')} loginForm={info.get('loginForm')}"
+    except Exception:
+        return "状態を確認できません"
 
 
 async def wait_for_hall_ready(page, hall_url: str) -> bool:
@@ -325,7 +323,7 @@ async def wait_for_hall_ready(page, hall_url: str) -> bool:
         if await page_requires_login(page):
             raise SessionExpired("ホール取得中にログイン画面へ戻りました")
         if "HallSelectLink" not in (page.url or "") or await is_busy(page):
-            print(f"    ホール再読込 ({attempt}/{BUSY_RETRIES})", flush=True)
+            emit(f"    ホール再読込 ({attempt}/{BUSY_RETRIES})", flush=True)
             await human_pause("混雑待ち")
             await page.goto(hall_url, wait_until="domcontentloaded", timeout=60000)
             await human_pause("ホール再表示")
@@ -338,14 +336,14 @@ async def wait_for_hall_ready(page, hall_url: str) -> bool:
         has_click = await page.evaluate("() => typeof listClick === 'function'")
         if has_slot and has_click and not await is_busy(page):
             return True
-        print(
+        emit(
             f"    ホール未準備 ({attempt}/{BUSY_RETRIES}) slot={has_slot} listClick={has_click}",
             flush=True,
         )
         await page.wait_for_timeout(BUSY_WAIT_MS)
         await page.goto(hall_url, wait_until="domcontentloaded", timeout=60000)
         await human_pause("ホール再表示")
-    print(f"    ホール一覧が開けません: {await _hall_debug(page)}", flush=True)
+    emit(f"    ホール一覧が開けません: {await _hall_debug(page)}", flush=True)
     return False
 
 
@@ -356,12 +354,12 @@ async def open_hall(page, hall_name: str | None = None):
     if not target:
         raise RuntimeError("巡回対象ホールが config/halls.json にありません。")
     if USE_HALL_URL and TARGET_URL and len(configured_halls()) == 1:
-        print("ホールページへ移動中（SITE7_HALL_URL）...")
+        emit("ホールページへ移動中（SITE7_HALL_URL）...")
         await page.goto(TARGET_URL, wait_until="domcontentloaded", timeout=60000)
         await human_pause("ホール指定URL")
         if not await is_busy(page) and await page.locator("table.slot").count():
             return
-        print("指定URLは利用できないため、マイホールから開き直します。")
+        emit("指定URLは利用できないため、マイホールから開き直します。")
 
     await page.goto(MYPAGE_URL, wait_until="domcontentloaded")
     await human_pause("マイページ")
@@ -380,21 +378,13 @@ async def open_hall(page, hall_name: str | None = None):
     if hall_link is None or not await hall_link.count():
         hall_link = page.locator("a").filter(has_text=re.compile(re.escape(match)))
     if not await hall_link.count():
-        info = await page.evaluate(
-            """() => ({
-                url: location.href,
-                myhall: (document.querySelector('#myhall') || {}).innerHTML || '',
-                links: [...document.querySelectorAll('a')].map((a) => (a.innerText || '').replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 80),
-            })"""
-        )
-        print(f"マイページ状態: url={info.get('url')} myhall_html={str(info.get('myhall') or '')[:400]}", flush=True)
-        labels = [t for t in (info.get("links") or []) if t]
-        raise RuntimeError(f"マイホールに「{match}」が見つかりません。リンク例: {labels[:20] or '(なし)'}")
+        emit("マイページからホールリンクを特定できませんでした", flush=True)
+        raise RuntimeError(f"マイホールに「{match}」が見つかりません")
     href = await hall_link.first.get_attribute("href")
     if not href:
         raise RuntimeError(f"マイホール「{match}」のリンクが見つかりません。")
     url = href if href.startswith("http") else BASE + href
-    print(f"マイホールへ移動（{target}）: {url}")
+    emit(f"マイホールへ移動（{target}）: {url}")
     await page.goto(url, wait_until="domcontentloaded", timeout=60000)
     await human_pause("ホール一覧")
     await guard_page(page)
@@ -566,16 +556,16 @@ async def fetch_slot_machines(page):
     only = (os.getenv("SITE7_ONLY_PATTERN") or "").strip()
     if only:
         watched_models = [m for m in watched_models if only in (m.get("label") or "")]
-        print(f"SITE7_ONLY_PATTERN={only} → {len(watched_models)} 機種", flush=True)
+        emit(f"SITE7_ONLY_PATTERN={only} → {len(watched_models)} 機種", flush=True)
     skipped = len(models) - len(watched_models)
-    print(f"スロット機種数: {len(models)} / 監視対象: {len(watched_models)}（除外 {skipped}）", flush=True)
+    emit(f"スロット機種数: {len(models)} / 監視対象: {len(watched_models)}（除外 {skipped}）", flush=True)
     machines = []
 
     for i, model in enumerate(watched_models):
         label = model["label"]
-        print(f"  [{i + 1}/{len(watched_models)}] {label}", flush=True)
+        emit(f"  [{i + 1}/{len(watched_models)}] {label}", flush=True)
         if not await wait_for_hall_ready(page, hall_url):
-            print("    ホールページが復帰しないためスキップ", flush=True)
+            emit("    ホールページが復帰しないためスキップ", flush=True)
             continue
 
         await human_pause("機種クリック前")
@@ -588,23 +578,23 @@ async def fetch_slot_machines(page):
             ).first.wait_for(timeout=20000)
             await guard_page(page)
         except Exception as e:
-            print(f"    一覧を開けませんでした: {e}", flush=True)
+            emit(f"    一覧を開けませんでした: {failure_reason(e)}", flush=True)
             await wait_for_hall_ready(page, hall_url)
             continue
 
         if await is_busy(page):
-            print("    混雑のためスキップ", flush=True)
+            emit("    混雑のためスキップ", flush=True)
         else:
             watched = match_target(label)
             if watched and watched.type == "AT":
                 await human_pause("ART列クリック前")
                 loaded = await reveal_art_counts(page)
-                print(f"    ART列: {'取得' if loaded else '未表示（--の可能性）'}", flush=True)
+                emit(f"    ART列: {'取得' if loaded else '未表示（--の可能性）'}", flush=True)
                 await human_pause("ART列表示後")
             rows = _normalize_rows(await extract_list_page(page, label), label)
             machines.extend(rows)
             art_n = sum(1 for r in rows if r.get("art") is not None)
-            print(f"    取得 {len(rows)} 台 / ARTあり {art_n}", flush=True)
+            emit(f"    取得 {len(rows)} 台 / ARTあり {art_n}", flush=True)
 
         await human_pause("ホールへ戻る前")
         await page.goto(hall_url, wait_until="domcontentloaded", timeout=60000)
@@ -614,7 +604,7 @@ async def fetch_slot_machines(page):
 
 
 async def _relogin(page, storage_path: Path) -> None:
-    print("ログイン状態が外れているため再ログインし、Cookie を更新します。", flush=True)
+    emit("ログイン状態が外れているため再ログインし、Cookie を更新します。", flush=True)
     async with _LOGIN_LOCK:
         await login(page)
         storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -622,7 +612,7 @@ async def _relogin(page, storage_path: Path) -> None:
         shared = storage_state_path()
         if storage_path.resolve() != shared.resolve():
             shutil.copy2(storage_path, shared)
-        print(f"セッションを保存: {storage_path}", flush=True)
+        emit(f"セッションを保存: {storage_path}", flush=True)
 
 
 async def _fetch_one_hall(page, hall: str, storage_path: Path) -> list[dict]:
@@ -644,7 +634,7 @@ async def _fetch_one_hall(page, hall: str, storage_path: Path) -> list[dict]:
             raise
         except SessionExpired as exc:
             last_error = exc
-            print(f"  {hall}: セッション切れを検出。再ログインして再試行します ({attempt}/2)", flush=True)
+            emit(f"  {hall}: セッション切れを検出。再ログインして再試行します ({attempt}/2)", flush=True)
             await _relogin(page, storage_path)
         except RuntimeError as exc:
             last_error = exc
@@ -652,7 +642,7 @@ async def _fetch_one_hall(page, hall: str, storage_path: Path) -> list[dict]:
             if "自動取得" in message or "一時停止" in message or "CAPTCHA" in message:
                 raise
             if attempt < 2 and "マイホール" in message:
-                print(f"  {hall}: {message} 再ログインして再試行します ({attempt}/2)", flush=True)
+                emit(f"  {hall}: {message} 再ログインして再試行します ({attempt}/2)", flush=True)
                 await _relogin(page, storage_path)
                 continue
             raise
@@ -665,8 +655,8 @@ async def refresh_site7_session(*, wait_sec: float = 60.0, hall: str | None = No
     os.environ["SITE7_CAPTCHA_WAIT_SEC"] = str(wait_sec)
     storage_path = storage_state_path()
     storage_path.parent.mkdir(parents=True, exist_ok=True)
-    print("headed モードでブラウザを開きます。CAPTCHA が出たら手動で解除してください。", flush=True)
-    print(f"Cookie 保存先: {storage_path}", flush=True)
+    emit("headed モードでブラウザを開きます。CAPTCHA が出たら手動で解除してください。", flush=True)
+    emit(f"Cookie 保存先: {storage_path}", flush=True)
 
     async with browser_session(storage_path, headless=False) as session:
         page = session.page
@@ -674,22 +664,22 @@ async def refresh_site7_session(*, wait_sec: float = 60.0, hall: str | None = No
         halls = configured_halls()
         target = (hall or "").strip() or (halls[0] if halls else "")
         if target:
-            print(f"ホール画面を開きます: {target}", flush=True)
+            emit(f"ホール画面を開きます: {target}", flush=True)
             await open_hall(page, target)
             await wait_if_captcha(page, timeout_sec=wait_sec)
         if await page_requires_login(page):
             raise RuntimeError("ログインできませんでした。メールアドレスまたはパスワードを確認してください。")
         session.save_storage = True
-        print("認証通過後の Cookie を上書き保存します。以降の headless 実行で再利用できます。", flush=True)
+        emit("認証通過後の Cookie を上書き保存します。以降の headless 実行で再利用できます。", flush=True)
 
-    print(f"セッション更新完了: {storage_path}", flush=True)
+    emit(f"セッション更新完了: {storage_path}", flush=True)
     return storage_path
 
 
 async def fetch_site7_data() -> FetchResult | None:
     halls = [hall.name for hall in halls_for_source("site7")]
     if not halls:
-        print("サイトセブン対象ホールがありません。", flush=True)
+        emit("サイトセブン対象ホールがありません。", flush=True)
         return FetchResult(
             source="site7",
             hall_name="",
@@ -697,13 +687,13 @@ async def fetch_site7_data() -> FetchResult | None:
             extra={"skipped": True, "target_halls": configured_halls()},
         )
     if not EMAIL or not PASSWORD:
-        print("エラー: .env に SITE7_EMAIL または SITE7_PASSWORD が設定されていません。")
+        emit("エラー: .env に SITE7_EMAIL または SITE7_PASSWORD が設定されていません。")
         return None
 
     workers = max_workers()
     started = time.monotonic()
-    print(f"巡回ホール: {' → '.join(halls)}", flush=True)
-    print(
+    emit(f"巡回ホール: {' → '.join(halls)}", flush=True)
+    emit(
         f"安全設定: 同時上限{workers} / Cookie再利用 / 正常時 1–3秒 / 遮断時は15→30→60秒",
         flush=True,
     )
@@ -724,21 +714,21 @@ async def fetch_site7_data() -> FetchResult | None:
         session.save_storage = True
 
         for index, hall in enumerate(halls, start=1):
-            print(f"\n===== [{index}/{len(halls)}] {hall} =====", flush=True)
+            emit(f"\n===== [{index}/{len(halls)}] {hall} =====", flush=True)
             try:
                 rows = await asyncio.wait_for(
                     _fetch_one_hall(page, hall, storage_path),
                     timeout=hall_timeout_sec(),
                 )
                 if not rows:
-                    print(f"  {hall}: 0件のためスキップ", flush=True)
+                    emit(f"  {hall}: 0件のためスキップ", flush=True)
                     failed_halls.append(hall)
                     failed_reasons.append(f"{hall}: 0件")
                     failure_details.append(failure_record(hall, "0件"))
                 else:
                     hall_result = FetchResult(source="site7", hall_name=hall, machines=rows)
                     hall_path = hall_result.write_incoming(hall_data_dir(hall))
-                    print(f"  {hall}: {len(rows)} 件を {hall_path} に保存", flush=True)
+                    emit(f"  {hall}: {len(rows)} 件を {hall_path} に保存", flush=True)
                     combined.extend(rows)
                     fetched_halls.append(hall)
                     get_pacer().mark_success()
@@ -746,17 +736,17 @@ async def fetch_site7_data() -> FetchResult | None:
                 get_pacer().mark_pressure()
                 raise
             except Exception as e:
-                print(f"  {hall} の取得失敗: {e}", flush=True)
+                emit(f"  {hall} の取得失敗: {failure_reason(e)}", flush=True)
                 if is_pressure(None, str(e)):
                     get_pacer().mark_pressure()
                 failed_halls.append(hall)
-                failed_reasons.append(f"{hall}: {e}")
+                failed_reasons.append(f"{hall}: {failure_reason(e)}")
                 failure_details.append(failure_record(hall, e))
             await human_pause("次のホールへ")
 
     elapsed_sec = time.monotonic() - started
     if not combined:
-        print("取得0件のため既存の incoming.json は上書きしません。", flush=True)
+        emit("取得0件のため既存の incoming.json は上書きしません。", flush=True)
         detail = " / ".join(failed_reasons)
         raise RuntimeError(
             "サイトセブンの取得に失敗したため incoming.json は更新していません。"
@@ -780,7 +770,7 @@ async def fetch_site7_data() -> FetchResult | None:
         },
     )
     output_file = result.write_incoming()
-    print(
+    emit(
         f"データ取得完了: {output_file}（対象: {', '.join(halls)} / 成功: {', '.join(ordered) or 'なし'} / "
         f"合計 {len(combined)} 件 / {format_duration(elapsed_sec)}）",
         flush=True,

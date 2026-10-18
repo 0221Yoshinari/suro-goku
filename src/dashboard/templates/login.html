@@ -9,17 +9,20 @@
   <body class="login-body">
     <main class="login-card">
       <p class="eyebrow">スロ極</p>
-      <h1>ダッシュボードにログイン</h1>
-      <p class="login-lead">ライセンスキー、または運営用パスワードを入力してください。</p>
+      <h1>ログイン</h1>
+      <p class="login-lead">メールアドレスとパスワードを入力してください。</p>
       __ERROR__
       <form method="post" action="/login" class="login-form">
         <input type="hidden" name="next" value="__NEXT__" />
-        <label class="login-label" for="password">ライセンスキー / パスワード</label>
+        <label class="login-label" for="email">メールアドレス</label>
+        <input id="email" name="email" type="email" autocomplete="username" maxlength="200" />
+        <label class="login-label" for="password">パスワード</label>
         <input id="password" name="password" type="password" autocomplete="current-password" autofocus required />
         <button type="submit" class="primary">ログイン</button>
       </form>
-      <p class="login-note">1つのライセンスキーは、同時に1台だけです。端末を変えるときは、先にログアウトしてください。</p>
-      <p class="login-links"><a href="/lp">申し込みはこちら</a></p>
+      <p class="login-note">別の端末でログインすると、それまでの端末は自動でログアウトされます。</p>
+      <p class="login-note">ライセンスキーだけの方は、メールを空欄にしてキーをパスワード欄に入力してください。</p>
+      <p class="login-links"><a href="/register">アカウントを作成</a> · <a href="/lp">紹介ページ</a></p>
     </main>
   </body>
 </html>

@@ -203,6 +203,20 @@ class MonitorEnableTest(unittest.TestCase):
 
 
 class SourceSkipAndMaintenanceTest(unittest.TestCase):
+    def test_teramoba_batch_skips_while_the_site_is_down(self) -> None:
+        import asyncio
+
+        from src.scraper.teramoba import fetch_teramoba_data_async
+
+        async def run():
+            with mock.patch.dict(os.environ, {"TERAMOBA_FETCH": "0"}, clear=False):
+                return await fetch_teramoba_data_async([])
+
+        result = asyncio.run(run())
+        self.assertEqual(result.machines, [])
+        self.assertTrue(result.extra.get("skipped"))
+        self.assertEqual(result.extra.get("reason"), "テラモバ2障害中のため一時停止")
+
     def test_pscube_batch_skips_without_fetching(self) -> None:
         from src.scraper.pscube import fetch_pscube_data
 

@@ -68,6 +68,10 @@ STATUS_RANK = {
 # 3〜5%帯の中央。一つ下の設定の公表値以上へは広げない。
 SETTING6_RELATIVE_TOLERANCE = 0.04
 SETTING6_MARGIN_MIN_GAMES = 3000
+# 設定5・設定4がマスターに無いとき、設定6から埋める倍率。
+DERIVE_SETTING5_RATIO = 1.07
+DERIVE_SETTING4_SYNTHETIC_RATIO = 1.16
+DERIVE_SETTING4_RB_RATIO = 1.26
 
 
 def _norm_name(value: str | None) -> str:
@@ -261,12 +265,12 @@ def _derive_bar(setting6: SettingBar, level: int) -> SettingBar:
         return setting6
     if level == 5:
         return SettingBar(
-            synthetic=round(setting6.synthetic * 1.07, 1),
-            rb=round(setting6.rb * 1.07, 1) if setting6.rb is not None else None,
+            synthetic=round(setting6.synthetic * DERIVE_SETTING5_RATIO, 1),
+            rb=round(setting6.rb * DERIVE_SETTING5_RATIO, 1) if setting6.rb is not None else None,
         )
     return SettingBar(
-        synthetic=round(setting6.synthetic * 1.16, 1),
-        rb=round(setting6.rb * 1.26, 1) if setting6.rb is not None else None,
+        synthetic=round(setting6.synthetic * DERIVE_SETTING4_SYNTHETIC_RATIO, 1),
+        rb=round(setting6.rb * DERIVE_SETTING4_RB_RATIO, 1) if setting6.rb is not None else None,
     )
 
 
@@ -378,10 +382,10 @@ def load_masters(
     try:
         payload = json.loads(masters_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        print(f"機種マスターを読めませんでした ({masters_path}): {exc}", flush=True)
+        print(f"機種マスターを読めませんでした: {type(exc).__name__}", flush=True)
         return []
     if not isinstance(payload, dict):
-        print(f"機種マスターの形式が不正です: {masters_path}", flush=True)
+        print("機種マスターの形式が不正です", flush=True)
         return []
     if apply_override:
         from src.analyzer.overrides import apply_overrides
@@ -439,7 +443,7 @@ def load_masters(
                 )
             )
         except (KeyError, TypeError, ValueError) as exc:
-            print(f"機種マスターをスキップ: {item.get('id') or item.get('name')}: {exc}", flush=True)
+            print(f"機種マスターをスキップ: {item.get('id') or item.get('name')}: {type(exc).__name__}", flush=True)
             continue
     return machines
 
@@ -755,7 +759,9 @@ def _incomplete_judgment(record: dict[str, Any], *, machine_name: Any = None, er
     fields = record.get("fields") if isinstance(record.get("fields"), dict) else {}
     name = machine_name if machine_name is not None else fields.get("machine_name")
     if error:
-        print(f"判定をスキップ ({name or record.get('source_file')}): {error}", flush=True)
+        from src.scraper.log_safe import failure_reason
+
+        print(f"判定をスキップ ({name or '機種'}): {failure_reason(error)}", flush=True)
     return {
         "source_file": record.get("source_file"),
         "hall_name": record.get("hall_name") or fields.get("hall_name"),
@@ -1074,6 +1080,8 @@ def aggregate_machine_groups(results: list[dict[str, Any]]) -> list[dict[str, An
         unit_count = len(units_sorted)
         avg_games = round(games / unit_count, 1) if games is not None and unit_count else None
         games_for_class = int(avg_games) if avg_games is not None else None
+        known_diffs = [value for value in (_as_int(unit.get("diff_medals")) for unit in units_sorted) if value is not None]
+        diff_medals = sum(known_diffs) if known_diffs else None
 
         first_hit: int | None
         synthetic: float | None
@@ -1174,6 +1182,7 @@ def aggregate_machine_groups(results: list[dict[str, Any]]) -> list[dict[str, An
                 "bb_count": bb,
                 "rb_count": rb,
                 "art_count": art,
+                "diff_medals": diff_medals,
                 "bb_probability": bb_probability,
                 "rb_probability": rb_probability,
                 "synthetic_probability": synthetic,
@@ -1208,6 +1217,7 @@ def aggregate_machine_groups(results: list[dict[str, Any]]) -> list[dict[str, An
                         if unit.get("bb_probability") is not None
                         else _ratio_from_counts(_as_int(unit.get("total_games")), _as_int(unit.get("bb_count"))),
                         "rb_probability": unit.get("rb_probability"),
+                        "diff_medals": unit.get("diff_medals"),
                         "status": unit.get("status"),
                         "status_label": unit.get("status_label"),
                         "estimated_setting": unit.get("estimated_setting"),
@@ -1226,7 +1236,7 @@ def aggregate_machine_groups(results: list[dict[str, Any]]) -> list[dict[str, An
                     criteria=criteria,
                 )
             except (KeyError, TypeError, ValueError, AttributeError) as exc:
-                print(f"末尾判定をスキップ ({hall} {name}): {exc}", flush=True)
+                print(f"末尾判定をスキップ ({hall} {name}): {type(exc).__name__}", flush=True)
                 machine["digit_judgments"] = []
     machines.sort(
         key=lambda item: (
@@ -1257,11 +1267,13 @@ def judge_records(
     masters_path: Path = DEFAULT_MASTERS_PATH,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     source: str | None = None,
+    *,
+    incremental: bool = False,
 ) -> dict[str, Any]:
     try:
         masters = load_masters(resolve_masters_path(masters_path))
     except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
-        print(f"機種マスター読み込みに失敗したため空のマスターで継続します: {exc}", flush=True)
+        print(f"機種マスター読み込みに失敗したため空のマスターで継続します: {type(exc).__name__}", flush=True)
         masters = []
     watched = [
         record
@@ -1272,7 +1284,7 @@ def judge_records(
     try:
         machines = aggregate_machine_groups(results)
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
-        print(f"機種集計に失敗したため台単位の結果のみ残します: {exc}", flush=True)
+        print(f"機種集計に失敗したため台単位の結果のみ残します: {type(exc).__name__}", flush=True)
         machines = []
     from src.analyzer.extras import hall_digit_summaries
     machines.sort(
@@ -1343,11 +1355,7 @@ def judge_records(
         "results": results,
     }
 
-    output_dir = output_dir.resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    (output_dir / f"judgment_{stamp}.json").write_text(_dumps(summary) + "\n", encoding="utf-8")
-    published = publish_merged_judgment(summary, output_dir)
+    published = publish_merged_judgment(summary, output_dir) if not incremental else summary
     _write_per_hall_judgments(summary, output_dir)
     return published
 
@@ -1524,7 +1532,7 @@ def main() -> None:
     print(f"全6数値: {summary['all_high_count']} 機種")
     print(f"全56数値: {summary.get('high_56_count', 0)} 機種")
     print(f"全456数値: {summary['high_base_count']} 機種")
-    print(f"出力: {args.output_dir.resolve() / 'latest.json'}")
+    print("出力: 判定JSON")
     for item in summary["results"]:
         flag = "★" if item["is_all_high"] else ("●" if item.get("is_high_56") else ("◆" if item["is_high_base"] else ("▲" if item["is_early_alert"] else "-")))
         print(

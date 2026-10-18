@@ -103,6 +103,12 @@ def _as_float(value: Any) -> float | None:
 _MASTER_CACHE: list[Any] | None = None
 
 
+def clear_master_type_cache() -> None:
+    """機種マスター保存後、取得時のA/AT判定を読み直す。"""
+    global _MASTER_CACHE
+    _MASTER_CACHE = None
+
+
 def _resolved_type(name: str | None, watched: Any) -> str | None:
     """監視対象か機種マスターから A / AT を決める。AT判定を合成確率へ落とさない。"""
     if watched is not None and getattr(watched, "type", None):

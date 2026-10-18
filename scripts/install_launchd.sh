@@ -48,11 +48,11 @@ cat > "$DEST" <<EOF
     <key>SCHEDULE_START</key>
     <string>10:50</string>
     <key>SCHEDULE_END</key>
-    <string>23:00</string>
+    <string>22:00</string>
     <key>SCHEDULE_INTERVAL_MIN</key>
     <string>30</string>
     <key>SCRAPER_MAX_WORKERS</key>
-    <string>1</string>
+    <string>24</string>
     <key>SCRAPER_PAUSE_MIN_SEC</key>
     <string>2.0</string>
     <key>SCRAPER_PAUSE_MAX_SEC</key>
@@ -65,7 +65,9 @@ cat > "$DEST" <<EOF
 EOF
 
 launchctl bootout "gui/$(id -u)/${PLIST_ID}" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$DEST"
+if ! launchctl bootstrap "gui/$(id -u)" "$DEST"; then
+  launchctl load -w "$DEST"
+fi
 echo "installed: $DEST"
 echo "source: config/halls.json の source（玉屋∞本店は teramoba）"
 echo "window: 10:50–23:00 JST / resident loop every 30 min / 23:00以降は実行しない"

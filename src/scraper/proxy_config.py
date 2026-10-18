@@ -198,14 +198,10 @@ def playwright_proxy(endpoint: dict[str, Any] | None = None) -> dict[str, str] |
 
 
 def proxy_log_label(proxy: dict[str, str] | None) -> str:
+    """ログ用。ホスト名もユーザー名も出さない。"""
     if not proxy:
         return "直接接続"
-    server = proxy.get("server") or ""
-    user = proxy.get("username") or ""
-    if user:
-        shown = f"{user[:4]}…" if len(user) > 4 else user
-        return f"{server} (user={shown})"
-    return server
+    return "プロキシ経由"
 
 
 class RotatingProxyHandler(urllib.request.BaseHandler):

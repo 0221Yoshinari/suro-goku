@@ -30,8 +30,135 @@
   font: inherit;
 }
 
-.admin-table .prob-cell {
+.admin-table .prob-cell,
+.criteria-table .level-cell {
   min-width: 108px;
+}
+
+.criteria-table td:first-child,
+.criteria-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+
+.criteria-table tr.is-dirty td:first-child {
+  background: #2a2418;
+}
+
+.criteria-table .type-cell {
+  min-width: 108px;
+}
+
+.criteria-table .type-cell select {
+  margin-bottom: 6px;
+}
+
+.mini-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mini-field input {
+  min-width: 76px;
+}
+
+.origin-mark {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.note-cell textarea,
+.create-note textarea {
+  width: 180px;
+  min-height: 72px;
+  background: #12151c;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.edit-history {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.logic-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.create-master {
+  margin: 12px 0 18px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.create-head h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.create-grid,
+.create-levels {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.create-grid {
+  grid-template-columns: minmax(180px, 1.4fr) 120px 160px 110px 110px;
+}
+
+.create-levels {
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
+}
+
+.create-master label,
+.create-levels legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.create-master input,
+.create-master select,
+.create-levels input {
+  width: 100%;
+  background: #12151c;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+}
+
+.create-levels fieldset {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.create-note {
+  margin-bottom: 10px;
 }
 
 .admin-table .prob-prefix {
@@ -100,7 +227,9 @@ tr.is-dirty td {
     margin-right: 12px;
   }
 
-  .event-form {
+  .event-form,
+  .create-grid,
+  .create-levels {
     grid-template-columns: 1fr;
   }
 }
