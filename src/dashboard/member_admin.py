@@ -1,11 +1,12 @@
 """請求サービス（main.py）向けの会員管理画面。
 
 suro-goku-billing は uvicorn main:app で動く。会員一覧はそのアプリに載せる。
-入場はマスターパネルと同じ管理者トークンで、未設定のときは全員拒否する。
+MEMBER_ADMIN_OPEN が 0 のときだけ管理者トークンを要求する。未設定ならトークン画面は出さない。
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -30,14 +31,52 @@ _STATIC_DIR = _DASHBOARD_DIR / "static"
 _PUBLIC_STATIC = {"styles.css"}
 _ADMIN_STATIC = {"admin.css", "contracts.css", "members.css", "members.js"}
 _NO_STORE = {"Cache-Control": "no-store"}
+_CLOSED = {"0", "false", "no", "off"}
+
+
+def member_admin_open() -> bool:
+    """トークン入力を出さずに会員管理を開く。明示的に 0 のときだけ閉じる。"""
+    raw = os.environ.get("MEMBER_ADMIN_OPEN")
+    if raw is None or not str(raw).strip():
+        return True
+    return str(raw).strip().lower() not in _CLOSED
+
+
+def members_dashboard_url() -> str:
+    """ブラウザで直接開ける会員管理のURL。"""
+    configured = (
+        os.environ.get("BILLING_PUBLIC_URL")
+        or os.environ.get("RENDER_EXTERNAL_URL")
+        or os.environ.get("DASHBOARD_URL")
+        or ""
+    ).strip().rstrip("/")
+    path = f"{MASTER_PANEL_PREFIX}/members"
+    if configured:
+        return f"{configured}{path}"
+    port = (os.environ.get("PORT") or "8000").strip() or "8000"
+    return f"http://127.0.0.1:{port}{path}"
+
+
+def log_members_dashboard_url() -> None:
+    print(f"会員管理ダッシュボード: {members_dashboard_url()}", flush=True)
+
+
+def _member_admin_authorized(request: Request) -> bool:
+    if member_admin_open():
+        return True
+    return master_request_authorized(request)
 
 
 def register_member_admin(app: FastAPI) -> None:
     """会員管理の画面と API を請求アプリへ登録する。"""
 
+    @app.on_event("startup")
+    def _announce_members_dashboard() -> None:
+        log_members_dashboard_url()
+
     @app.get(f"{MASTER_PANEL_PREFIX}/members")
     def billing_members_page(request: Request):
-        if not master_request_authorized(request):
+        if not _member_admin_authorized(request):
             return render_master_unlock(next_path=f"{MASTER_PANEL_PREFIX}/members")
         return FileResponse(_TEMPLATES_DIR / "members.html", headers=_NO_STORE)
 
@@ -59,7 +98,7 @@ def register_member_admin(app: FastAPI) -> None:
         sort: str = "registered_at",
         order: str = "desc",
     ) -> JSONResponse:
-        if not master_request_authorized(request):
+        if not _member_admin_authorized(request):
             return JSONResponse({"detail": "認証が必要です"}, status_code=401, headers=_NO_STORE)
         try:
             payload = list_members(query=q, status=status, sort=sort, order=order)
@@ -69,7 +108,7 @@ def register_member_admin(app: FastAPI) -> None:
 
     @app.post(f"{MASTER_PANEL_PREFIX}/members/{{member_id}}/action")
     async def billing_members_action(member_id: str, request: Request) -> JSONResponse:
-        if not master_request_authorized(request):
+        if not _member_admin_authorized(request):
             return JSONResponse({"detail": "認証が必要です"}, status_code=401, headers=_NO_STORE)
         try:
             payload = await request.json()
@@ -93,7 +132,7 @@ def register_member_admin(app: FastAPI) -> None:
     def billing_member_static(filename: str, request: Request):
         if filename not in _PUBLIC_STATIC and filename not in _ADMIN_STATIC:
             raise HTTPException(status_code=404, detail="Not Found")
-        if filename in _ADMIN_STATIC and not master_request_authorized(request):
+        if filename in _ADMIN_STATIC and not _member_admin_authorized(request):
             raise HTTPException(status_code=404, detail="Not Found")
         path = (_STATIC_DIR / filename).resolve()
         if path.parent != _STATIC_DIR.resolve() or not path.is_file():

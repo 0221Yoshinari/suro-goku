@@ -77,6 +77,7 @@ class BillingMemberAdminTest(unittest.TestCase):
             os.environ,
             {
                 "MASTER_PANEL_TOKEN": "panel-token-value",
+                "MEMBER_ADMIN_OPEN": "0",
                 "SQUARE_MEMBER_DB": str(Path(self.tmp.name) / "square.sqlite"),
                 "DATABASE_URL": "",
             },
@@ -108,6 +109,29 @@ class BillingMemberAdminTest(unittest.TestCase):
         listed = self.client.get("/master-panel-x7k3q9/members/rows", headers=headers)
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.json()["summary"]["total"], 0)
+
+    def test_open_mode_skips_the_token_screen_and_prints_the_url(self) -> None:
+        from src.dashboard.member_admin import members_dashboard_url
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "MEMBER_ADMIN_OPEN": "1",
+                "RENDER_EXTERNAL_URL": "https://suro-goku-billing.onrender.com",
+            },
+        ):
+            self.assertEqual(
+                members_dashboard_url(),
+                "https://suro-goku-billing.onrender.com/master-panel-x7k3q9/members",
+            )
+            page = self.client.get("/master-panel-x7k3q9/members")
+            self.assertEqual(page.status_code, 200)
+            self.assertIn("無料から有料への転換率", page.text)
+            self.assertNotIn("管理者トークンを入力してください", page.text)
+            rows = self.client.get("/master-panel-x7k3q9/members/rows")
+            self.assertEqual(rows.status_code, 200)
+            script = self.client.get("/static/members.js")
+            self.assertEqual(script.status_code, 200)
 
 
 class WebhookTest(unittest.TestCase):
