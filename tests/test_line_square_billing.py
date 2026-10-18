@@ -6,7 +6,6 @@ import hmac
 import json
 import os
 import unittest
-from datetime import date
 from unittest import mock
 
 os.environ["LINE_CHANNEL_SECRET"] = "test-secret"
@@ -29,9 +28,13 @@ class BillingRulesTest(unittest.TestCase):
         self.assertFalse(main.is_email("こんにちは"))
         self.assertFalse(main.is_email("user@example"))
 
-    def test_start_date_is_ten_days_later(self) -> None:
-        self.assertEqual(main.subscription_start_date(date(2026, 10, 18)), "2026-10-28")
-        self.assertEqual(main.subscription_start_date(date(2026, 12, 25)), "2027-01-04")
+    def test_checkout_url_accepts_square_link_only(self) -> None:
+        url = "https://sandbox.square.link/u/abc123"
+        self.assertEqual(main.checkout_url({"payment_link": {"url": url}}), url)
+        with self.assertRaises(main.SquareAPIError):
+            main.checkout_url({"payment_link": {"url": "https://example.com/pay"}})
+        with self.assertRaises(main.SquareAPIError):
+            main.checkout_url({"payment_link": {"url": "http://square.link/u/abc"}})
 
     def test_phases_are_free_then_monthly(self) -> None:
         phases = main.subscription_phases()
@@ -90,24 +93,26 @@ class WebhookTest(unittest.TestCase):
             }
         ).encode()
 
+        checkout = main.checkout_reply("https://sandbox.square.link/u/member")
+
         async def fake_register(user_id: str, email: str) -> str:
             self.assertEqual(user_id, "U999")
             self.assertEqual(email, "member@example.com")
-            return main._TRIAL_SENT
+            return checkout
 
         with mock.patch.object(main, "register_trial", side_effect=fake_register), mock.patch.object(
             main, "line_reply", new=mock.AsyncMock()
         ) as reply:
             response = self.client.post("/webhook", content=body, headers={"x-line-signature": _sign(body)})
         self.assertEqual(response.status_code, 200)
-        reply.assert_awaited_once_with("reply-2", main._TRIAL_SENT)
+        reply.assert_awaited_once_with("reply-2", checkout)
 
 
 class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         main._resolved_ids.clear()
 
-    async def test_creates_customer_with_line_id_and_future_subscription(self) -> None:
+    async def test_creates_customer_and_replies_with_payment_link(self) -> None:
         calls: list[tuple[str, str, dict | None]] = []
 
         async def fake_square(method: str, path: str, *, params=None, payload=None):
@@ -130,24 +135,24 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                 return {"customer": {"id": "CUST1"}}
             if path == "/v2/subscriptions/search":
                 return {"subscriptions": []}
-            if path == "/v2/subscriptions":
-                return {"subscription": {"id": "SUB1"}}
+            if path == "/v2/online-checkout/payment-links":
+                self.assertEqual(payload["quick_pay"]["location_id"], "LOC1")
+                self.assertEqual(payload["quick_pay"]["price_money"]["amount"], 0)
+                self.assertEqual(payload["quick_pay"]["price_money"]["currency"], "JPY")
+                self.assertEqual(payload["checkout_options"]["subscription_plan_id"], "VAR1")
+                self.assertEqual(payload["pre_populated_data"]["buyer_email"], "member@example.com")
+                self.assertEqual(payload["payment_note"], "LINE:Uline123")
+                return {"payment_link": {"id": "LINK1", "url": "https://sandbox.square.link/u/member"}}
             raise AssertionError(path)
 
-        with mock.patch.object(main, "square_json", side_effect=fake_square), mock.patch.object(
-            main, "subscription_start_date", return_value="2026-10-28"
-        ):
+        with mock.patch.object(main, "square_json", side_effect=fake_square):
             message = await main.register_trial("Uline123", "member@example.com")
 
-        self.assertEqual(message, main._TRIAL_SENT)
+        self.assertEqual(message, main.checkout_reply("https://sandbox.square.link/u/member"))
+        self.assertFalse(any(method == "POST" and path == "/v2/subscriptions" for method, path, _payload in calls))
         customer = next(payload for method, path, payload in calls if path == "/v2/customers" and method == "POST")
         self.assertEqual(customer["reference_id"], "Uline123")
         self.assertEqual(customer["email_address"], "member@example.com")
-        subscription = next(payload for method, path, payload in calls if path == "/v2/subscriptions")
-        self.assertEqual(subscription["start_date"], "2026-10-28")
-        self.assertEqual(subscription["customer_id"], "CUST1")
-        self.assertEqual(subscription["plan_variation_id"], "VAR1")
-        self.assertEqual(subscription["timezone"], "Asia/Tokyo")
 
 
 if __name__ == "__main__":

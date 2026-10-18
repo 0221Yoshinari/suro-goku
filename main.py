@@ -1,9 +1,8 @@
-"""LINE のメールアドレス受信から、Square の定期購入を作る。
+"""LINE のメールアドレス受信から、Square の決済リンクを返す。
 
 起動: uvicorn main:app --host 0.0.0.0 --port 8000
 
-登録日の10日後に定期購入を開始する。最初の請求期間は 0 円、その後は月額 2,980 円。
-カード未登録の顧客には、Square が請求メールを送る。
+定期購入は初回 0 円、その後月額 2,980 円。決済 URL は LINE のトークへ送る。
 """
 
 from __future__ import annotations
@@ -15,10 +14,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from urllib.parse import urlparse
 
 import httpx
 from dotenv import load_dotenv
@@ -33,12 +29,10 @@ logger = logging.getLogger("surogoku.billing")
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
-_JST = timezone(timedelta(hours=9))
 _EMAIL_RE = re.compile(
     r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$"
 )
 _MAX_BODY = 1_000_000
-_TRIAL_DAYS = 10
 _INITIAL_AMOUNT_JPY = 0
 _MONTHLY_AMOUNT_JPY = 2980
 _SQUARE_VERSION = "2026-09-16"
@@ -46,8 +40,7 @@ _PLAN_NAME = "スロ極"
 _VARIATION_NAME = "スロ極 初回0円・以降月額2980円"
 _OPEN_SUBSCRIPTION = {"PENDING", "ACTIVE"}
 _ASK_EMAIL = "利用を開始するには、メールアドレスをこのトークに送ってください。"
-_TRIAL_SENT = "10日間の無料トライアル案内メールを送信しました。メールをご確認ください。"
-_ALREADY = "このLINEアカウントは登録済みです。案内メールをご確認ください。"
+_ALREADY = "このLINEアカウントは登録済みです。"
 _FAILED = "申し込みを完了できませんでした。時間をおいて、もう一度メールアドレスを送ってください。"
 
 _resolved_ids: dict[str, str] = {}
@@ -75,11 +68,6 @@ def line_signature_valid(body: bytes, signature: str, secret: str) -> bool:
     return hmac.compare_digest(expected, signature.strip())
 
 
-def subscription_start_date(on: date | None = None) -> str:
-    base = on or datetime.now(_JST).date()
-    return (base + timedelta(days=_TRIAL_DAYS)).isoformat()
-
-
 def subscription_phases() -> list[dict]:
     return [
         {
@@ -102,23 +90,43 @@ def subscription_phases() -> list[dict]:
     ]
 
 
-def build_subscription_payload(
+def build_payment_link_payload(
     *,
     location_id: str,
     plan_variation_id: str,
-    customer_id: str,
-    start_date: str,
+    email: str,
+    user_id: str,
     idempotency_key: str,
 ) -> dict:
     return {
         "idempotency_key": idempotency_key,
-        "location_id": location_id,
-        "plan_variation_id": plan_variation_id,
-        "customer_id": customer_id,
-        "start_date": start_date,
-        "timezone": "Asia/Tokyo",
-        "source": {"name": "スロ極"},
+        "description": "スロ極 月額プラン",
+        "quick_pay": {
+            "name": "スロ極 月額",
+            "price_money": {"amount": _INITIAL_AMOUNT_JPY, "currency": "JPY"},
+            "location_id": location_id,
+        },
+        "checkout_options": {
+            "subscription_plan_id": plan_variation_id,
+            "ask_for_shipping_address": False,
+        },
+        "pre_populated_data": {"buyer_email": email},
+        "payment_note": f"LINE:{user_id}"[:500],
     }
+
+
+def checkout_url(payload: dict) -> str:
+    link = payload.get("payment_link")
+    raw = str(link.get("url") or "").strip() if isinstance(link, dict) else ""
+    parsed = urlparse(raw)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not (host == "square.link" or host.endswith(".square.link")):
+        raise SquareAPIError(502, ["PAYMENT_LINK_URL"])
+    return raw
+
+
+def checkout_reply(url: str) -> str:
+    return f"決済ページを開いて、登録を完了してください。\n{url}"
 
 
 def square_base_url() -> str:
@@ -334,21 +342,21 @@ async def register_trial(user_id: str, email: str) -> str:
     customer_id = await upsert_customer(user_id, email)
     if await has_open_subscription(customer_id, location_id):
         return _ALREADY
-    start_date = subscription_start_date()
     created = await square_json(
         "POST",
-        "/v2/subscriptions",
-        payload=build_subscription_payload(
+        "/v2/online-checkout/payment-links",
+        payload=build_payment_link_payload(
             location_id=location_id,
             plan_variation_id=variation_id,
-            customer_id=customer_id,
-            start_date=start_date,
+            email=email,
+            user_id=user_id,
             idempotency_key=str(uuid.uuid4()),
         ),
     )
-    subscription_id = str((created.get("subscription") or {}).get("id") or "")
-    logger.info("square subscription ready id=%s start=%s", subscription_id, start_date)
-    return _TRIAL_SENT
+    url = checkout_url(created)
+    link_id = str((created.get("payment_link") or {}).get("id") or "")
+    logger.info("square payment link ready id=%s", link_id)
+    return checkout_reply(url)
 
 
 async def handle_text(user_id: str, reply_token: str, text: str) -> None:
