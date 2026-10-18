@@ -51,7 +51,8 @@ class BillingRulesTest(unittest.TestCase):
         self.assertEqual(action["text"], main._TRIAL_BUTTON)
         self.assertTrue(main.is_trial_intent(main._TRIAL_BUTTON))
         self.assertTrue(main.is_trial_intent("7日間無料でスロ極を試す"))
-        self.assertIn("普段お使いのメールアドレス", main._GUIDE)
+        self.assertIn("【普段お使いのメールアドレス】", main._GUIDE)
+        self.assertIn("料金は一切かかりません", main._GUIDE)
         self.assertNotIn("**", main._GUIDE)
 
     def test_docs_are_disabled(self) -> None:
