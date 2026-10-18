@@ -42,6 +42,18 @@ class BillingRulesTest(unittest.TestCase):
         self.assertEqual(phases[1]["pricing"]["price"]["amount"], 2980)
         self.assertEqual(phases[1]["pricing"]["price"]["currency"], "JPY")
 
+    def test_trial_button_fits_line_quick_reply(self) -> None:
+        self.assertLessEqual(len(main._TRIAL_BUTTON), 20)
+        message = main.line_text_message(main._WELCOME, main._TRIAL_BUTTON)
+        action = message["quickReply"]["items"][0]["action"]
+        self.assertEqual(action["type"], "message")
+        self.assertEqual(action["label"], main._TRIAL_BUTTON)
+        self.assertEqual(action["text"], main._TRIAL_BUTTON)
+        self.assertTrue(main.is_trial_intent(main._TRIAL_BUTTON))
+        self.assertTrue(main.is_trial_intent("7日間無料でスロ極を試す"))
+        self.assertIn("普段お使いのメールアドレス", main._GUIDE)
+        self.assertNotIn("**", main._GUIDE)
+
     def test_docs_are_disabled(self) -> None:
         self.assertIsNone(main.app.docs_url)
         self.assertIsNone(main.app.redoc_url)
@@ -77,7 +89,45 @@ class WebhookTest(unittest.TestCase):
         with mock.patch.object(main, "line_reply", new=mock.AsyncMock()) as reply:
             response = self.client.post("/webhook", content=body, headers={"x-line-signature": _sign(body)})
         self.assertEqual(response.status_code, 200)
-        reply.assert_awaited_once_with("reply-1", main._ASK_EMAIL)
+        reply.assert_awaited_once_with("reply-1", main._WELCOME, quick_reply=main._TRIAL_BUTTON)
+
+    def test_follow_shows_trial_button(self) -> None:
+        body = json.dumps(
+            {
+                "events": [
+                    {
+                        "type": "follow",
+                        "replyToken": "reply-follow",
+                        "source": {"userId": "U123", "type": "user"},
+                    }
+                ]
+            }
+        ).encode()
+        with mock.patch.object(main, "line_reply", new=mock.AsyncMock()) as reply:
+            response = self.client.post("/webhook", content=body, headers={"x-line-signature": _sign(body)})
+        self.assertEqual(response.status_code, 200)
+        reply.assert_awaited_once_with("reply-follow", main._WELCOME, quick_reply=main._TRIAL_BUTTON)
+
+    def test_trial_button_asks_for_email(self) -> None:
+        body = json.dumps(
+            {
+                "events": [
+                    {
+                        "type": "message",
+                        "replyToken": "reply-cta",
+                        "source": {"userId": "U123", "type": "user"},
+                        "message": {"type": "text", "text": main._TRIAL_BUTTON},
+                    }
+                ]
+            }
+        ).encode()
+        with mock.patch.object(main, "line_reply", new=mock.AsyncMock()) as reply, mock.patch.object(
+            main, "register_trial", new=mock.AsyncMock()
+        ) as register:
+            response = self.client.post("/webhook", content=body, headers={"x-line-signature": _sign(body)})
+        self.assertEqual(response.status_code, 200)
+        register.assert_not_awaited()
+        reply.assert_awaited_once_with("reply-cta", main._GUIDE)
 
     def test_email_registers_trial(self) -> None:
         body = json.dumps(

@@ -39,7 +39,16 @@ _SQUARE_VERSION = "2026-09-16"
 _PLAN_NAME = "スロ極"
 _VARIATION_NAME = "スロ極 初回0円・以降月額2980円"
 _OPEN_SUBSCRIPTION = {"PENDING", "ACTIVE"}
-_ASK_EMAIL = "利用を開始するには、メールアドレスをこのトークに送ってください。"
+_TRIAL_BUTTON = "🚀 7日間無料でスロ極を試す"
+_WELCOME = "スロ極へようこそ。7日間、全機能を無料で試せます。\n下のボタンから、1分で登録を始められます。"
+_GUIDE = (
+    "スロ極にご興味を持っていただきありがとうございます！✨\n"
+    "たった1分で全機能が使い放題になる無料トライアルを開始できます。\n"
+    "\n"
+    "【登録手順】\n"
+    "このチャットに、普段お使いのメールアドレスをそのまま送信してください。\n"
+    "すぐに専用の決済リンクをお送りします！（7日間は完全無料です）"
+)
 _ALREADY = "このLINEアカウントは登録済みです。"
 _FAILED = "申し込みを完了できませんでした。時間をおいて、もう一度メールアドレスを送ってください。"
 
@@ -58,6 +67,31 @@ def is_email(text: str) -> bool:
     if not candidate or len(candidate) > 254:
         return False
     return _EMAIL_RE.fullmatch(candidate) is not None
+
+
+def is_trial_intent(text: str) -> bool:
+    normalized = " ".join(text.strip().split())
+    if normalized == _TRIAL_BUTTON:
+        return True
+    return normalized.replace("🚀", "").strip() == "7日間無料でスロ極を試す"
+
+
+def line_text_message(text: str, quick_reply: str | None = None) -> dict:
+    message: dict = {"type": "text", "text": text}
+    label = (quick_reply or "").strip()
+    if not label:
+        return message
+    if len(label) > 20:
+        raise SquareAPIError(500, ["QUICK_REPLY_LABEL"])
+    message["quickReply"] = {
+        "items": [
+            {
+                "type": "action",
+                "action": {"type": "message", "label": label, "text": label},
+            }
+        ]
+    }
+    return message
 
 
 def line_signature_valid(body: bytes, signature: str, secret: str) -> bool:
@@ -170,7 +204,7 @@ async def square_json(
     return body
 
 
-async def line_reply(reply_token: str, text: str) -> None:
+async def line_reply(reply_token: str, text: str, *, quick_reply: str | None = None) -> None:
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
     if not token or not reply_token:
         raise SquareAPIError(500, ["MISSING_LINE_TOKEN"])
@@ -178,7 +212,7 @@ async def line_reply(reply_token: str, text: str) -> None:
         response = await client.post(
             "https://api.line.me/v2/bot/message/reply",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            json={"replyToken": reply_token, "messages": [{"type": "text", "text": text}]},
+            json={"replyToken": reply_token, "messages": [line_text_message(text, quick_reply)]},
         )
     if response.status_code >= 400:
         logger.error("line reply failed status=%s", response.status_code)
@@ -360,8 +394,11 @@ async def register_trial(user_id: str, email: str) -> str:
 
 
 async def handle_text(user_id: str, reply_token: str, text: str) -> None:
+    if is_trial_intent(text):
+        await line_reply(reply_token, _GUIDE)
+        return
     if not is_email(text):
-        await line_reply(reply_token, _ASK_EMAIL)
+        await line_reply(reply_token, _WELCOME, quick_reply=_TRIAL_BUTTON)
         return
     try:
         message = await register_trial(user_id, text.strip())
@@ -391,15 +428,20 @@ async def webhook(request: Request) -> Response:
     except Exception:
         raise HTTPException(status_code=400) from None
     for event in payload.get("events") or []:
-        if not isinstance(event, dict) or event.get("type") != "message":
-            continue
-        message = event.get("message") or {}
-        if not isinstance(message, dict) or message.get("type") != "text":
+        if not isinstance(event, dict):
             continue
         source = event.get("source") or {}
         user_id = str(source.get("userId") or "") if isinstance(source, dict) else ""
         reply_token = str(event.get("replyToken") or "")
         if not user_id or not reply_token:
+            continue
+        if event.get("type") == "follow":
+            await line_reply(reply_token, _WELCOME, quick_reply=_TRIAL_BUTTON)
+            continue
+        if event.get("type") != "message":
+            continue
+        message = event.get("message") or {}
+        if not isinstance(message, dict) or message.get("type") != "text":
             continue
         await handle_text(user_id, reply_token, str(message.get("text") or ""))
     return Response(status_code=200)
