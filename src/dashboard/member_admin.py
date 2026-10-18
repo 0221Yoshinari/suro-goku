@@ -72,7 +72,15 @@ def register_member_admin(app: FastAPI) -> None:
 
     @app.on_event("startup")
     def _announce_members_dashboard() -> None:
+        from src.dashboard.square_members import init_square_store
+
         log_members_dashboard_url()
+        kind = init_square_store()
+        if kind != "postgres":
+            print(
+                "会員台帳が Postgres ではありません。請求とツールに同じ DATABASE_URL を設定してください。",
+                flush=True,
+            )
 
     @app.get(f"{MASTER_PANEL_PREFIX}/members")
     def billing_members_page(request: Request):

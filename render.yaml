@@ -1,3 +1,5 @@
+# 請求（suro-goku-billing）とツール（suro-goku）には、同じ Postgres の DATABASE_URL を入れる。
+# DATABASE_URL が postgres のときは、SQUARE_MEMBER_DB よりそちらを会員台帳に使う。
 services:
   - type: web
     name: suro-goku
@@ -32,6 +34,20 @@ services:
       - key: STRIPE_PRICE_ID
         sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: SQUARE_MEMBER_DB
+        sync: false
+      - key: LINE_ACCESS_GUARD
+        sync: false
+      - key: LINE_LIFF_ID
+        sync: false
+      - key: LINE_LOGIN_CHANNEL_ID
+        sync: false
+      - key: LINE_LOGIN_CHANNEL_SECRET
+        sync: false
+      - key: LINE_LOGIN_REDIRECT_URL
+        sync: false
+      - key: LINE_OFFICIAL_URL
         sync: false
       - key: SELLER_NAME
         sync: false
@@ -68,4 +84,8 @@ services:
       - key: SQUARE_WEBHOOK_SIGNATURE_KEY
         sync: false
       - key: SQUARE_WEBHOOK_NOTIFICATION_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SQUARE_MEMBER_DB
         sync: false

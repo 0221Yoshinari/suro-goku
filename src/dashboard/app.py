@@ -54,6 +54,11 @@ from src.dashboard.events import target_options
 from src.dashboard.events import today_jst
 from src.dashboard.events import update_event
 from src.dashboard.auth import billing_get
+from src.dashboard.line_access import accept_line_session
+from src.dashboard.line_access import line_guard_enabled
+from src.dashboard.line_access import line_login_page
+from src.dashboard.line_access import line_oauth_callback
+from src.dashboard.line_access import render_plan
 from src.dashboard.auth import login_get
 from src.dashboard.auth import login_post
 from src.dashboard.auth import logout
@@ -94,7 +99,16 @@ async def _lifespan(_app):
     from src.dashboard.square_members import init_square_store
 
     init_member_store()
-    init_square_store()
+    ledger = init_square_store()
+    guard = "有効" if line_guard_enabled() else "無効"
+    print(f"LINE会員ガードは{guard}です。", flush=True)
+    if line_guard_enabled() and ledger != "postgres":
+        print(
+            "LINE会員ガードは有効ですが、台帳が Postgres ではありません。請求サーバーと同じ DATABASE_URL を設定してください。",
+            flush=True,
+        )
+    elif line_guard_enabled():
+        print("ツールの会員確認は Postgres の台帳を読みます。", flush=True)
     from src.scraper.x_monitor import ensure_background_monitor
 
     ensure_background_monitor()
@@ -215,7 +229,7 @@ def _empty_payload() -> dict:
 @app.middleware("http")
 async def disable_cache(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path in ("/", MASTER_PANEL_PATH, "/login", "/register", "/billing", "/checkout", "/thanks", "/demo-secret", "/pr-demo", "/static/app.js", "/static/admin.js", "/static/halls.js", "/static/contracts.js", "/static/members.js", "/static/admin.css", "/static/contracts.css", "/static/members.css", "/static/styles.css", "/static/demo-secret.js", "/static/demo-secret.css", "/square-webhook") or request.url.path.startswith(f"{MASTER_PANEL_PATH}/") or request.url.path.startswith("/api/") or request.url.path.startswith("/legal/"):
+    if request.url.path in ("/", MASTER_PANEL_PATH, "/login", "/register", "/billing", "/checkout", "/thanks", "/line", "/line/callback", "/plan", "/demo-secret", "/pr-demo", "/static/app.js", "/static/admin.js", "/static/halls.js", "/static/contracts.js", "/static/members.js", "/static/admin.css", "/static/contracts.css", "/static/members.css", "/static/styles.css", "/static/demo-secret.js", "/static/demo-secret.css", "/square-webhook") or request.url.path.startswith(f"{MASTER_PANEL_PATH}/") or request.url.path.startswith("/api/") or request.url.path.startswith("/legal/"):
         response.headers["Cache-Control"] = "no-store"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
@@ -262,6 +276,41 @@ async def register_submit(request: Request) -> Response:
 @app.get("/billing")
 def billing_page(request: Request) -> Response:
     return billing_get(request)
+
+
+@app.get("/line")
+async def line_entry(request: Request) -> Response:
+    return await line_login_page(request)
+
+
+@app.get("/line/")
+def line_entry_slash() -> RedirectResponse:
+    return RedirectResponse("/line", status_code=307)
+
+
+@app.get("/line/callback")
+async def line_callback(request: Request) -> Response:
+    return await line_oauth_callback(request)
+
+
+@app.get("/line/callback/")
+def line_callback_slash() -> RedirectResponse:
+    return RedirectResponse("/line/callback", status_code=307)
+
+
+@app.get("/plan/")
+def plan_slash() -> RedirectResponse:
+    return RedirectResponse("/plan", status_code=307)
+
+
+@app.post("/api/line/session")
+async def line_session(request: Request) -> Response:
+    return await accept_line_session(request)
+
+
+@app.get("/plan")
+def plan_page(request: Request) -> Response:
+    return render_plan(request)
 
 
 @app.get("/checkout")

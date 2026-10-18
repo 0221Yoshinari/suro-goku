@@ -3,6 +3,8 @@
 起動: uvicorn main:app --host 0.0.0.0 --port 8000
 
 定期購入は初回 0 円、その後月額 2,980 円。決済 URL は LINE のトークへ送る。
+/square-webhook は会員台帳のステータスを更新する。ツール本体は同じ台帳を見て、
+無料体験中と有料会員以外をその次のアクセスから止める。
 """
 
 from __future__ import annotations

@@ -22,6 +22,7 @@ os.environ.setdefault("MASTER_PANEL_TOKEN", "panel-token-value")
 from src.dashboard.app import app
 from src.dashboard.square_members import apply_member_action
 from src.dashboard.square_members import apply_square_event
+from src.dashboard.square_members import describe_backend
 from src.dashboard.square_members import list_members
 from src.dashboard.square_members import record_line_signup
 
@@ -159,6 +160,25 @@ class SquareLedgerTest(unittest.TestCase):
             else:
                 self.cookies[name] = value
         return status, headers_out, raw
+
+    def test_postgres_url_is_shared_ahead_of_a_sqlite_path(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {
+                "DATABASE_URL": "postgresql://user:pass@db.internal:5432/suro",
+                "SQUARE_MEMBER_DB": str(Path(self.tmp.name) / "ignored.sqlite"),
+            },
+        ):
+            self.assertEqual(describe_backend(), "postgres")
+        with mock.patch.dict(
+            os.environ,
+            {
+                "DATABASE_URL": '"postgres://user:pass@db.internal:5432/suro"',
+                "SQUARE_MEMBER_DB": str(Path(self.tmp.name) / "ignored.sqlite"),
+            },
+        ):
+            self.assertEqual(describe_backend(), "postgres")
+        self.assertEqual(describe_backend(), "sqlite")
 
     def test_paid_invoice_converts_trial_and_zero_yen_does_not(self) -> None:
         record_line_signup(

@@ -724,10 +724,22 @@ function redirectIfUnauthorized(response) {
     "利用期限が切れています": "lapsed",
     "別の端末で利用中です": "session",
   };
+  const planReasons = {
+    unregistered: true,
+    pending: true,
+    canceled: true,
+    past_due: true,
+    suspended: true,
+    trial_ended: true,
+  };
   response
     .clone()
     .json()
     .then((data) => {
+      if (data && planReasons[data.reason]) {
+        window.location.assign(`/plan?reason=${encodeURIComponent(data.reason)}`);
+        return;
+      }
       const notice = notices[data && data.detail] || "";
       const params = new URLSearchParams();
       params.set("next", next);

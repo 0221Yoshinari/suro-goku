@@ -1,8 +1,8 @@
 """LINE / Square の会員台帳。
 
-SQUARE_MEMBER_DB があればその sqlite を使う。
-無ければ DATABASE_URL（PostgreSQL または sqlite）、それも無ければ data/square_members.sqlite。
-管理画面と Square Webhook が同じ台帳を読む。パスワードやトークンは保存しない。
+DATABASE_URL が Postgres のときは、請求サーバーとツール本体が同じ台帳を読む。
+それ以外で SQUARE_MEMBER_DB があればその sqlite を使う。
+どちらも無ければ data/square_members.sqlite。パスワードやトークンは保存しない。
 """
 
 from __future__ import annotations
@@ -210,6 +210,50 @@ def record_line_signup(
         if created:
             rows.append(member)
         return _present(member, current)
+
+
+# 画面上の「無料体験中」は trialing、「有料会員」は active。これ以外はツールを開けない。
+_TOOL_ALLOWED = {"trialing", "active"}
+
+
+def tool_access(line_user_id: str, now: int | None = None) -> dict:
+    """リッチメニューから開いたツールを許可するか。呼び出しのたびに台帳を読む。
+
+    Webhook が解約や決済失敗を書き込んだ次のリクエストから拒否される。
+    無料体験の期限を過ぎた trialing は、ステータス更新を待たずに止める。
+    """
+    current = int(time.time() if now is None else now)
+    user_id = _clean_token(line_user_id, 100)
+    if not user_id:
+        return _access_view(False, "unregistered", "", "")
+    with _LOCK:
+        rows = _load_members()
+        member = _locate(rows, line_user_id=user_id)
+    if member is None:
+        return _access_view(False, "unregistered", "", user_id)
+    status = str(member.get("status") or "")
+    if status not in _TOOL_ALLOWED:
+        reason = {
+            "canceled": "canceled",
+            "past_due": "past_due",
+            "suspended": "suspended",
+            "pending": "pending",
+        }.get(status, "unregistered")
+        return _access_view(False, reason, status, user_id)
+    if status == "trialing":
+        trial_end = member.get("trial_end")
+        if trial_end is not None and int(trial_end) <= current:
+            return _access_view(False, "trial_ended", status, user_id)
+    return _access_view(True, "ok", status, user_id)
+
+
+def _access_view(allowed: bool, reason: str, status: str, line_user_id: str) -> dict:
+    return {
+        "allowed": allowed,
+        "reason": reason,
+        "status": status,
+        "line_user_id": line_user_id,
+    }
 
 
 def list_members(
@@ -742,13 +786,21 @@ def _clean_token(value: str, limit: int) -> str:
     return text
 
 
+def _database_url() -> str:
+    raw = (os.environ.get("DATABASE_URL") or "").strip()
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in {'"', "'"}:
+        raw = raw[1:-1].strip()
+    return raw
+
+
 def _resolve() -> tuple[str, str]:
+    """本番の Postgres を、ローカル sqlite の上書きより先に使う。"""
+    url = _database_url()
+    if url.startswith("postgres"):
+        return "postgres", url
     override = (os.environ.get("SQUARE_MEMBER_DB") or "").strip()
     if override:
         return "sqlite", override
-    url = (os.environ.get("DATABASE_URL") or "").strip()
-    if url.startswith("postgres"):
-        return "postgres", url
     if url.startswith("sqlite"):
         return "sqlite", str(_sqlite_path(url))
     return "sqlite", str(PROJECT_ROOT / "data" / "square_members.sqlite")

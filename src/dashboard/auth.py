@@ -21,6 +21,10 @@ from src.dashboard.members import open_member_session
 from src.dashboard.members import open_password_session
 from src.dashboard.members import present_member
 from src.dashboard.members import register_account
+from src.dashboard.line_access import clear_line_cookie
+from src.dashboard.line_access import line_guard_enabled
+from src.dashboard.line_access import line_user_from_request
+from src.dashboard.line_access import membership_block
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -298,6 +302,7 @@ def public_demo_mode() -> bool:
 
 
 _OPEN_TOOL_PATHS = {"/", "/api/judgments", "/api/hall-catalog", "/api/watch-config"}
+_MEMBER_TOOL_PATHS = _OPEN_TOOL_PATHS
 _BILLING_PATHS = {"/billing", "/checkout"}
 
 
@@ -340,16 +345,26 @@ def is_operator_static(path: str) -> bool:
     return path in _OPERATOR_STATIC
 
 
+def is_member_tool_path(path: str) -> bool:
+    return path in _MEMBER_TOOL_PATHS
+
+
 def is_public_path(path: str) -> bool:
+    if line_guard_enabled() and is_member_tool_path(path):
+        return False
     if path in {
         "/health",
         "/login",
         "/logout",
         "/register",
         "/lp",
+        "/line",
+        "/line/callback",
+        "/plan",
         "/thanks",
         "/api/lp-inquiry",
         "/api/lp-checkout",
+        "/api/line/session",
         "/api/stripe/webhook",
         "/api/square/webhook",
         "/square-webhook",
@@ -360,7 +375,7 @@ def is_public_path(path: str) -> bool:
         return True
     if path.startswith("/legal/") or path.startswith("/static/"):
         return True
-    if open_tool_mode() and path in _OPEN_TOOL_PATHS:
+    if open_tool_mode() and path in _OPEN_TOOL_PATHS and not line_guard_enabled():
         return True
     if not public_demo_mode():
         return False
@@ -421,8 +436,15 @@ def render_login(error: str = "", next_path: str = "/") -> HTMLResponse:
     return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 
+def request_path(path: str) -> str:
+    """末尾スラッシュを除いて、/line/ も /line と同じ入口として扱う。"""
+    if len(path) > 1 and path.endswith("/"):
+        return path.rstrip("/")
+    return path
+
+
 async def auth_middleware(request: Request, call_next):
-    path = request.url.path
+    path = request_path(request.url.path)
     if is_blocked_path(path) or is_retired_admin_path(path):
         if path.startswith("/api/"):
             return JSONResponse({"detail": "Not Found"}, status_code=404, headers={"Cache-Control": "no-store"})
@@ -435,6 +457,8 @@ async def auth_middleware(request: Request, call_next):
         return HTMLResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
     if is_public_path(path):
         return await call_next(request)
+    if line_guard_enabled() and is_member_tool_path(path):
+        return await _guard_member_tool(request, call_next)
     kind, denial = _access_kind(request)
     if denial is not None:
         return denial
@@ -522,13 +546,36 @@ async def login_post(request: Request) -> Response:
 
 
 async def logout(request: Request) -> Response:
+    operator = token_is_valid(request.cookies.get(COOKIE_NAME))
     claims = member_token_claims(request.cookies.get(COOKIE_NAME))
     if claims:
         close_member_session(claims[0], claims[1])
-    response = RedirectResponse("/login", status_code=303)
+    target = "/login" if operator or not line_user_from_request(request) else "/line"
+    response = RedirectResponse(target, status_code=303)
     clear_session_cookie(response)
     clear_master_cookie(response)
+    clear_line_cookie(response)
     return response
+
+
+async def _guard_member_tool(request: Request, call_next):
+    """運営と有効な決済会員は従来どおり。それ以外は LINE の会員ステータスで止める。"""
+    kind, denial = _access_kind(request)
+    if denial is not None:
+        return denial
+    if kind in {"operator", "member"}:
+        return await call_next(request)
+    if kind == "member_inactive" and request.url.path not in _BILLING_PATHS:
+        detail = getattr(request.state, "member_block_detail", "") or "利用権限がありません"
+        if request.url.path.startswith("/api/") or _wants_json(request):
+            return JSONResponse({"detail": detail}, status_code=403, headers={"Cache-Control": "no-store"})
+        response = RedirectResponse("/billing", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    blocked = membership_block(request)
+    if blocked is not None:
+        return blocked
+    return await call_next(request)
 
 
 def safe_master_next(value: str | None) -> str:
