@@ -35,7 +35,12 @@ MASTER_UNLOCK_PATH = f"{MASTER_PANEL_PREFIX}/unlock"
 DEFAULT_PASSWORD = "2026"
 DEFAULT_SESSION_DAYS = 7
 DEFAULT_MASTER_HOURS = 12
-_MASTER_HTML_PATHS = {MASTER_PANEL_PREFIX, f"{MASTER_PANEL_PREFIX}/halls", f"{MASTER_PANEL_PREFIX}/contracts"}
+_MASTER_HTML_PATHS = {
+    MASTER_PANEL_PREFIX,
+    f"{MASTER_PANEL_PREFIX}/halls",
+    f"{MASTER_PANEL_PREFIX}/contracts",
+    f"{MASTER_PANEL_PREFIX}/members",
+}
 _TOKEN_WARNING_SENT = False
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 _LOGIN_TEMPLATE = None
@@ -308,6 +313,8 @@ _OPERATOR_STATIC = {
     "/static/halls.js",
     "/static/contracts.js",
     "/static/contracts.css",
+    "/static/members.js",
+    "/static/members.css",
 }
 _API_DOC_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
@@ -334,7 +341,22 @@ def is_operator_static(path: str) -> bool:
 
 
 def is_public_path(path: str) -> bool:
-    if path in {"/health", "/login", "/logout", "/register", "/lp", "/thanks", "/api/lp-inquiry", "/api/lp-checkout", "/api/stripe/webhook", "/api/internal/hall-judgments", "/demo-secret", "/pr-demo"}:
+    if path in {
+        "/health",
+        "/login",
+        "/logout",
+        "/register",
+        "/lp",
+        "/thanks",
+        "/api/lp-inquiry",
+        "/api/lp-checkout",
+        "/api/stripe/webhook",
+        "/api/square/webhook",
+        "/square-webhook",
+        "/api/internal/hall-judgments",
+        "/demo-secret",
+        "/pr-demo",
+    }:
         return True
     if path.startswith("/legal/") or path.startswith("/static/"):
         return True

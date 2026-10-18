@@ -1,0 +1,77 @@
+.member-admin .contract-toolbar {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.member-admin .contract-tools {
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.member-admin .contract-filters {
+  justify-content: flex-start;
+}
+
+.member-table {
+  min-width: 1100px;
+}
+
+.sort-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sort-button.is-sort {
+  color: var(--accent);
+}
+
+.member-ids {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 280px;
+}
+
+.member-actions select,
+.member-actions input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.member-actions input {
+  width: 64px;
+}
+
+.member-actions button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.member-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

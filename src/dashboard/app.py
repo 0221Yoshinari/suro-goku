@@ -59,6 +59,11 @@ from src.dashboard.auth import login_post
 from src.dashboard.auth import logout
 from src.dashboard.auth import register_get
 from src.dashboard.auth import register_post
+from src.dashboard.square_members import SquareMemberError
+from src.dashboard.square_members import SquareWebhookError
+from src.dashboard.square_members import apply_member_action
+from src.dashboard.square_members import handle_square_webhook
+from src.dashboard.square_members import list_members
 from src.dashboard.stripe_billing import WebhookError
 from src.dashboard.stripe_billing import account_from_request
 from src.dashboard.stripe_billing import checkout_redirect_url
@@ -86,8 +91,10 @@ async def _lifespan(_app):
     state = "受け付けます" if shared_password_enabled() else "停止中です"
     print(f"運営ログインは{state}。DASHBOARD_PASSWORD は{'設定済み' if configured else '未設定'}です。", flush=True)
     from src.dashboard.members import init_member_store
+    from src.dashboard.square_members import init_square_store
 
     init_member_store()
+    init_square_store()
     from src.scraper.x_monitor import ensure_background_monitor
 
     ensure_background_monitor()
@@ -208,7 +215,7 @@ def _empty_payload() -> dict:
 @app.middleware("http")
 async def disable_cache(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path in ("/", MASTER_PANEL_PATH, "/login", "/register", "/billing", "/checkout", "/thanks", "/demo-secret", "/pr-demo", "/static/app.js", "/static/admin.js", "/static/halls.js", "/static/contracts.js", "/static/admin.css", "/static/contracts.css", "/static/styles.css", "/static/demo-secret.js", "/static/demo-secret.css") or request.url.path.startswith(f"{MASTER_PANEL_PATH}/") or request.url.path.startswith("/api/") or request.url.path.startswith("/legal/"):
+    if request.url.path in ("/", MASTER_PANEL_PATH, "/login", "/register", "/billing", "/checkout", "/thanks", "/demo-secret", "/pr-demo", "/static/app.js", "/static/admin.js", "/static/halls.js", "/static/contracts.js", "/static/members.js", "/static/admin.css", "/static/contracts.css", "/static/members.css", "/static/styles.css", "/static/demo-secret.js", "/static/demo-secret.css", "/square-webhook") or request.url.path.startswith(f"{MASTER_PANEL_PATH}/") or request.url.path.startswith("/api/") or request.url.path.startswith("/legal/"):
         response.headers["Cache-Control"] = "no-store"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
@@ -294,6 +301,52 @@ def admin_page() -> FileResponse:
 @app.get(f"{MASTER_PANEL_PATH}/halls")
 def halls_admin_page() -> FileResponse:
     return _html("halls.html")
+
+
+@app.get(f"{MASTER_PANEL_PATH}/members")
+def members_admin_page() -> FileResponse:
+    return _html("members.html")
+
+
+@app.get(f"{MASTER_PANEL_PATH}/members/rows")
+def members_admin_rows(
+    request: Request,
+    q: str = "",
+    status: str = "all",
+    sort: str = "registered_at",
+    order: str = "desc",
+) -> dict[str, Any]:
+    _require_staff(request)
+    try:
+        return list_members(query=q, status=status, sort=sort, order=order)
+    except SquareMemberError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post(f"{MASTER_PANEL_PATH}/members/{{member_id}}/action")
+async def members_admin_action(member_id: str, request: Request) -> dict[str, Any]:
+    _require_staff(request)
+    payload = await _read_json_object(request)
+    try:
+        return apply_member_action(
+            member_id,
+            str(payload.get("action") or ""),
+            days=int(payload.get("days") if payload.get("days") is not None else 7),
+        )
+    except (SquareMemberError, TypeError, ValueError) as exc:
+        detail = str(exc) if isinstance(exc, SquareMemberError) else "延長日数を確認できません"
+        status = 404 if detail == "会員が見つかりません" else 400
+        raise HTTPException(status_code=status, detail=detail) from exc
+
+
+@app.post("/square-webhook")
+@app.post("/api/square/webhook")
+async def square_webhook(request: Request) -> JSONResponse:
+    try:
+        result = handle_square_webhook(await request.body(), request.headers.get("x-square-hmacsha256-signature") or "")
+    except SquareWebhookError as exc:
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers={"Cache-Control": "no-store"})
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 @app.get(f"{MASTER_PANEL_PATH}/contracts")

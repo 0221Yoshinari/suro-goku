@@ -61,3 +61,9 @@ services:
         sync: false
       - key: SQUARE_ACCESS_TOKEN
         sync: false
+      - key: MASTER_PANEL_TOKEN
+        sync: false
+      - key: SQUARE_WEBHOOK_SIGNATURE_KEY
+        sync: false
+      - key: SQUARE_WEBHOOK_NOTIFICATION_URL
+        sync: false

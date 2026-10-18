@@ -66,6 +66,50 @@ class BillingRulesTest(unittest.TestCase):
         self.assertEqual(health.json(), {"ok": True})
 
 
+class BillingMemberAdminTest(unittest.TestCase):
+    def setUp(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.env = mock.patch.dict(
+            os.environ,
+            {
+                "MASTER_PANEL_TOKEN": "panel-token-value",
+                "SQUARE_MEMBER_DB": str(Path(self.tmp.name) / "square.sqlite"),
+                "DATABASE_URL": "",
+            },
+        )
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.client = TestClient(main.app)
+
+    def test_members_page_is_on_the_billing_app(self) -> None:
+        missing = self.client.get("/master-panel-x7k3q9/members")
+        self.assertEqual(missing.status_code, 200)
+        self.assertIn("管理者トークン", missing.text)
+        self.assertNotIn("無料から有料への転換率", missing.text)
+        rows = self.client.get("/master-panel-x7k3q9/members/rows")
+        self.assertEqual(rows.status_code, 401)
+        hidden = self.client.get("/static/members.js")
+        self.assertEqual(hidden.status_code, 404)
+        styles = self.client.get("/static/styles.css")
+        self.assertEqual(styles.status_code, 200)
+
+        headers = {"x-master-token": "panel-token-value"}
+        page = self.client.get("/master-panel-x7k3q9/members", headers=headers)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("会員管理", page.text)
+        self.assertIn("無料から有料への転換率", page.text)
+        script = self.client.get("/static/members.js", headers=headers)
+        self.assertEqual(script.status_code, 200)
+        self.assertIn("member-rows", script.text)
+        listed = self.client.get("/master-panel-x7k3q9/members/rows", headers=headers)
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.json()["summary"]["total"], 0)
+
+
 class WebhookTest(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(main.app)
@@ -161,7 +205,18 @@ class WebhookTest(unittest.TestCase):
 
 class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        import tempfile
+        from pathlib import Path
+
         main._resolved_ids.clear()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.env = mock.patch.dict(
+            os.environ,
+            {"SQUARE_MEMBER_DB": str(Path(self.tmp.name) / "square.sqlite"), "DATABASE_URL": ""},
+        )
+        self.env.start()
+        self.addCleanup(self.env.stop)
 
     async def test_creates_customer_and_replies_with_payment_link(self) -> None:
         calls: list[tuple[str, str, dict | None]] = []
@@ -196,10 +251,19 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                 return {"payment_link": {"id": "LINK1", "url": "https://sandbox.square.link/u/member"}}
             raise AssertionError(path)
 
-        with mock.patch.object(main, "square_json", side_effect=fake_square):
+        with mock.patch.object(main, "square_json", side_effect=fake_square), mock.patch.object(
+            main, "line_display_name", new=mock.AsyncMock(return_value="極子")
+        ):
             message = await main.register_trial("Uline123", "member@example.com")
 
         self.assertEqual(message, main.checkout_reply("https://sandbox.square.link/u/member"))
+        from src.dashboard.square_members import list_members
+
+        listed = list_members()
+        self.assertEqual(listed["summary"]["total"], 1)
+        self.assertEqual(listed["members"][0]["status"], "pending")
+        self.assertEqual(listed["members"][0]["line_name"], "極子")
+        self.assertEqual(listed["members"][0]["square_customer_id"], "CUST1")
         self.assertFalse(any(method == "POST" and path == "/v2/subscriptions" for method, path, _payload in calls))
         customer = next(payload for method, path, payload in calls if path == "/v2/customers" and method == "POST")
         self.assertEqual(customer["reference_id"], "Uline123")

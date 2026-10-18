@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>会員管理 | スロ極</title>
+    <link rel="stylesheet" href="/static/styles.css?v=56" />
+    <link rel="stylesheet" href="/static/admin.css?v=3" />
+    <link rel="stylesheet" href="/static/contracts.css?v=1" />
+    <link rel="stylesheet" href="/static/members.css?v=2" />
+  </head>
+  <body class="member-admin" data-panel="/master-panel-x7k3q9">
+    <header class="top">
+      <div>
+        <p class="eyebrow">管理者トークンで保護</p>
+        <h1>会員管理</h1>
+      </div>
+      <div class="top-actions">
+        <a class="button-link" href="/master-panel-x7k3q9">機種マスター</a>
+        <a class="button-link" href="/master-panel-x7k3q9/halls">ホール管理</a>
+        <a class="button-link" href="/master-panel-x7k3q9/contracts">契約管理</a>
+        <form method="post" action="/logout" class="logout-form">
+          <button type="submit">ログアウト</button>
+        </form>
+      </div>
+    </header>
+
+    <p class="admin-note">
+      LINE の申込と Square の定期購入を同じ台帳で見ます。初回の有料決済が完了すると「有料会員」になります。時刻は日本時間、表示は15秒ごとに更新されます。
+    </p>
+    <p id="member-status" class="admin-status" role="status"></p>
+    <p id="member-error" class="error hidden" role="alert"></p>
+
+    <section class="stats" aria-label="会員の概要">
+      <button type="button" class="stat contract-stat is-on" data-filter="all">
+        <p class="stat-label">総会員数</p>
+        <p class="stat-value" id="kpi-total">—</p>
+      </button>
+      <button type="button" class="stat contract-stat" data-filter="trialing">
+        <p class="stat-label">無料体験者数</p>
+        <p class="stat-value" id="kpi-trialing">—</p>
+      </button>
+      <button type="button" class="stat contract-stat" data-filter="active">
+        <p class="stat-label">有料会員数</p>
+        <p class="stat-value" id="kpi-active">—</p>
+      </button>
+      <div class="stat">
+        <p class="stat-label">無料から有料への転換率</p>
+        <p class="stat-value" id="kpi-cvr">—</p>
+        <p class="stat-note" id="kpi-cvr-note">有料化した人数 / 体験開始人数</p>
+      </div>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head contract-toolbar">
+        <div>
+          <h2>会員ステータス</h2>
+          <p class="hint" id="member-summary">メール、LINE名、LINE ID、Square ID で探せます。</p>
+        </div>
+        <div class="contract-tools">
+          <label class="contract-search">
+            <span>検索</span>
+            <input id="member-query" type="search" maxlength="200" placeholder="メール / LINE名 / LINE ID / Square ID" autocomplete="off" />
+          </label>
+          <div class="contract-filters" role="tablist" aria-label="ステータス">
+            <button type="button" class="filter-tab is-on" data-filter="all" role="tab" aria-selected="true">全員</button>
+            <button type="button" class="filter-tab" data-filter="trialing" role="tab" aria-selected="false">無料体験中</button>
+            <button type="button" class="filter-tab" data-filter="active" role="tab" aria-selected="false">有料会員</button>
+            <button type="button" class="filter-tab" data-filter="canceled" role="tab" aria-selected="false">解約済み</button>
+            <button type="button" class="filter-tab" data-filter="hold" role="tab" aria-selected="false">決済エラー/一時停止</button>
+            <button type="button" class="filter-tab" data-filter="pending" role="tab" aria-selected="false">申込中</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table member-table">
+          <thead>
+            <tr>
+              <th><button type="button" class="sort-button" data-sort="status">ステータス</button></th>
+              <th><button type="button" class="sort-button" data-sort="line_name">LINE名 / ユーザーID</button></th>
+              <th><button type="button" class="sort-button" data-sort="email">メールアドレス</button></th>
+              <th><button type="button" class="sort-button is-sort" data-sort="registered_at">登録日</button></th>
+              <th><button type="button" class="sort-button" data-sort="trial_end">無料期間終了日</button></th>
+              <th><button type="button" class="sort-button" data-sort="square_customer_id">Square ID</button></th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="member-rows"></tbody>
+        </table>
+      </div>
+      <p id="member-empty" class="empty hidden">該当する会員はいません。</p>
+    </section>
+    <script src="/static/members.js?v=1"></script>
+  </body>
+</html>

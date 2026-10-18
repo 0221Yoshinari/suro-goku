@@ -23,6 +23,8 @@ from fastapi import HTTPException
 from fastapi import Request
 from fastapi.responses import Response
 
+from src.dashboard.member_admin import register_member_admin
+
 load_dotenv()
 
 logger = logging.getLogger("surogoku.billing")
@@ -203,6 +205,27 @@ async def square_json(
     return body
 
 
+async def line_display_name(user_id: str) -> str:
+    token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
+    if not token or not user_id:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                f"https://api.line.me/v2/bot/profile/{user_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if response.status_code >= 400:
+            return ""
+        body = response.json()
+    except Exception:
+        logger.exception("line profile lookup failed")
+        return ""
+    if not isinstance(body, dict):
+        return ""
+    return str(body.get("displayName") or "").strip()[:80]
+
+
 async def line_reply(reply_token: str, text: str, *, quick_reply: str | None = None) -> None:
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
     if not token or not reply_token:
@@ -373,6 +396,18 @@ async def register_trial(user_id: str, email: str) -> str:
     location_id = await resolve_location_id()
     variation_id = await resolve_variation_id()
     customer_id = await upsert_customer(user_id, email)
+    line_name = await line_display_name(user_id)
+    try:
+        from src.dashboard.square_members import record_line_signup
+
+        record_line_signup(
+            line_user_id=user_id,
+            email=email,
+            square_customer_id=customer_id,
+            line_name=line_name,
+        )
+    except Exception:
+        logger.exception("member ledger update failed")
     if await has_open_subscription(customer_id, location_id):
         return _ALREADY
     created = await square_json(
@@ -413,6 +448,19 @@ async def health() -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.post("/square-webhook")
+async def square_webhook(request: Request) -> Response:
+    from src.dashboard.square_members import SquareWebhookError
+    from src.dashboard.square_members import handle_square_webhook
+
+    body = await request.body()
+    try:
+        handle_square_webhook(body, request.headers.get("x-square-hmacsha256-signature", ""))
+    except SquareWebhookError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return Response(status_code=200)
+
+
 @app.post("/webhook")
 async def webhook(request: Request) -> Response:
     body = await request.body()
@@ -444,6 +492,9 @@ async def webhook(request: Request) -> Response:
             continue
         await handle_text(user_id, reply_token, str(message.get("text") or ""))
     return Response(status_code=200)
+
+
+register_member_admin(app)
 
 
 if __name__ == "__main__":
