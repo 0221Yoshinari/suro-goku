@@ -47,7 +47,7 @@ def request(method: str, url: str, *, body: bytes = b"", headers: dict | None = 
     async def receive():
         nonlocal sent
         if sent:
-            return {"type": "http.disconnect"}
+            await asyncio.Future()
         sent = True
         return {"type": "http.request", "body": body, "more_body": False}
 
@@ -104,6 +104,48 @@ class DashboardAuthTest(unittest.TestCase):
         absorb_cookies(self.cookies, set_cookies)
         return status, headers_out, payload.decode(), set_cookies
 
+    def test_public_demo_link_skips_login(self) -> None:
+        with mock.patch.dict(os.environ, {"SURO_PUBLIC_DEMO": "1"}):
+            status, _headers, body, _cookies = self.call("GET", "/")
+            self.assertEqual(status, 200)
+            self.assertIn("全台系分析", body)
+            self.assertNotIn("パスワード", body)
+            status, headers, _body, _cookies = self.call("GET", "/login")
+            self.assertEqual(status, 302)
+            self.assertEqual(headers["location"], "/demo-secret")
+            status, _headers, body, _cookies = self.call("GET", "/dem\u2026ecret")
+            self.assertEqual(status, 200)
+            self.assertIn("全台系分析", body)
+            self.assertNotIn("パスワード", body)
+            status, _headers, body, _cookies = self.call("GET", "/api/judgments")
+            self.assertEqual(status, 401)
+            self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
+
+    def test_render_link_stays_behind_login_until_open_mode(self) -> None:
+        with mock.patch.dict(os.environ, {"RENDER": "true", "DASHBOARD_OPEN": ""}, clear=False):
+            status, headers, body, _cookies = self.call("GET", "/")
+            self.assertEqual(status, 303)
+            self.assertIn("/login", headers["location"])
+            self.assertNotIn("店舗別ダッシュボード", body)
+        with mock.patch.dict(os.environ, {"DASHBOARD_OPEN": "1"}, clear=False):
+            status, _headers, body, _cookies = self.call("GET", "/")
+            self.assertEqual(status, 200)
+            self.assertIn("店舗別ダッシュボード", body)
+            self.assertNotIn("ライセンスキー / パスワード", body)
+            status, headers, _body, _cookies = self.call("GET", "/login")
+            self.assertEqual(status, 302)
+            self.assertEqual(headers["location"], "/")
+            status, _headers, body, _cookies = self.call("GET", "/api/judgments")
+            self.assertEqual(status, 200)
+            self.assertIn("machines", body)
+            status, _headers, body, _cookies = self.call("GET", "/api/hall-catalog")
+            self.assertEqual(status, 200)
+            status, _headers, _body, _cookies = self.call("POST", "/api/judge")
+            self.assertEqual(status, 401)
+            status, headers, _body, _cookies = self.call("GET", "/master-panel-x7k3q9")
+            self.assertEqual(status, 303)
+            self.assertIn("/login", headers["location"])
+
     def test_dashboard_requires_login(self) -> None:
         status, headers, _body, _cookies = self.call("GET", "/")
         self.assertEqual(status, 303)
@@ -136,15 +178,34 @@ class DashboardAuthTest(unittest.TestCase):
         self.assertNotIn("スロプロ", body)
         self.assertIn("合同機種", body)
         self.assertIn("あたり末尾", body)
-        self.assertIn("15,000", body)
+        self.assertIn("2,980", body)
+        self.assertIn("4つのクロス分析", body)
+        self.assertIn("末尾0の平均推測設定", body)
+        self.assertIn("店舗別ダッシュボード", body)
+        self.assertIn("某店舗", body)
+        self.assertIn("〇〇店と〇〇店合同", body)
+        self.assertIn("〇〇グループ合同", body)
+        self.assertIn("台別内訳", body)
+        self.assertIn("リリースまでお待ちください", body)
+        self.assertIn("【重要】リリース日変更に関するお知らせ（10月20日(火)公開予定）", body)
+        self.assertIn("公開日を<strong>【10月20日】</strong>", body)
+        self.assertIn("7日完全無料", body)
+        self.assertIn("同意して申し込む", body)
+        self.assertIn("リリースまで、お申し込みはお待ちください。", body)
+        self.assertNotIn("Stripeで申し込む", body)
+        self.assertNotIn("15,000", body)
         self.assertNotIn("20,000", body)
+        self.assertNotIn("重ねる視点", body)
         self.assertIn(">東京<", body)
         self.assertIn(">佐賀<", body)
         self.assertNotIn(">京都<", body)
         self.assertNotIn(">熊本<", body)
         self.assertIn("各都道府県の対応ホールを確認する", body)
-        self.assertIn("https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00", body)
-        self.assertEqual(body.count("https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00"), 4)
+        self.assertIn('href="/checkout"', body)
+        self.assertEqual(body.count('href="/checkout"'), 2)
+        self.assertNotIn("buy.stripe.com", body)
+        self.assertIn('id="inquiry-form"', body)
+        self.assertIn("/api/lp-inquiry", body)
         self.assertNotIn("sk_live_", body)
         self.assertNotIn("sk_test_", body)
         status, _headers, health_body, _cookies = self.call("GET", "/health")
@@ -156,6 +217,14 @@ class DashboardAuthTest(unittest.TestCase):
             self.assertIn("準備中", checkout_body)
         status, _headers, _body, _cookies = self.call("GET", "/legal/privacy")
         self.assertEqual(status, 200)
+        status, _headers, tokusho, _cookies = self.call("GET", "/legal/tokusho")
+        self.assertEqual(status, 200)
+        self.assertIn("未設定（環境変数 SELLER_NAME）", tokusho)
+        with mock.patch.dict(os.environ, {"SELLER_NAME": "テスト販売者", "SELLER_EMAIL": "seller@example.com"}):
+            status, _headers, tokusho, _cookies = self.call("GET", "/legal/tokusho")
+        self.assertIn("テスト販売者", tokusho)
+        self.assertIn("seller@example.com", tokusho)
+        self.assertNotIn("__SELLER_NAME__", tokusho)
         status, _headers, _body, _cookies = self.call("POST", "/api/lp-inquiry", json_body={})
         self.assertEqual(status, 400)
 
@@ -163,6 +232,13 @@ class DashboardAuthTest(unittest.TestCase):
         self.assertTrue(passwords_match("2026"))
         self.assertTrue(passwords_match("02026", "2026"))
         self.assertFalse(passwords_match("2027"))
+
+    def test_dashboard_password_ignores_surrounding_quotes(self) -> None:
+        from src.dashboard.auth import dashboard_password
+
+        with mock.patch.dict(os.environ, {"DASHBOARD_PASSWORD": '"quoted-secret"'}):
+            self.assertEqual(dashboard_password(), "quoted-secret")
+            self.assertTrue(passwords_match("quoted-secret"))
 
     def test_login_sets_week_long_cookie(self) -> None:
         status, headers, _body, set_cookies = self.call("POST", "/login", data={"password": "2026", "next": "/"})
@@ -183,6 +259,9 @@ class DashboardAuthTest(unittest.TestCase):
         status, _headers, body, _cookies = self.call("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn("店舗別ダッシュボード", body)
+        self.assertIn("ログアウト", body)
+        self.assertNotIn("再判定する", body)
+        self.assertNotIn('href="/master-panel-x7k3q9/halls"', body)
 
         status, _headers, _body, _cookies = self.call("GET", "/api/judgments")
         self.assertEqual(status, 200)
@@ -219,14 +298,15 @@ class DashboardAuthTest(unittest.TestCase):
             self.assertIn("管理者トークン", body)
             self.assertNotIn("機種マスター管理", body)
             status, _headers, body, _cookies = self.call("GET", "/master-panel-x7k3q9/hall-rows")
-            self.assertEqual(status, 401)
-            self.assertEqual(json.loads(body)["detail"], "認証が必要です")
+            self.assertEqual(status, 200)
+            self.assertNotIn("Traceback", body)
             status, _headers, body, _cookies = self.call(
                 "GET",
-                "/master-panel-x7k3q9/hall-rows",
+                "/master-panel-x7k3q9/masters",
                 headers={"X-Master-Token": "wrong"},
             )
             self.assertEqual(status, 401)
+            self.assertEqual(json.loads(body)["detail"], "認証が必要です")
             self.assertNotIn("Traceback", body)
             status, _headers, body, _cookies = self.call(
                 "GET",
@@ -247,9 +327,42 @@ class DashboardAuthTest(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertIn("ホール管理", body)
             self.cookies["master_panel_session"] = "m1.1.forged"
-            status, _headers, body, _cookies = self.call("GET", "/master-panel-x7k3q9/hall-rows")
+            status, _headers, body, _cookies = self.call("GET", "/master-panel-x7k3q9/masters")
             self.assertEqual(status, 401)
             self.assertNotIn("forged", body)
+            status, _headers, body, _cookies = self.call("GET", "/master-panel-x7k3q9/hall-rows")
+            self.assertEqual(status, 200)
+
+    def test_secret_demo_is_public_and_not_linked(self) -> None:
+        status, headers, body, _cookies = self.call("GET", "/demo-secret")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("x-robots-tag"), "noindex, nofollow")
+        self.assertNotIn("__DEMO_DATA__", body)
+        self.assertNotIn("fetch(", body)
+        self.assertNotIn("/api/judgments", body)
+        for label in ("末尾分析", "並び分析", "全台系分析", "合同機種分析"):
+            self.assertIn(label, body)
+        self.assertIn("スマスロ モンスターハンターライズ：サンブレイク", body)
+        self.assertIn("Lリコリス・リコイル", body)
+        self.assertIn("L真打吉宗", body)
+        self.assertIn("スマスロ 戦国乙女4", body)
+        self.assertNotIn('href="/"', body)
+        self.assertNotIn('href="/lp"', body)
+
+        status, headers, _body, _cookies = self.call("GET", "/pr-demo")
+        self.assertEqual(status, 302)
+        self.assertEqual(headers["location"], "/demo-secret")
+
+        status, _headers, body, _cookies = self.call("GET", "/lp")
+        self.assertEqual(status, 200)
+        self.assertNotIn("demo-secret", body)
+        self.assertNotIn("pr-demo", body)
+
+        self.call("POST", "/login", data={"password": "2026"})
+        status, _headers, body, _cookies = self.call("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertNotIn("demo-secret", body)
+        self.assertNotIn("pr-demo", body)
 
     def test_password_comes_from_environment(self) -> None:
         with mock.patch.dict(os.environ, {"DASHBOARD_PASSWORD": "secret-value"}):

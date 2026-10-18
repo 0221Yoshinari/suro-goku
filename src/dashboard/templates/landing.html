@@ -81,6 +81,24 @@
       .mark-lg { width: 92px; height: 92px; margin: 0 0 14px; filter: drop-shadow(0 0 18px rgba(243, 211, 122, 0.45)); }
       .mark-sm { width: 42px; height: 42px; }
 
+      .release-notice {
+        background:
+          linear-gradient(180deg, rgba(255, 77, 109, 0.22), rgba(255, 77, 109, 0.08)),
+          #12080c;
+        border-bottom: 2px solid #ff4d6d;
+        box-shadow: 0 10px 28px rgba(255, 77, 109, 0.16);
+      }
+      .release-notice .wrap { padding: 18px 0 16px; }
+      .release-notice h2 {
+        margin: 0 0 8px;
+        color: #ff4d6d;
+        font-size: clamp(18px, 4.2vw, 24px);
+        letter-spacing: 0.01em;
+        line-height: 1.4;
+      }
+      .release-notice p { margin-top: 8px; color: var(--body); }
+      .release-notice strong { color: #ff4d6d; }
+      .release-notice .note { margin-top: 10px; color: var(--gold); font-weight: 800; }
       .nav {
         position: sticky;
         top: 0;
@@ -467,6 +485,14 @@
       });
     </script>
 <!--__LP_SPLIT__-->
+    <aside class="release-notice" role="note" aria-label="重要なお知らせ">
+      <div class="wrap">
+        <h2>【重要】リリース日変更に関するお知らせ（10月20日(火)公開予定）</h2>
+        <p>本日（10/18）公開を予定しておりました「スロ極」ですが、より万全な状態でお届けするための最終調整に伴い、公開日を<strong>【10月20日】</strong>へ変更させていただきます。</p>
+        <p>楽しみにお待ちいただいていた皆様には、直前のご案内となりましたこと、心よりお詫び申し上げます。</p>
+        <p class="note">※10月20日に公式LINEにて優先案内をお送りいたしますので、今しばらくお待ちください。</p>
+      </div>
+    </aside>
     <header class="nav">
       <div class="wrap nav-inner">
         <a class="brand-lock" href="#top" aria-label="スロ極">
@@ -477,7 +503,7 @@
           </svg>
           <b class="gold-type">スロ極</b>
         </a>
-        <a class="nav-cta checkout-cta" href="/api/lp-checkout">申し込む</a>
+        <a class="nav-cta checkout-cta" href="/checkout">申し込む</a>
       </div>
     </header>
 
@@ -925,7 +951,7 @@
           <a href="/legal/terms">利用規約</a>
           <a href="/legal/tokusho">特定商取引法に基づく表記</a>
           <a href="/legal/privacy">プライバシーポリシー</a>
-          <a class="checkout-cta" href="/api/lp-checkout">申し込む</a>
+          <a class="checkout-cta" href="/checkout">申し込む</a>
         </div>
         <p>本サービスは遊技の結果を保証するものではありません。店舗のデータ公開状況により、表示は変動します。月額2,980円（税込）。</p>
       </div>
