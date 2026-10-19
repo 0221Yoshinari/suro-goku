@@ -1,7 +1,7 @@
 {
   "version": "1.2",
   "description": "初当たり確率で全台系判定できる主要機種のみ。テラモバの型式略称は normalize_machine_name と patterns で吸収する。",
-  "exclude_patterns": ["ヴァルヴレイヴ", "ヴヴヴ", "valvrave"],
+  "exclude_patterns": ["ヴァルヴレイヴ", "ヴヴヴ", "valvrave", "いざ番長"],
   "machines": [
     {
       "id": "im-juggler",

@@ -2076,9 +2076,11 @@
       "aliases": [
         "いざ番長"
       ],
+      "enabled": false,
+      "is_disabled": true,
       "published": {
         "first_hit_denominator": 280.0,
-        "comment": "設定6 AT初当たりの解析概算"
+        "comment": "AT中ボーナスと初当りをデータ上で分けられない。RB回数を初当りにすると大半の店舗が高設定になるため、判定から外す。"
       },
       "criteria": {
         "min_games": 3000,

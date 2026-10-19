@@ -38,6 +38,42 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertTrue(result["judgment_excluded"])
         self.assertFalse(result["is_all_high"])
 
+    def test_iza_bancho_is_excluded_because_at_bonus_cannot_be_split(self) -> None:
+        master = next(item for item in self.masters if item.id == "iza-bancho")
+        self.assertFalse(master.enabled)
+        for name in ("Lいざ!番長", "L/いざ番長/SB8", "Ｌいざ番長ＳＢ８"):
+            result = judge_record(
+                {
+                    "hall_name": "テスト店",
+                    "fields": {
+                        "machine_name": name,
+                        "total_games": 4000,
+                        "bb_count": 40,
+                        "rb_count": 30,
+                    },
+                },
+                self.masters,
+            )
+            self.assertEqual(result["status"], "EXCLUDED", name)
+            self.assertTrue(result["judgment_excluded"], name)
+            self.assertFalse(result["is_all_high"], name)
+            self.assertFalse(result["is_high_56"], name)
+            self.assertFalse(result["is_high_base"], name)
+        other = judge_record(
+            {
+                "hall_name": "テスト店",
+                "fields": {
+                    "machine_name": "押忍!番長ZERO",
+                    "total_games": 4000,
+                    "bb_count": 10,
+                    "rb_count": 20,
+                },
+            },
+            self.masters,
+        )
+        self.assertFalse(other["judgment_excluded"])
+        self.assertNotEqual(other["status"], "EXCLUDED")
+
     def test_mh_rise_uses_rb_probability_against_new_bars(self) -> None:
         mh = next(master for master in self.masters if master.id == "mh-rise")
         self.assertTrue(mh.enabled)

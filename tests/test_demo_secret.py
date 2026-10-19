@@ -134,8 +134,9 @@ class DemoSecretDataTest(unittest.TestCase):
         by_name = {row["machine_name"]: row for row in city}
         self.assertEqual(by_name["ファンキージャグラー2"]["units"], 13)
         self.assertEqual(by_name["ファンキージャグラー2"]["status"], "HIGH_56")
-        self.assertEqual(by_name["いざ！番長"]["units"], 4)
-        self.assertEqual(by_name["いざ！番長"]["status"], "ALL_HIGH")
+        self.assertEqual(by_name["スマスロ 化物語"]["units"], 4)
+        self.assertEqual(by_name["スマスロ 化物語"]["status"], "ALL_HIGH")
+        self.assertNotIn("いざ！番長", by_name)
         self.assertEqual(by_name["L甲鉄城のカバネリ海門決戦"]["units"], 10)
         self.assertEqual(by_name["L甲鉄城のカバネリ海門決戦"]["status"], "HIGH_56")
         self.assertEqual(by_name["スマスロ モンスターハンターライズ：サンブレイク"]["units"], 8)
