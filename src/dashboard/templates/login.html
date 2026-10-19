@@ -15,21 +15,11 @@
       <form method="post" action="/login" class="login-form" autocomplete="on">
         <input type="hidden" name="next" value="__NEXT__" />
         <label class="login-label" for="email">メールアドレス</label>
-        <input id="email" name="email" type="text" autocomplete="username" maxlength="200" autofocus required />
-        <label class="login-label" for="password">パスワード</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="200" />
+        <input id="email" name="email" type="text" inputmode="email" autocomplete="username" maxlength="200" autofocus required />
         <button type="submit" class="primary">ログイン</button>
       </form>
-      <p class="login-note">パスワードはメールアドレスと同じで構いません。空欄でもログインでき、入力するとブラウザに保存できます。</p>
+      <p class="login-note">決済時に登録したメールアドレスだけでログインできます。</p>
       <p class="login-links"><a href="/lp">紹介ページ</a></p>
-      <script>
-        document.querySelector(".login-form").addEventListener("submit", (event) => {
-          const form = event.currentTarget;
-          if (form.email.value && !form.password.value) {
-            form.password.value = form.email.value;
-          }
-        });
-      </script>
     </main>
   </body>
 </html>
