@@ -242,8 +242,33 @@ def checkout_reply(url: str) -> str:
     )
 
 
-def square_web_sdk_url() -> str:
+def square_environment() -> str:
     if os.getenv("SQUARE_ENVIRONMENT", "sandbox").strip().lower() == "production":
+        return "production"
+    return "sandbox"
+
+
+def square_application_id() -> str:
+    return os.getenv("SQUARE_APPLICATION_ID", "").strip()
+
+
+def ensure_square_credentials() -> str:
+    """カード入力欄と API は、同じ Square 環境の認証情報だけを使う。"""
+    environment = square_environment()
+    application_id = square_application_id()
+    token = os.getenv("SQUARE_ACCESS_TOKEN", "").strip()
+    if not application_id or not token:
+        raise SquareAPIError(500, ["SQUARE_CREDENTIALS"])
+    sandbox_application = application_id.startswith("sandbox-")
+    if environment == "production" and sandbox_application:
+        raise SquareAPIError(500, ["SANDBOX_CREDENTIALS"])
+    if environment == "sandbox" and not sandbox_application:
+        raise SquareAPIError(500, ["PRODUCTION_CREDENTIALS"])
+    return environment
+
+
+def square_web_sdk_url() -> str:
+    if square_environment() == "production":
         return "https://web.squarecdn.com/v1/square.js"
     return "https://sandbox.web.squarecdn.com/v1/square.js"
 
@@ -252,6 +277,8 @@ def buyer_message(exc: SquareAPIError) -> str:
     codes = set(exc.codes)
     if "TOKEN_EXPIRED" in codes or "TOKEN_INVALID" in codes:
         return "この登録リンクは無効か、期限切れです。LINEにもう一度メールアドレスを送ってください。"
+    if "SANDBOX_CREDENTIALS" in codes or "PRODUCTION_CREDENTIALS" in codes or "SQUARE_CREDENTIALS" in codes:
+        return "本番のクレジットカードを受け付ける設定になっていません。時間をおいて、もう一度開いてください。"
     if codes & {
         "CARD_DECLINED",
         "GENERIC_DECLINE",
@@ -271,8 +298,7 @@ def checkout_error(status: int, message: str) -> JSONResponse:
 
 
 def square_base_url() -> str:
-    environment = os.getenv("SQUARE_ENVIRONMENT", "sandbox").strip().lower()
-    if environment == "production":
+    if square_environment() == "production":
         return "https://connect.squareup.com"
     return "https://connect.squareupsandbox.com"
 
@@ -546,6 +572,7 @@ async def start_card_subscription(
     source_id: str,
     verification_token: str = "",
 ) -> dict:
+    ensure_square_credentials()
     if not source_id or len(source_id) > 2048 or any(char.isspace() for char in source_id):
         raise SquareAPIError(400, ["SOURCE_ID"])
     if verification_token and (len(verification_token) > 4096 or any(char.isspace() for char in verification_token)):
@@ -809,12 +836,11 @@ async def checkout_page() -> HTMLResponse:
 async def checkout_config(t: str = "") -> JSONResponse:
     try:
         claims = read_checkout_token(t)
+        ensure_square_credentials()
         location_id = await resolve_location_id()
     except SquareAPIError as exc:
         return checkout_error(400, buyer_message(exc))
-    application_id = os.getenv("SQUARE_APPLICATION_ID", "").strip()
-    if not application_id:
-        return checkout_error(500, "カード登録の準備ができていません。")
+    application_id = square_application_id()
     return JSONResponse(
         {
             "ok": True,

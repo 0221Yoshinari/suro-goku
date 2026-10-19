@@ -11,6 +11,7 @@ from unittest import mock
 os.environ["LINE_CHANNEL_SECRET"] = "test-secret"
 os.environ["LINE_CHANNEL_ACCESS_TOKEN"] = "test-token"
 os.environ["SQUARE_ACCESS_TOKEN"] = "test-square-token"
+os.environ["SQUARE_APPLICATION_ID"] = "sandbox-sq0idb-test"
 os.environ["SQUARE_ENVIRONMENT"] = "sandbox"
 
 import main
@@ -47,6 +48,35 @@ class BillingRulesTest(unittest.TestCase):
         self.assertIn("今日の支払い", page.text)
         self.assertIn("最初の10日間は0円", page.text)
         self.assertIn("11日目から", page.text)
+
+    def test_production_uses_live_square_endpoints(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {
+                "SQUARE_ENVIRONMENT": "production",
+                "SQUARE_APPLICATION_ID": "sq0idp-live",
+                "SQUARE_ACCESS_TOKEN": "live-token",
+            },
+        ):
+            self.assertEqual(main.square_environment(), "production")
+            self.assertEqual(main.square_web_sdk_url(), "https://web.squarecdn.com/v1/square.js")
+            self.assertEqual(main.square_base_url(), "https://connect.squareup.com")
+            self.assertEqual(main.ensure_square_credentials(), "production")
+
+    def test_production_refuses_sandbox_card_form(self) -> None:
+        token = main.issue_checkout_token("CUST1", "member@example.com", "U1")
+        with mock.patch.dict(
+            os.environ,
+            {
+                "SQUARE_ENVIRONMENT": "production",
+                "SQUARE_APPLICATION_ID": "sandbox-sq0idb-test",
+                "SQUARE_ACCESS_TOKEN": "sandbox-token",
+            },
+        ):
+            response = TestClient(main.app).get("/checkout/config", params={"t": token})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("本番のクレジットカード", response.json()["message"])
+        self.assertNotIn("sandbox.web.squarecdn.com", response.text)
 
     def test_phases_are_free_then_monthly(self) -> None:
         phases = main.subscription_phases()
