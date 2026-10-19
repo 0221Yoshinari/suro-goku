@@ -60,36 +60,69 @@ def store_hall_payload(payload: dict[str, Any], output_dir: Path | None = None) 
         raise ValueError("hall_name がありません")
     body = dict(payload)
     body.pop("results", None)
+    hall = hall_by_name(name)
+    if hall and hall.prefecture and not body.get("prefecture"):
+        body["prefecture"] = hall.prefecture
     dest = (output_dir or DEFAULT_OUTPUT_DIR) / "halls" / hall_dir_slug(name) / "latest.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(body, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     marker = dest.parents[2] / ".sync-mtime"
     marker.write_text(str(time.time()), encoding="utf-8")
+    from src.dashboard.judgment_store import save_durable
+
+    save_durable(body, str(body.get("prefecture") or ""))
     return dest
 
 
-def read_prefecture_payloads(prefecture: str, output_dir: Path | None = None) -> list[dict[str, Any]]:
-    wanted = (prefecture or "").strip().lower()
-    root = (output_dir or DEFAULT_OUTPUT_DIR) / "halls"
+def _payload_prefecture(payload: dict[str, Any]) -> str:
+    name = str(payload.get("hall_name") or "").strip()
+    hall = hall_by_name(name) if name else None
+    if hall and hall.prefecture:
+        return hall.prefecture.lower()
+    return str(payload.get("prefecture") or "").strip().lower()
+
+
+def _disk_payloads(root: Path) -> list[dict[str, Any]]:
+    """ディスク上の店舗ファイルを全部読む。設定一覧に無くても拾う。"""
+    if not root.is_dir():
+        return []
     payloads: list[dict[str, Any]] = []
-    for name in configured_halls():
-        hall = hall_by_name(name)
-        if wanted and (hall is None or (hall.prefecture or "").lower() != wanted):
-            continue
-        path = root / hall_dir_slug(name) / "latest.json"
-        if not path.is_file():
-            continue
+    for path in sorted(root.glob("*/latest.json")):
         try:
             loaded = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if isinstance(loaded, dict):
+        if isinstance(loaded, dict) and str(loaded.get("hall_name") or "").strip():
             payloads.append(loaded)
     return payloads
 
 
+def read_prefecture_payloads(prefecture: str, output_dir: Path | None = None) -> list[dict[str, Any]]:
+    """県内の判定を返す。ディスクが空でも、Postgres に残っていればそれを使う。"""
+    wanted = (prefecture or "").strip().lower()
+    root = (output_dir or DEFAULT_OUTPUT_DIR) / "halls"
+    from src.dashboard.judgment_store import load_durable
+
+    by_name: dict[str, dict[str, Any]] = {}
+    for payload in load_durable(wanted):
+        name = str(payload.get("hall_name") or "").strip()
+        if name:
+            by_name[name] = payload
+    for payload in _disk_payloads(root):
+        name = str(payload.get("hall_name") or "").strip()
+        if not name:
+            continue
+        if wanted and _payload_prefecture(payload) != wanted:
+            continue
+        by_name[name] = payload
+    return [by_name[name] for name in sorted(by_name)]
+
+
 def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict[str, Any]:
-    """県内の店舗ファイルを、画面向けの1レスポンスにまとめる。"""
+    """県内の店舗ファイルを、画面向けの1レスポンスにまとめる。
+
+    1店舗のファイルが壊れていても、読めた店舗だけを返す。
+    """
     payloads = read_prefecture_payloads(prefecture, output_dir)
     if not payloads:
         return {}
@@ -99,34 +132,128 @@ def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict
     judged_at = ""
     fetched_at = ""
     for payload in payloads:
-        name = str(payload.get("hall_name") or "")
-        if name:
-            halls.append(name)
-        judged_at = max(judged_at, str(payload.get("judged_at") or ""))
-        fetched_at = max(fetched_at, str(payload.get("fetched_at") or ""))
-        for row in payload.get("machines") or []:
-            if not isinstance(row, dict):
-                continue
-            item = row if row.get("hall_name") or not name else dict(row, hall_name=name)
-            machines.append(item)
-            for unit in item.get("units") or []:
-                if isinstance(unit, dict):
-                    copied = dict(unit)
-                    copied.setdefault("hall_name", item.get("hall_name") or name)
-                    copied.setdefault("judgment_type", item.get("judgment_type"))
-                    units.append(copied)
+        try:
+            name = str(payload.get("hall_name") or "")
+            if name:
+                halls.append(name)
+            judged_at = max(judged_at, str(payload.get("judged_at") or ""))
+            fetched_at = max(fetched_at, str(payload.get("fetched_at") or ""))
+            for row in payload.get("machines") or []:
+                if not isinstance(row, dict):
+                    continue
+                item = row if row.get("hall_name") or not name else dict(row, hall_name=name)
+                machines.append(item)
+                for unit in item.get("units") or []:
+                    if isinstance(unit, dict):
+                        copied = dict(unit)
+                        copied.setdefault("hall_name", item.get("hall_name") or name)
+                        copied.setdefault("judgment_type", item.get("judgment_type"))
+                        units.append(copied)
+        except Exception as exc:
+            _note(f"店舗判定の読み込みを飛ばしました: {type(exc).__name__}")
     from src.analyzer.extras import hall_digit_summaries
 
+    try:
+        digits = hall_digit_summaries(units) if units else []
+    except Exception as exc:
+        _note(f"末尾集計を飛ばして店舗データは返します: {type(exc).__name__}")
+        digits = []
     return {
         "judged_at": judged_at or None,
         "fetched_at": fetched_at or None,
         "machines": machines,
         "halls": halls,
-        "hall_digit_summaries": hall_digit_summaries(units) if units else [],
+        "hall_digit_summaries": digits,
         "machine_count": len(machines),
         "unit_count": len(units),
         "count": len(machines),
     }
+
+
+def judgment_receipt(prefecture: str) -> dict[str, Any]:
+    """本番が今返せている店舗数。画面の /api/judgments と同じ材料。"""
+    from src.dashboard.judgment_store import durable_enabled
+
+    view = assemble_prefecture(prefecture)
+    halls = [str(name) for name in (view.get("halls") or []) if str(name).strip()]
+    return {
+        "ok": True,
+        "prefecture": (prefecture or "").strip().lower(),
+        "machine_count": int(view.get("machine_count") or 0),
+        "hall_count": len(halls),
+        "halls": halls,
+        "fetched_at": view.get("fetched_at"),
+        "durable": durable_enabled(),
+    }
+
+
+def reflection_status_path(output_dir: Path | None = None) -> Path:
+    return (output_dir or DEFAULT_OUTPUT_DIR) / "reflection_status.json"
+
+
+def store_reflection_status(payload: dict[str, Any], output_dir: Path | None = None) -> Path:
+    """本番が画面に出す、成功店舗と失敗店舗の件数。"""
+    reflected = [str(item) for item in (payload.get("reflected") or []) if str(item).strip()]
+    failed = [str(item) for item in (payload.get("failed") or []) if str(item).strip() and str(item) not in reflected]
+    ok_count = len(reflected)
+    failed_count = len(failed)
+    from src.scraper.reflection import status_line
+
+    body = {
+        "reflected": reflected,
+        "failed": failed,
+        "ok_count": ok_count,
+        "failed_count": failed_count,
+        "note": str(payload.get("note") or "") or status_line(ok_count, failed_count),
+    }
+    dest = reflection_status_path(output_dir)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(body, ensure_ascii=False), encoding="utf-8")
+    marker = dest.parent / ".sync-mtime"
+    marker.write_text(str(time.time()), encoding="utf-8")
+    return dest
+
+
+def read_reflection_status(output_dir: Path | None = None) -> dict[str, Any]:
+    path = reflection_status_path(output_dir)
+    if not path.is_file():
+        return {}
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def push_reflection_status(status: dict[str, Any]) -> bool:
+    """成功件数と失敗件数を本番の画面ステータスへ送る。"""
+    url = sync_url()
+    token = sync_token()
+    if not url or not token or os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    body = {
+        "kind": "reflection_status",
+        "ok_count": int(status.get("ok_count") or 0),
+        "failed_count": int(status.get("failed_count") or 0),
+        "note": str(status.get("note") or ""),
+        "reflected": list(status.get("reflected") or []),
+        "failed": list(status.get("failed") or []),
+    }
+    request = urllib.request.Request(
+        url + SYNC_PATH,
+        data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            return 200 <= response.status < 300
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        _note(f"本番ステータスの送信に失敗しました: {type(exc).__name__}")
+        return False
 
 
 def push_hall_payload(payload: dict[str, Any]) -> bool:
@@ -149,6 +276,9 @@ def push_hall_payload(payload: dict[str, Any]) -> bool:
     try:
         with urllib.request.urlopen(request, timeout=40) as response:
             return 200 <= response.status < 300
+    except urllib.error.HTTPError as exc:
+        _note(f"本番への判定送信に失敗しました: HTTP {exc.code}")
+        return False
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         _note(f"本番への判定送信に失敗しました: {type(exc).__name__}")
         return False
@@ -181,18 +311,29 @@ def _write_state(state: dict[str, int]) -> None:
     _STATE_PATH.write_text(json.dumps(state), encoding="utf-8")
 
 
-def remote_is_empty(prefecture: str = "fukuoka") -> bool:
-    """本番のその県が空なら、再送が必要。"""
+def remote_status(prefecture: str = "fukuoka") -> dict[str, Any] | None:
+    """本番が今持っている県の件数。読めないときは None。"""
     url = sync_url()
-    if not url:
-        return False
-    request = urllib.request.Request(f"{url}/api/judgments?prefecture={prefecture}", method="GET")
+    token = sync_token()
+    if not url or not token:
+        return None
+    request = urllib.request.Request(
+        f"{url}{SYNC_PATH}?prefecture={prefecture}",
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+        method="GET",
+    )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             loaded = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
-        return False
-    if not isinstance(loaded, dict):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def remote_is_empty(prefecture: str = "fukuoka") -> bool:
+    """本番のその県が空なら、再送が必要。確認できないときは再送しない。"""
+    loaded = remote_status(prefecture)
+    if not loaded:
         return False
     return int(loaded.get("machine_count") or 0) == 0
 

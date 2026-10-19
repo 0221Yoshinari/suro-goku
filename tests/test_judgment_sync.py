@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from src.dashboard.judgment_sync import assemble_prefecture, store_hall_payload, token_matches
@@ -38,6 +39,25 @@ class JudgmentSyncTest(unittest.TestCase):
             names = [item.get("hall_name") for item in view.get("machines") or []]
             self.assertIn("玉屋∞本店", names)
             self.assertEqual(view["machine_count"], len(names))
+
+    def test_disk_wipe_falls_back_to_durable_store(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stored = {
+                "hall_name": "MJアリーナ干隈店",
+                "prefecture": "fukuoka",
+                "fetched_at": "2026-10-19T14:00:00+09:00",
+                "machines": [{"hall_name": "MJアリーナ干隈店", "total_games": 800, "units": []}],
+            }
+            with unittest.mock.patch(
+                "src.dashboard.judgment_store.load_durable",
+                return_value=[stored],
+            ):
+                view = assemble_prefecture("fukuoka", root)
+            names = [item.get("hall_name") for item in view.get("machines") or []]
+            self.assertEqual(names, ["MJアリーナ干隈店"])
+            self.assertEqual(view["machine_count"], 1)
+            self.assertNotIn("プラザ 博多", view.get("halls") or [])
 
 
 if __name__ == "__main__":

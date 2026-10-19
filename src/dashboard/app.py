@@ -657,9 +657,21 @@ def _events_mtime() -> float:
         return 0.0
 
 
+@app.get("/api/internal/hall-judgments")
+def hall_judgment_status(request: Request, prefecture: str = "fukuoka") -> JSONResponse:
+    """Macが本番の件数を確認する。画面と同じ組み立て結果の件数だけ返す。"""
+    from src.dashboard.judgment_sync import judgment_receipt, token_matches
+
+    if not token_matches(request.headers.get("authorization")):
+        return JSONResponse({"detail": "認証が必要です"}, status_code=401)
+    selected = (prefecture or "").strip().lower() or "fukuoka"
+    return JSONResponse(judgment_receipt(selected))
+
+
 @app.post("/api/internal/hall-judgments")
 async def receive_hall_judgment(request: Request) -> JSONResponse:
     """Macの巡回が1店舗分の判定を本番へ置く。"""
+    global _JUDGMENT_CACHE
     from src.dashboard.judgment_sync import store_hall_payload, token_matches
 
     if not token_matches(request.headers.get("authorization")):
@@ -670,11 +682,16 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
         return JSONResponse({"detail": "JSONではありません"}, status_code=400)
     if not isinstance(body, dict):
         return JSONResponse({"detail": "店舗データではありません"}, status_code=400)
+    if body.get("kind") == "reflection_status":
+        from src.dashboard.judgment_sync import store_reflection_status
+
+        store_reflection_status(body)
+        _JUDGMENT_CACHE = None
+        return JSONResponse({"ok": True, "note": body.get("note")})
     try:
         store_hall_payload(body)
     except ValueError as exc:
         return JSONResponse({"detail": str(exc)}, status_code=400)
-    global _JUDGMENT_CACHE
     _JUDGMENT_CACHE = None
     return JSONResponse({"ok": True, "hall_name": body.get("hall_name")})
 
@@ -695,16 +712,32 @@ def get_judgments(prefecture: str = "") -> dict:
         signature = (selected, stamp)
         if cached and cached[0] == signature and cached[1] == events_mtime and time.monotonic() - cached[2] < 60:
             return cached[3]
-        from src.dashboard.judgment_sync import assemble_prefecture
+        from src.dashboard.judgment_sync import assemble_prefecture, read_reflection_status
 
-        synced = assemble_prefecture(selected)
+        try:
+            synced = assemble_prefecture(selected)
+        except Exception:
+            synced = {}
         if synced:
             payload = _finish_synced(synced)
         else:
             latest = DEFAULT_OUTPUT_DIR / "latest.json"
             payload = _build_judgments(latest) if latest.is_file() else _empty_payload()
+        _attach_reflection_status(payload, read_reflection_status())
         _JUDGMENT_CACHE = (signature, events_mtime, time.monotonic(), payload)
         return payload
+
+
+def _attach_reflection_status(payload: dict, status: dict) -> None:
+    if not status:
+        return
+    note = str(status.get("note") or "")
+    if note:
+        payload["reflection_status"] = note
+    if status.get("ok_count") is not None:
+        payload["reflected_hall_count"] = int(status.get("ok_count") or 0)
+    if status.get("failed_count") is not None:
+        payload["failed_hall_count"] = int(status.get("failed_count") or 0)
 
 
 def _finish_synced(payload: dict) -> dict:
@@ -792,7 +825,10 @@ def _with_events(payload: dict) -> dict:
     payload["events_date"] = today
     payload["tomorrow_date"] = tomorrow
     payload["events_updated_at"] = updated_at
-    payload["group_joint_picks"] = group_joint_picks(payload.get("machines") or [], today_events)
+    try:
+        payload["group_joint_picks"] = group_joint_picks(payload.get("machines") or [], today_events)
+    except Exception:
+        payload["group_joint_picks"] = []
     return present_member_payload(payload)
 
 
