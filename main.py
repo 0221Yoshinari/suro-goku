@@ -216,7 +216,8 @@ def request_public_base(request: Request) -> str:
 
 
 def checkout_page_url(base: str, token: str) -> str:
-    return f"{normalize_public_base(base)}/checkout#t={token}"
+    # LINE は # 以降をリンクから落とすことがある。トークンはクエリで渡す。
+    return f"{normalize_public_base(base)}/checkout?t={token}"
 
 
 def checkout_reply(url: str) -> str:
@@ -654,6 +655,7 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="origin">
   <title>__ITEM__</title>
   <style>
     :root { color-scheme: light; }
@@ -693,7 +695,9 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
     const statusNode = document.getElementById("status");
     const form = document.getElementById("card-form");
     const submit = document.getElementById("submit");
-    const token = new URLSearchParams((location.hash || "").replace(/^#/, "")).get("t") || "";
+    const queryToken = new URLSearchParams(location.search).get("t") || "";
+    const hashToken = new URLSearchParams((location.hash || "").replace(/^#/, "")).get("t") || "";
+    const token = queryToken || hashToken;
 
     function show(message, isError) {
       statusNode.textContent = message;
@@ -704,6 +708,7 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = src;
+        script.referrerPolicy = "origin";
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);

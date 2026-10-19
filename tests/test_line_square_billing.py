@@ -34,7 +34,8 @@ class BillingRulesTest(unittest.TestCase):
         self.assertEqual(claims["customer_id"], "CUST1")
         self.assertEqual(claims["email"], "member@example.com")
         url = main.checkout_page_url("https://suro-goku-billing.onrender.com", token)
-        self.assertTrue(url.startswith("https://suro-goku-billing.onrender.com/checkout#t="))
+        self.assertTrue(url.startswith("https://suro-goku-billing.onrender.com/checkout?t="))
+        self.assertNotIn("square.link", url)
         with self.assertRaises(main.SquareAPIError):
             main.normalize_public_base("http://example.com")
         with self.assertRaises(main.SquareAPIError):
@@ -298,7 +299,9 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("最初の7日間は0円", message)
         self.assertIn("自動で引き落とされます", message)
-        token = message.rsplit("/checkout#t=", 1)[1]
+        self.assertNotIn("square.link", message)
+        self.assertIn("https://suro-goku-billing.onrender.com/checkout?t=", message)
+        token = message.rsplit("/checkout?t=", 1)[1]
         claims = main.read_checkout_token(token)
         self.assertEqual(claims["customer_id"], "CUST1")
         self.assertEqual(claims["user_id"], "Uline123")
