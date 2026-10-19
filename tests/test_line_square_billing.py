@@ -63,8 +63,7 @@ class BillingRulesTest(unittest.TestCase):
             self.assertEqual(main.square_base_url(), "https://connect.squareup.com")
             self.assertEqual(main.ensure_square_credentials(), "production")
 
-    def test_production_refuses_sandbox_card_form(self) -> None:
-        token = main.issue_checkout_token("CUST1", "member@example.com", "U1")
+    def test_sandbox_application_keeps_sandbox_when_env_says_production(self) -> None:
         with mock.patch.dict(
             os.environ,
             {
@@ -73,10 +72,10 @@ class BillingRulesTest(unittest.TestCase):
                 "SQUARE_ACCESS_TOKEN": "sandbox-token",
             },
         ):
-            response = TestClient(main.app).get("/checkout/config", params={"t": token})
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("本番のクレジットカード", response.json()["message"])
-        self.assertNotIn("sandbox.web.squarecdn.com", response.text)
+            self.assertEqual(main.square_environment(), "sandbox")
+            self.assertEqual(main.square_web_sdk_url(), "https://sandbox.web.squarecdn.com/v1/square.js")
+            self.assertEqual(main.square_base_url(), "https://connect.squareupsandbox.com")
+            self.assertEqual(main.ensure_square_credentials(), "sandbox")
 
     def test_phases_are_free_then_monthly(self) -> None:
         phases = main.subscription_phases()

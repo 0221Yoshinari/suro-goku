@@ -242,29 +242,35 @@ def checkout_reply(url: str) -> str:
     )
 
 
-def square_environment() -> str:
-    if os.getenv("SQUARE_ENVIRONMENT", "sandbox").strip().lower() == "production":
-        return "production"
-    return "sandbox"
-
-
 def square_application_id() -> str:
     return os.getenv("SQUARE_APPLICATION_ID", "").strip()
 
 
+def square_environment() -> str:
+    """アプリケーションIDに合わせて接続先を決める。
+
+    環境変数だけ production で、ID が sandbox- のままだと本番APIが401になり、
+    LINE の登録リンクが作れない。本番ID（sq0idp-）が入るまで Sandbox を使う。
+    """
+    application_id = square_application_id()
+    requested = os.getenv("SQUARE_ENVIRONMENT", "sandbox").strip().lower()
+    if application_id.startswith("sandbox-"):
+        if requested == "production" and not _resolved_ids.get("sandbox_mode_warned"):
+            _resolved_ids["sandbox_mode_warned"] = "1"
+            logger.warning("Square application id is sandbox; keeping sandbox API")
+        return "sandbox"
+    if application_id.startswith("sq0idp-") or requested == "production":
+        return "production"
+    return "sandbox"
+
+
 def ensure_square_credentials() -> str:
     """カード入力欄と API は、同じ Square 環境の認証情報だけを使う。"""
-    environment = square_environment()
     application_id = square_application_id()
     token = os.getenv("SQUARE_ACCESS_TOKEN", "").strip()
     if not application_id or not token:
         raise SquareAPIError(500, ["SQUARE_CREDENTIALS"])
-    sandbox_application = application_id.startswith("sandbox-")
-    if environment == "production" and sandbox_application:
-        raise SquareAPIError(500, ["SANDBOX_CREDENTIALS"])
-    if environment == "sandbox" and not sandbox_application:
-        raise SquareAPIError(500, ["PRODUCTION_CREDENTIALS"])
-    return environment
+    return square_environment()
 
 
 def square_web_sdk_url() -> str:
