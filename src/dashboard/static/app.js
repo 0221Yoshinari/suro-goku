@@ -185,7 +185,7 @@ function formatAvgSetting(value) {
   if (!Number.isFinite(n)) {
     return "-";
   }
-  return `設定${n}`;
+  return n.toFixed(2);
 }
 
 function formatAvgSettingValue(value) {
@@ -502,7 +502,8 @@ function updateFreshness() {
     return;
   }
   const info = formatRelative(payload.judged_at);
-  freshnessEl.textContent = `${info.text} ／ ${info.next}`;
+  const note = payload.reflection_status ? ` ／ ${payload.reflection_status}` : "";
+  freshnessEl.textContent = `${info.text} ／ ${info.next}${note}`;
   freshnessEl.classList.remove("fresh", "aging", "stale");
   freshnessEl.classList.add(info.tone);
 }
@@ -1216,6 +1217,14 @@ function visibleStatusLabel(label) {
   return label || "-";
 }
 
+function digitBoardLabel(row) {
+  const label = visibleStatusLabel(row?.status_label || "通常");
+  if (label === "データ不足") {
+    return "通常";
+  }
+  return label;
+}
+
 function normalizedStatus(item) {
   if (item?.status === "EXCLUDED" || item?.judgment_excluded) {
     return item?.status || "EXCLUDED";
@@ -1340,7 +1349,7 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
       num.append(numLabel, text(String(row.digit)));
       const badge = document.createElement("span");
       badge.className = `badge ${digitBadgeClass(row)}`;
-      badge.append(text(visibleStatusLabel(row.status_label || "通常")));
+      badge.append(text(digitBoardLabel(row)));
       head.append(num, badge);
       const setting = document.createElement("p");
       setting.className = "hall-digit-setting";
@@ -1380,7 +1389,7 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
         { value: formatNumber(row.unit_count) },
         { value: formatNumber(row.total_games) },
         { value: formatNumber(row.avg_games) },
-        { value: visibleStatusLabel(row.status_label || "通常"), hit: true },
+        { value: digitBoardLabel(row), hit: true },
       ].forEach((cell) => {
         const td = document.createElement("td");
         if (cell.tier) {
@@ -1624,7 +1633,14 @@ function areaMenuLabel(item) {
   return `${item.label}（${count}店舗）`;
 }
 
+function hallHasMachines(name) {
+  return (payload.machines || []).some((item) => item && item.hall_name === name);
+}
+
 function hallDataStatus(name) {
+  if (hallHasMachines(name)) {
+    return { state: "updated", label: "データ更新済み" };
+  }
   const row = (payload.hall_status || {})[name || ""];
   if (row && row.label) {
     return { state: row.state || "queued", label: row.label };
@@ -3076,7 +3092,18 @@ async function loadJudgmentsNow(force) {
     throw new Error(`判定結果の取得に失敗しました (${response.status})`);
   }
   const next = await response.json();
-  const stamp = `${next.judged_at || ""}|${next.events_updated_at || ""}`;
+  const incoming = Array.isArray(next.machines) ? next.machines : [];
+  const current = Array.isArray(payload.machines) ? payload.machines : [];
+  if (!force && incoming.length === 0 && current.length > 0) {
+    if (next.reflection_status) {
+      payload.reflection_status = next.reflection_status;
+      payload.reflected_hall_count = next.reflected_hall_count;
+      payload.failed_hall_count = next.failed_hall_count;
+    }
+    updateFreshness();
+    return;
+  }
+  const stamp = `${next.judged_at || ""}|${next.events_updated_at || ""}|${incoming.length}|${next.reflection_status || ""}`;
   if (!force && stamp === lastJudgedAt) {
     updateFreshness();
     return;

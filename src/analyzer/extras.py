@@ -31,8 +31,6 @@ from src.analyzer.judgment import (
 
 STATUS_HIGH_56 = "HIGH_56"
 STATUS_NORMAL = "NORMAL"
-# 判定できた台が設置台の半数未満だと、判定済みの高設定台だけが平均を押し上げる。
-DIGIT_MIN_RATED_RATIO = 0.5
 STATUS_LABELS_EXT = {
     **STATUS_LABELS,
     STATUS_HIGH_56: "全56数値",
@@ -203,9 +201,21 @@ def aggregate_units(
     }
 
 
+def _shown_setting(level: int) -> int:
+    """平均に使う設定値。基準未満は設定2として数える。"""
+    if level >= 6:
+        return 6
+    if level <= 0:
+        return 2
+    return level
+
+
 def _unit_setting_level(unit: dict[str, Any]) -> int | None:
     if unit.get("judgment_excluded") or unit.get("status") == "EXCLUDED":
         return None
+    estimated = unit.get("estimated_setting")
+    if isinstance(estimated, (int, float)) and not isinstance(estimated, bool):
+        return int(estimated)
     checks = unit.get("checks") or {}
     if checks.get("meets_setting_6") is True:
         return 6
@@ -276,24 +286,23 @@ def summarize_digit_units(units: list[dict[str, Any]], digit: int) -> dict[str, 
     for unit, level in zip(usable, levels):
         if level is None:
             continue
-        shown = 6 if level == 6 else 5 if level == 5 else 4 if level == 4 else 2
+        shown = _shown_setting(level)
         games_n = _as_int(unit.get("real_normal_games") if "real_normal_games" in unit else unit.get("total_games"))
-        if games_n is None:
-            continue
-        weighted_sum += shown * games_n
-        weight_total += games_n
+        weight = float(games_n) if games_n and games_n > 0 else 1.0
+        weighted_sum += shown * weight
+        weight_total += weight
         rated_levels.append(level)
     avg_setting = round(weighted_sum / weight_total, 2) if weight_total else None
     setting6_count = sum(1 for level in rated_levels if level == 6)
     setting5_count = sum(1 for level in rated_levels if level >= 5)
     setting4_count = sum(1 for level in rated_levels if level >= 4)
     rated_count = len(rated_levels)
-    status, status_label = _setting_from_avg(avg_setting, rated_count)
     if unit_count <= 0:
         status, status_label = STATUS_INCOMPLETE, "台なし"
-    elif rated_count / unit_count < DIGIT_MIN_RATED_RATIO:
-        avg_setting = None
-        status, status_label = STATUS_INCOMPLETE, "データ不足"
+    elif avg_setting is None:
+        status, status_label = STATUS_NORMAL, "通常"
+    else:
+        status, status_label = _setting_from_avg(avg_setting, rated_count)
     rank_label = f"末尾{digit}：{status_label}" if unit_count else f"末尾{digit}：台なし"
     return {
         "digit": digit,
