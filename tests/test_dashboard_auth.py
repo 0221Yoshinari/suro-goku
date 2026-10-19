@@ -266,6 +266,33 @@ class DashboardAuthTest(unittest.TestCase):
         status, _headers, _body, _cookies = self.call("GET", "/api/judgments")
         self.assertEqual(status, 200)
 
+    def test_master_key_opens_dashboard_when_shared_password_is_off(self) -> None:
+        status, _headers, body, _cookies = self.call("GET", "/login")
+        self.assertEqual(status, 200)
+        self.assertIn('name="email" type="text"', body)
+        self.assertNotIn('type="email"', body)
+        with mock.patch.dict(os.environ, {"MEMBER_DISABLE_SHARED_PASSWORD": "1", "STRIPE_WEBHOOK_SECRET": "whsec_test"}):
+            status, headers, body, _cookies = self.call(
+                "POST",
+                "/login",
+                data={"email": "2026", "password": "2026", "next": "/"},
+            )
+            self.assertEqual(status, 303)
+            self.assertEqual(headers["location"], "/")
+            self.assertTrue(token_is_valid(self.cookies.get("dashboard_session")))
+            status, _headers, body, _cookies = self.call("GET", "/")
+            self.assertEqual(status, 200)
+            self.assertIn("店舗別ダッシュボード", body)
+            self.cookies.clear()
+            status, _headers, body, _cookies = self.call(
+                "POST",
+                "/login",
+                data={"email": "2026", "password": "nope", "next": "/"},
+            )
+            self.assertEqual(status, 200)
+            self.assertNotIn("dashboard_session", self.cookies)
+            self.assertNotIn("店舗別ダッシュボード", body)
+
     def test_wrong_password_does_not_open_dashboard(self) -> None:
         status, _headers, body, set_cookies = self.call("POST", "/login", data={"password": "nope", "next": "/"})
         self.assertEqual(status, 200)

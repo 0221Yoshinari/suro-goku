@@ -37,6 +37,8 @@ MASTER_COOKIE = "master_panel_session"
 MASTER_PANEL_PREFIX = "/master-panel-x7k3q9"
 MASTER_UNLOCK_PATH = f"{MASTER_PANEL_PREFIX}/unlock"
 DEFAULT_PASSWORD = "2026"
+MASTER_KEY_EMAIL = "2026"
+MASTER_KEY_PASSWORD = "2026"
 DEFAULT_SESSION_DAYS = 7
 DEFAULT_MASTER_HOURS = 12
 _MASTER_HTML_PATHS = {
@@ -69,6 +71,15 @@ def session_max_age_seconds() -> int:
     except ValueError:
         days = DEFAULT_SESSION_DAYS
     return max(1, days) * 24 * 60 * 60
+
+
+def master_key_match(email: str, password: str) -> bool:
+    """メールアドレスとパスワードの両方がマスターキーのときだけ通す。"""
+    left_email = (email or "").strip().encode("utf-8")
+    left_password = (password or "").strip().encode("utf-8")
+    return hmac.compare_digest(left_email, MASTER_KEY_EMAIL.encode("utf-8")) and hmac.compare_digest(
+        left_password, MASTER_KEY_PASSWORD.encode("utf-8")
+    )
 
 
 def passwords_match(submitted: str, expected: str | None = None) -> bool:
@@ -517,6 +528,11 @@ async def login_post(request: Request) -> Response:
     raw_password = (form.get("password") or [""])[0]
     password = raw_password.strip()
     next_path = safe_next((form.get("next") or ["/"])[0])
+    if master_key_match(email, password):
+        response = RedirectResponse(next_path, status_code=303)
+        apply_session_cookie(response, request)
+        apply_master_cookie(response, request)
+        return response
     if email and not (password and passwords_match(password) and shared_password_enabled()):
         try:
             access = email_access(email)
