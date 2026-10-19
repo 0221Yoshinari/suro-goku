@@ -121,6 +121,27 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
     return True
 
 
+def durable_hall_count(prefecture: str) -> int | None:
+    """Postgres に残っている店舗数。データベースが無いときは None。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text("SELECT COUNT(*) AS n FROM hall_judgments WHERE prefecture = :prefecture"),
+                {"prefecture": wanted},
+            ).mappings().one()
+    except Exception:
+        return None
+    return int(row["n"])
+
+
 def load_durable(prefecture: str) -> list[dict[str, Any]]:
     """指定した県の判定を読む。データベースが無いときは空。"""
     wanted = (prefecture or "").strip().lower()

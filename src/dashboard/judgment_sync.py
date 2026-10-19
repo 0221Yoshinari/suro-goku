@@ -74,20 +74,32 @@ def store_hall_payload(payload: dict[str, Any], output_dir: Path | None = None) 
     return dest
 
 
-def _payload_prefecture(payload: dict[str, Any]) -> str:
-    name = str(payload.get("hall_name") or "").strip()
-    hall = hall_by_name(name) if name else None
-    if hall and hall.prefecture:
-        return hall.prefecture.lower()
-    return str(payload.get("prefecture") or "").strip().lower()
+def _hall_index() -> dict[str, tuple[str, str]]:
+    """店舗名 → (保存ディレクトリ, 県)。halls.json は1回だけ読む。"""
+    from src.scraper.halls import load_halls
+
+    index: dict[str, tuple[str, str]] = {}
+    for hall in load_halls(include_disabled=True):
+        index[hall.name] = (hall.id or hall_dir_slug(hall.name), (hall.prefecture or "").lower())
+    return index
 
 
-def _disk_payloads(root: Path) -> list[dict[str, Any]]:
-    """ディスク上の店舗ファイルを全部読む。設定一覧に無くても拾う。"""
+def _disk_payloads(root: Path, wanted: str) -> list[dict[str, Any]]:
+    """その県の店舗ファイルだけ読む。全国分を開くと画面の応答が間に合わない。"""
     if not root.is_dir():
         return []
+    index = _hall_index()
+    paths: list[Path] = []
+    if wanted:
+        for name, (slug, prefecture) in index.items():
+            if prefecture == wanted:
+                paths.append(root / slug / "latest.json")
+    else:
+        paths = sorted(root.glob("*/latest.json"))
     payloads: list[dict[str, Any]] = []
-    for path in sorted(root.glob("*/latest.json")):
+    for path in paths:
+        if not path.is_file():
+            continue
         try:
             loaded = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -108,13 +120,10 @@ def read_prefecture_payloads(prefecture: str, output_dir: Path | None = None) ->
         name = str(payload.get("hall_name") or "").strip()
         if name:
             by_name[name] = payload
-    for payload in _disk_payloads(root):
+    for payload in _disk_payloads(root, wanted):
         name = str(payload.get("hall_name") or "").strip()
-        if not name:
-            continue
-        if wanted and _payload_prefecture(payload) != wanted:
-            continue
-        by_name[name] = payload
+        if name:
+            by_name[name] = payload
     return [by_name[name] for name in sorted(by_name)]
 
 
@@ -172,18 +181,20 @@ def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict
 
 def judgment_receipt(prefecture: str) -> dict[str, Any]:
     """本番が今返せている店舗数。画面の /api/judgments と同じ材料。"""
-    from src.dashboard.judgment_store import durable_enabled
+    from src.dashboard.judgment_store import durable_enabled, durable_hall_count
 
-    view = assemble_prefecture(prefecture)
+    selected = (prefecture or "").strip().lower()
+    view = assemble_prefecture(selected)
     halls = [str(name) for name in (view.get("halls") or []) if str(name).strip()]
     return {
         "ok": True,
-        "prefecture": (prefecture or "").strip().lower(),
+        "prefecture": selected,
         "machine_count": int(view.get("machine_count") or 0),
         "hall_count": len(halls),
         "halls": halls,
         "fetched_at": view.get("fetched_at"),
         "durable": durable_enabled(),
+        "durable_halls": durable_hall_count(selected),
     }
 
 
