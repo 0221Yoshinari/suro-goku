@@ -187,6 +187,8 @@ class DashboardAuthTest(unittest.TestCase):
         self.assertIn("〇〇グループ合同", body)
         self.assertIn("台別内訳", body)
         self.assertIn("公式LINEで10日間無料で試す", body)
+        self.assertIn("見られる機種も、これから増えていきます。", body)
+        self.assertIn("新台が出たときも、そのタイミングで追加できるものは追加していく予定です。", body)
         self.assertIn("【本日10/20 正式リリース開始！】", body)
         self.assertIn("10日間無料体験、実施中。", body)
         self.assertIn("【ご利用に関するご注意・免責事項】", body)
