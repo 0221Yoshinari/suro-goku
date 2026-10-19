@@ -264,6 +264,23 @@ def square_environment() -> str:
     return "sandbox"
 
 
+def square_public_status() -> dict:
+    application_id = square_application_id()
+    if application_id.startswith("sandbox-"):
+        prefix = "sandbox"
+    elif application_id.startswith("sq0idp-"):
+        prefix = "sq0idp"
+    elif application_id:
+        prefix = "other"
+    else:
+        prefix = "missing"
+    return {
+        "ok": True,
+        "squareEnvironment": square_environment(),
+        "squareApplication": prefix,
+    }
+
+
 def ensure_square_credentials() -> str:
     """カード入力欄と API は、同じ Square 環境の認証情報だけを使う。"""
     application_id = square_application_id()
@@ -317,6 +334,21 @@ def _error_codes(payload: dict) -> list[str]:
     return codes or ["ERROR"]
 
 
+def _error_summary(payload: dict) -> str:
+    parts: list[str] = []
+    for error in payload.get("errors") or []:
+        if not isinstance(error, dict):
+            continue
+        parts.append(
+            " ".join(
+                str(error.get(key) or "").strip()
+                for key in ("category", "code", "field", "detail")
+                if str(error.get(key) or "").strip()
+            )
+        )
+    return " | ".join(part for part in parts if part)[:800]
+
+
 async def square_json(
     method: str,
     path: str,
@@ -339,6 +371,8 @@ async def square_json(
     except ValueError:
         body = {}
     if response.status_code >= 400 or not isinstance(body, dict):
+        summary = _error_summary(body if isinstance(body, dict) else {})
+        logger.error("square api %s %s -> %s %s", method, path, response.status_code, summary)
         raise SquareAPIError(response.status_code, _error_codes(body if isinstance(body, dict) else {}))
     return body
 
@@ -646,8 +680,8 @@ async def handle_text(user_id: str, reply_token: str, text: str, base_url: str) 
 
 
 @app.get("/health")
-async def health() -> dict[str, bool]:
-    return {"ok": True}
+async def health() -> dict:
+    return square_public_status()
 
 
 @app.post("/square-webhook")
@@ -775,6 +809,9 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
         return;
       }
       document.getElementById("buyer-email").textContent = config.email;
+      if (config.environment !== "production") {
+        show("このページはSquareのテスト環境です。本番のクレジットカードは登録できません。", true);
+      }
       await loadScript(config.scriptUrl);
       const payments = window.Square.payments(config.applicationId, config.locationId);
       const card = await payments.card({ style: { input: { fontSize: "16px" } } });
@@ -793,7 +830,8 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
             billingContact: { givenName: "スロ極会員", email: config.email, countryCode: "JP" }
           });
           if (tokenResult.status !== "OK" || !tokenResult.token) {
-            throw new Error("card");
+            const detail = (tokenResult.errors || []).map((item) => item && item.message).filter(Boolean).join(" ");
+            throw new Error(detail || "card");
           }
           const saved = await fetch("/checkout/complete", {
             method: "POST",
@@ -813,7 +851,8 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
           form.classList.add("hidden");
           show(body.message, false);
         } catch (error) {
-          show("カードを登録できませんでした。入力内容を確認して、もう一度お試しください。", true);
+          const detail = error && error.message && error.message !== "card" ? error.message : "";
+          show(detail || "カードを登録できませんでした。入力内容を確認して、もう一度お試しください。", true);
           submit.disabled = false;
         }
       });
@@ -852,6 +891,7 @@ async def checkout_config(t: str = "") -> JSONResponse:
             "ok": True,
             "applicationId": application_id,
             "locationId": location_id,
+            "environment": square_environment(),
             "scriptUrl": square_web_sdk_url(),
             "email": str(claims["email"]),
         }

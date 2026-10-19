@@ -109,7 +109,9 @@ class BillingRulesTest(unittest.TestCase):
         self.assertEqual(client.get("/docs").status_code, 404)
         health = client.get("/health")
         self.assertEqual(health.status_code, 200)
-        self.assertEqual(health.json(), {"ok": True})
+        self.assertEqual(health.json()["ok"], True)
+        self.assertEqual(health.json()["squareEnvironment"], "sandbox")
+        self.assertEqual(health.json()["squareApplication"], "sandbox")
 
 
 class BillingMemberAdminTest(unittest.TestCase):
