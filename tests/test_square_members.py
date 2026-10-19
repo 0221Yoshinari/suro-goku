@@ -23,8 +23,10 @@ from src.dashboard.app import app
 from src.dashboard.square_members import apply_member_action
 from src.dashboard.square_members import apply_square_event
 from src.dashboard.square_members import describe_backend
+from src.dashboard.square_members import email_access
 from src.dashboard.square_members import list_members
 from src.dashboard.square_members import record_line_signup
+from src.dashboard.square_members import restore_members_from_square
 
 import main
 
@@ -333,6 +335,70 @@ class SquareLedgerTest(unittest.TestCase):
             headers={"x-square-hmacsha256-signature": _sign(client_body)},
         )
         self.assertEqual(accepted.status_code, 200)
+
+    def test_square_subscription_restores_trial_login(self) -> None:
+        restored = restore_members_from_square(
+            [
+                {
+                    "email": "paid@example.com",
+                    "line_user_id": "U1",
+                    "customer_id": "CUST9",
+                    "subscription_id": "SUB9",
+                    "status": "ACTIVE",
+                    "start_date": "2026-10-19",
+                }
+            ],
+            now=self.base,
+        )
+        self.assertEqual(restored, 1)
+        access = email_access("paid@example.com", now=self.base)
+        self.assertTrue(access["allowed"])
+        self.assertEqual(access["status"], "trialing")
+        self.assertEqual(list_members()["summary"]["trialing"], 1)
+
+    def test_billing_service_does_not_ask_itself(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"RENDER": "true", "RENDER_EXTERNAL_URL": "https://suro-goku-billing.onrender.com"},
+        ):
+            with mock.patch("urllib.request.urlopen") as opened:
+                access = email_access("missing@example.com", now=self.base)
+        opened.assert_not_called()
+        self.assertFalse(access["allowed"])
+
+    def test_tool_uses_billing_ledger_when_local_is_empty(self) -> None:
+        payload = json.dumps(
+            {
+                "allowed": True,
+                "reason": "ok",
+                "status": "trialing",
+                "email": "remote@example.com",
+                "line_user_id": "U9",
+            }
+        ).encode()
+
+        class _Body:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc: object) -> bool:
+                return False
+
+            def read(self) -> bytes:
+                return payload
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "RENDER": "true",
+                "RENDER_EXTERNAL_URL": "https://suro-goku.onrender.com",
+                "MEMBER_LEDGER_SOURCE": "",
+            },
+        ):
+            with mock.patch("urllib.request.urlopen", return_value=_Body()):
+                access = email_access("remote@example.com", now=self.base)
+        self.assertTrue(access["allowed"])
+        self.assertEqual(access["status"], "trialing")
 
 
 if __name__ == "__main__":

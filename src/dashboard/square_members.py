@@ -256,8 +256,111 @@ def tool_access(line_user_id: str, now: int | None = None) -> dict:
 
 
 def email_access(email: str, now: int | None = None) -> dict:
-    """ログインに使ったメールアドレスで台帳を引く。呼び出しのたびに台帳を読む。"""
-    return _access_for(line_user_id="", email=email, now=now)
+    """ログインに使ったメールアドレスで台帳を引く。手元に無ければ請求サーバーへ聞く。"""
+    local = _access_for(line_user_id="", email=email, now=now)
+    if local["allowed"] or not _should_ask_billing():
+        return local
+    remote = _ask_billing(email)
+    if remote and remote.get("allowed"):
+        return remote
+    return local
+
+
+def restore_members_from_square(records: list[dict], *, now: int | None = None) -> int:
+    """Square の定期購入から台帳を作り直す。再起動で消えた sqlite を戻すため。"""
+    current = int(time.time() if now is None else now)
+    restored = 0
+    with _LOCK:
+        rows = _load_members()
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            email = _clean_email(str(record.get("email") or ""))
+            customer_id = _clean_token(str(record.get("customer_id") or ""), 128)
+            line_user_id = _clean_token(str(record.get("line_user_id") or ""), 100)
+            if not email and not customer_id:
+                continue
+            member = _locate(rows, line_user_id=line_user_id, customer_id=customer_id, email=email)
+            if member is None:
+                member = _new_member(current)
+                rows.append(member)
+            square_status = str(record.get("status") or "").upper()
+            if member.get("status") == "active" and member.get("paid_at") and square_status in {"ACTIVE", "PENDING"}:
+                continue
+            _fill(
+                member,
+                line_user_id=line_user_id,
+                line_name=str(record.get("line_name") or ""),
+                email=email,
+                customer_id=customer_id,
+                subscription_id=str(record.get("subscription_id") or ""),
+            )
+            if square_status in {"CANCELED", "DEACTIVATED"}:
+                _set_status(member, "canceled", current, "square", override_operator=True)
+            elif square_status in {"ACTIVE", "PENDING", ""}:
+                _enter_trial(member, current, record.get("start_date"))
+            member["updated_at"] = current
+            _save_member(member)
+            restored += 1
+    return restored
+
+
+_BILLING_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+def _billing_member_url() -> str:
+    explicit = (os.environ.get("BILLING_MEMBER_URL") or "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    if (os.environ.get("RENDER") or "").strip().lower() in {"1", "true", "yes"}:
+        return "https://suro-goku-billing.onrender.com"
+    return ""
+
+
+def _should_ask_billing() -> bool:
+    if (os.environ.get("MEMBER_LEDGER_SOURCE") or "").strip().lower() == "local":
+        return False
+    url = _billing_member_url()
+    if not url:
+        return False
+    own = (os.environ.get("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
+    return own != url
+
+
+def _ask_billing(email: str) -> dict | None:
+    cleaned = _clean_email(email)
+    if not cleaned:
+        return None
+    cached = _BILLING_CACHE.get(cleaned)
+    if cached and time.time() - cached[0] < 60:
+        return cached[1]
+    import json
+    from urllib.parse import urlencode
+    from urllib.request import Request
+    from urllib.request import urlopen
+
+    url = _billing_member_url() + "/member-access?" + urlencode({"email": cleaned})
+    headers = {"Accept": "application/json"}
+    token = (os.environ.get("MASTER_PANEL_TOKEN") or "").strip()
+    if token:
+        headers["x-master-token"] = token
+    try:
+        with urlopen(Request(url, headers=headers), timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        print("請求サーバーの会員確認に失敗しました", flush=True)
+        return None
+    if not isinstance(payload, dict):
+        return None
+    view = _access_view(
+        bool(payload.get("allowed")),
+        str(payload.get("reason") or ""),
+        str(payload.get("status") or ""),
+        str(payload.get("line_user_id") or ""),
+        str(payload.get("email") or cleaned),
+    )
+    _BILLING_CACHE[cleaned] = (time.time(), view)
+    return view
 
 
 def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:

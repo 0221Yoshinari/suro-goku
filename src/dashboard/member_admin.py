@@ -22,6 +22,7 @@ from src.dashboard.auth import master_request_authorized
 from src.dashboard.auth import master_unlock_post
 from src.dashboard.auth import render_master_unlock
 from src.dashboard.square_members import SquareMemberError
+from src.dashboard.square_members import email_access
 from src.dashboard.square_members import apply_member_action
 from src.dashboard.square_members import list_members
 
@@ -78,9 +79,15 @@ def register_member_admin(app: FastAPI) -> None:
         kind = init_square_store()
         if kind != "postgres":
             print(
-                "会員台帳が Postgres ではありません。請求とツールに同じ DATABASE_URL を設定してください。",
+                "会員台帳が Postgres ではありません。再起動で消えないよう、Squareの定期購入から復元します。",
                 flush=True,
             )
+        try:
+            from src.dashboard.square_sync import pull_square_members
+
+            pull_square_members()
+        except Exception as exc:
+            print(f"Squareの会員復元に失敗しました: {type(exc).__name__}", flush=True)
 
     @app.get(f"{MASTER_PANEL_PREFIX}/members")
     def billing_members_page(request: Request):
@@ -97,6 +104,25 @@ def register_member_admin(app: FastAPI) -> None:
         response = RedirectResponse(f"{MASTER_PANEL_PREFIX}/members", status_code=303)
         clear_master_cookie(response)
         return response
+
+    @app.get("/member-access")
+    def billing_member_access(request: Request, email: str = "") -> JSONResponse:
+        if not _member_admin_authorized(request):
+            return JSONResponse({"allowed": False}, status_code=401, headers=_NO_STORE)
+        try:
+            access = email_access(email)
+        except SquareMemberError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=400, headers=_NO_STORE)
+        return JSONResponse(
+            {
+                "allowed": bool(access.get("allowed")),
+                "reason": access.get("reason") or "",
+                "status": access.get("status") or "",
+                "email": access.get("email") or "",
+                "line_user_id": access.get("line_user_id") or "",
+            },
+            headers=_NO_STORE,
+        )
 
     @app.get(f"{MASTER_PANEL_PREFIX}/members/rows")
     def billing_members_rows(
