@@ -7,9 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Roboto+Mono:wght@600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=70" />
+    <link rel="stylesheet" href="/static/styles.css?v=76" />
   </head>
-  <body>
+  <body class="is-loading-judgments">
     <header class="top">
       <div class="brand">
         <p class="brand-kicker">PREMIUM SLOT INTELLIGENCE</p>
@@ -35,6 +35,22 @@
         <button type="button" class="main-tab" role="tab" id="tab-machines" data-view="machines" aria-selected="false">機種合同分析</button>
         <button type="button" class="main-tab" role="tab" id="tab-digits" data-view="digits" aria-selected="false">全館・末尾分析</button>
       </nav>
+      <section id="here-lineup" class="here-lineup" aria-label="今いる店舗の並び">
+        <label class="hall-select-label here-hall">
+          今いる店舗
+          <select id="here-hall" aria-label="今いる店舗"></select>
+        </label>
+        <div class="here-actions" role="group" aria-label="並びの見方">
+          <button type="button" id="here-mode-machine" aria-pressed="false">機種を選択</button>
+          <button type="button" id="here-mode-react" aria-pressed="false">並びで反応しているところを見る</button>
+        </div>
+        <label id="here-machine-wrap" class="hall-select-label here-machine hidden">
+          機種
+          <select id="here-machine" aria-label="機種選択"></select>
+        </label>
+        <p id="here-empty" class="empty hidden"></p>
+        <div id="here-results" class="here-results"></div>
+      </section>
     </header>
 
     <div class="nav-dock" id="nav-dock">
@@ -92,6 +108,18 @@
     </div>
 
     <div id="view-stores" class="view">
+    <div id="judgment-loading" class="judgment-loading" role="status" aria-live="polite" aria-busy="true">
+      <div class="judgment-loading-card">
+        <span class="judgment-spinner" aria-hidden="true"></span>
+        <p>全台データを読み込んでいます</p>
+        <p class="hint">店舗一覧は先に出します。判定と末尾集計は届き次第、この場所へ反映します。</p>
+      </div>
+      <div class="skeleton-row" aria-hidden="true">
+        <span class="skeleton-block"></span>
+        <span class="skeleton-block"></span>
+        <span class="skeleton-block"></span>
+      </div>
+    </div>
     <section id="section-today" class="panel panel-today">
       <div class="panel-head">
         <h2 id="today-summary-title">🔥 本日の全台系・高設定挙動ホール一覧（全店舗サマリー）</h2>
@@ -363,6 +391,6 @@
     </div>
     <p id="signal-toast" class="signal-toast" role="status" aria-live="polite"></p>
     <button type="button" id="to-top" class="to-top" aria-label="ページトップに戻る">▲ TOP</button>
-    <script src="/static/app.js?v=71"></script>
+    <script src="/static/app.js?v=75"></script>
   </body>
 </html>

@@ -653,8 +653,12 @@ def hall_catalog() -> dict:
     return payload
 
 
-_JUDGMENT_CACHE: tuple[tuple, float, float, dict] | None = None
-_JUDGMENT_LOCK = threading.Lock()
+# 県ごとの画面用レスポンス。店舗の受信ごとに捨てると、開くたびに全台を組み直す。
+_VIEW_TTL_SECONDS = 20.0
+_VIEW_EMPTY_TTL_SECONDS = 3.0
+_VIEW_CACHE: dict[str, tuple[float, float, float, dict]] = {}
+_VIEW_GUARD = threading.Lock()
+_VIEW_LOCKS: dict[str, threading.Lock] = {}
 
 
 def _events_mtime() -> float:
@@ -680,7 +684,6 @@ def hall_judgment_status(request: Request, prefecture: str = "fukuoka") -> JSONR
 @app.post("/api/internal/hall-judgments")
 async def receive_hall_judgment(request: Request) -> JSONResponse:
     """Macの巡回が1店舗分の判定を本番へ置く。"""
-    global _JUDGMENT_CACHE
     from src.dashboard.judgment_sync import store_hall_payload, token_matches
 
     if not token_matches(request.headers.get("authorization")):
@@ -695,13 +698,11 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
         from src.dashboard.judgment_sync import store_reflection_status
 
         store_reflection_status(body)
-        _JUDGMENT_CACHE = None
         return JSONResponse({"ok": True, "note": body.get("note")})
     try:
         store_hall_payload(body)
     except ValueError as exc:
         return JSONResponse({"detail": str(exc)}, status_code=400)
-    _JUDGMENT_CACHE = None
     return JSONResponse({"ok": True, "hall_name": body.get("hall_name")})
 
 
@@ -726,36 +727,68 @@ def get_digit_units(hall: str = "", digit: int = 0, prefecture: str = "") -> dic
     }
 
 
+def clear_judgment_view_cache() -> None:
+    with _VIEW_GUARD:
+        _VIEW_CACHE.clear()
+
+
+def _view_lock(prefecture: str) -> threading.Lock:
+    with _VIEW_GUARD:
+        lock = _VIEW_LOCKS.get(prefecture)
+        if lock is None:
+            lock = threading.Lock()
+            _VIEW_LOCKS[prefecture] = lock
+        return lock
+
+
+def _cached_view(prefecture: str, events_mtime: float) -> dict | None:
+    cached = _VIEW_CACHE.get(prefecture)
+    if cached is None:
+        return None
+    stored_at, stored_events, ttl, payload = cached
+    if stored_events != events_mtime or time.monotonic() - stored_at >= ttl:
+        return None
+    return payload
+
+
+def _store_view(prefecture: str, events_mtime: float, payload: dict) -> None:
+    has_rows = bool(payload.get("machines"))
+    ttl = _VIEW_TTL_SECONDS if has_rows else _VIEW_EMPTY_TTL_SECONDS
+    _VIEW_CACHE[prefecture] = (time.monotonic(), events_mtime, ttl, payload)
+
+
+def _build_prefecture_view(prefecture: str) -> dict:
+    from src.dashboard.judgment_sync import assemble_prefecture
+
+    try:
+        synced = assemble_prefecture(prefecture)
+    except Exception:
+        synced = {}
+    if synced:
+        return _finish_synced(synced)
+    latest = DEFAULT_OUTPUT_DIR / "latest.json"
+    return _build_judgments(latest) if latest.is_file() else _empty_payload()
+
+
 @app.get("/api/judgments")
 def get_judgments(prefecture: str = "") -> dict:
     """県を指定しない呼び出しは福岡だけ返す。全国分を一度に返すと画面が空になる。"""
-    global _JUDGMENT_CACHE
-    selected = (prefecture or "").strip().lower() or "fukuoka"
-    marker = DEFAULT_OUTPUT_DIR / ".sync-mtime"
-    try:
-        stamp = marker.stat().st_mtime if marker.is_file() else 0.0
-    except OSError:
-        stamp = 0.0
-    events_mtime = _events_mtime()
-    with _JUDGMENT_LOCK:
-        cached = _JUDGMENT_CACHE
-        signature = (selected, stamp)
-        if cached and cached[0] == signature and cached[1] == events_mtime and time.monotonic() - cached[2] < 60:
-            return cached[3]
-        from src.dashboard.judgment_sync import assemble_prefecture, read_reflection_status
+    from src.dashboard.judgment_sync import read_reflection_status
 
-        try:
-            synced = assemble_prefecture(selected)
-        except Exception:
-            synced = {}
-        if synced:
-            payload = _finish_synced(synced)
-        else:
-            latest = DEFAULT_OUTPUT_DIR / "latest.json"
-            payload = _build_judgments(latest) if latest.is_file() else _empty_payload()
-        _attach_reflection_status(payload, read_reflection_status())
-        _JUDGMENT_CACHE = (signature, events_mtime, time.monotonic(), payload)
-        return payload
+    selected = (prefecture or "").strip().lower() or "fukuoka"
+    events_mtime = _events_mtime()
+    with _VIEW_GUARD:
+        cached = _cached_view(selected, events_mtime)
+    if cached is None:
+        with _view_lock(selected):
+            with _VIEW_GUARD:
+                cached = _cached_view(selected, events_mtime)
+            if cached is None:
+                cached = _build_prefecture_view(selected)
+                with _VIEW_GUARD:
+                    _store_view(selected, events_mtime, cached)
+    _attach_reflection_status(cached, read_reflection_status())
+    return cached
 
 
 def _attach_reflection_status(payload: dict, status: dict) -> None:
@@ -839,6 +872,12 @@ def _with_events(payload: dict) -> dict:
     """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
     # 県別の画面はここを通る。島を付けないとジャグラーモードの全6・全56・全456が空になる。
     attach_juggler_view(payload)
+    try:
+        from src.analyzer.lineup import attach_lineup_blocks
+
+        attach_lineup_blocks(payload.get("machines") or [])
+    except Exception as exc:
+        print(f"並び分析をスキップ: {type(exc).__name__}", flush=True)
     today = today_jst()
     tomorrow = (datetime.now(JST).date() + timedelta(days=1)).isoformat()
     try:

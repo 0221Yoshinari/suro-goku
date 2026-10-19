@@ -131,6 +131,9 @@ let areaFilter = readStored(AREA_STORAGE_KEY, DEFAULT_AREA);
 let jugglerMode = readStored(JUGGLER_STORAGE_KEY, "0") === "1";
 let digitHall = "all";
 let mainView = "stores";
+let lineupHall = "";
+let lineupMachine = "";
+let lineupMode = "";
 let categoryFilter = "all";
 let query = "";
 let machineQuery = "";
@@ -527,8 +530,8 @@ function estimateUnitSetting(unit) {
   if (level === 4) {
     return { level: 4, label: unit.estimated_setting_label || "設定4相当", className: "unit-s4" };
   }
-  if (level === 2 || level === 1) {
-    return { level, label: unit.estimated_setting_label || `設定${level}相当`, className: "unit-s0" };
+  if (level === 3 || level === 2 || level === 1) {
+    return { level, label: `設定${level}相当`, className: "unit-s0" };
   }
   return { level: 0, label: unit.estimated_setting_label || "基準未満", className: "unit-s0" };
 }
@@ -757,6 +760,8 @@ async function openDigitUnitModal(hall, digit) {
   }
   const requestId = ++digitUnitRequest;
   digitUnitModal.classList.remove("hidden");
+  const digitPanel = digitUnitModal.querySelector(".digit-unit-panel");
+  digitPanel?.classList.add("is-loading");
   if (digitUnitTitle) {
     digitUnitTitle.textContent = `${hall}　末尾${digit}`;
   }
@@ -772,7 +777,14 @@ async function openDigitUnitModal(hall, digit) {
     digit: String(digit),
     prefecture: pref,
   });
-  const response = await fetch(`/api/judgments/digit-units?${params}`);
+  let response;
+  try {
+    response = await fetch(`/api/judgments/digit-units?${params}`);
+  } finally {
+    if (requestId === digitUnitRequest) {
+      digitPanel?.classList.remove("is-loading");
+    }
+  }
   if (requestId !== digitUnitRequest) {
     return;
   }
@@ -2498,6 +2510,14 @@ function renderTodaySummary() {
   if (!root) {
     return;
   }
+  if (document.body.classList.contains("is-loading-judgments") && machineList().length === 0) {
+    if (meta) {
+      meta.textContent = "全台データを読み込んでいます…";
+    }
+    root.replaceChildren();
+    empty?.classList.add("hidden");
+    return;
+  }
   const featured = machineList().filter((item) => isFeaturedStatus(item));
   const byHall = new Map();
   featured.forEach((item) => {
@@ -3061,6 +3081,195 @@ function renderCoverage() {
   });
 }
 
+function formatLineupOdds(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    return "-";
+  }
+  const shown = Math.round(n * 10) / 10;
+  return `1/${Number.isInteger(shown) ? String(shown) : shown.toFixed(1)}`;
+}
+
+function formatLineupCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "-";
+  }
+  return n.toLocaleString("ja-JP", { maximumFractionDigits: 1 });
+}
+
+function formatLineupDiff(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "-";
+  }
+  const body = Math.abs(Math.round(n)).toLocaleString("ja-JP");
+  if (n > 0) {
+    return `+${body}`;
+  }
+  if (n < 0) {
+    return `-${body}`;
+  }
+  return "0";
+}
+
+function formatLineupHit(unit) {
+  if (unit.first_hit_count == null || unit.first_hit_count === "") {
+    return "-";
+  }
+  return `${formatLineupCount(unit.first_hit_count)}（${formatLineupOdds(unit.first_hit_probability)}）`;
+}
+
+function lineupMachines(hall) {
+  if (!hall) {
+    return [];
+  }
+  return machineList()
+    .filter((item) => (item.hall_name || "") === hall && (item.units || []).length >= 2)
+    .sort((a, b) => String(a.machine_name || "").localeCompare(String(b.machine_name || ""), "ja"));
+}
+
+function lineupCard(block, machineName) {
+  const card = document.createElement("article");
+  card.className = `lineup-card lineup-card-${block.status || ""}`;
+  const head = document.createElement("div");
+  head.className = "lineup-card-head";
+  const title = document.createElement("h3");
+  if (machineName) {
+    const name = document.createElement("span");
+    name.className = "lineup-machine";
+    name.append(text(machineName));
+    title.append(name);
+  }
+  title.append(text(block.title || ""));
+  const badge = document.createElement("span");
+  badge.className = `badge badge-${block.status || "NOT_HIGH"}`;
+  badge.append(text(block.status_label || ""));
+  head.append(title, badge);
+  const odds = document.createElement("p");
+  odds.className = "lineup-spec";
+  odds.append(text(`平均初当たり確率 ${formatLineupOdds(block.avg_first_hit_probability)}`));
+  const rest = document.createElement("p");
+  rest.className = "lineup-spec";
+  rest.append(text(`平均ゲーム数 ${formatLineupCount(block.avg_games)} / 平均差枚数 ${formatLineupDiff(block.avg_diff_medals)}`));
+  const wrap = document.createElement("div");
+  wrap.className = "unit-table-wrap";
+  const table = document.createElement("table");
+  table.className = "unit-table lineup-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["台番", "総G数", "初当たり回数（確率）", "差枚数"].forEach((label) => {
+    const th = document.createElement("th");
+    th.append(text(label));
+    headRow.append(th);
+  });
+  thead.append(headRow);
+  const tbody = document.createElement("tbody");
+  (block.units || []).forEach((unit) => {
+    const tr = document.createElement("tr");
+    [String(unit.dai_no || "-"), formatLineupCount(unit.total_games), formatLineupHit(unit), formatLineupDiff(unit.diff_medals)].forEach((value) => {
+      const td = document.createElement("td");
+      td.append(text(value));
+      tr.append(td);
+    });
+    tbody.append(tr);
+  });
+  table.append(thead, tbody);
+  wrap.append(table);
+  card.append(head, odds, rest, wrap);
+  return card;
+}
+
+function hereEntries() {
+  const machines = lineupMachines(lineupHall);
+  if (lineupMode === "machine") {
+    const machine = machines.find((item) => item.machine_name === lineupMachine);
+    return (machine?.lineup_blocks || []).map((block) => ({ block, machineName: "" }));
+  }
+  if (lineupMode === "react") {
+    return machines
+      .flatMap((machine) => (machine.lineup_blocks || []).map((block) => ({
+        block,
+        machineName: machine.machine_name || "",
+      })))
+      .sort((a, b) => Number(b.block.length) - Number(a.block.length) || Number(a.block.start_dai) - Number(b.block.start_dai));
+  }
+  return [];
+}
+
+function hereGroup(label, entries) {
+  const section = document.createElement("section");
+  section.className = "here-group";
+  const heading = document.createElement("h2");
+  heading.append(text(label));
+  section.append(heading);
+  entries.forEach((entry) => section.append(lineupCard(entry.block, entry.machineName)));
+  return section;
+}
+
+function renderHereLineup() {
+  const hallSelect = document.getElementById("here-hall");
+  const machineWrap = document.getElementById("here-machine-wrap");
+  const machineSelect = document.getElementById("here-machine");
+  const empty = document.getElementById("here-empty");
+  const results = document.getElementById("here-results");
+  if (!hallSelect || !machineWrap || !machineSelect || !empty || !results) {
+    return;
+  }
+  const names = hallTabNames();
+  if (!names.includes(lineupHall)) {
+    lineupHall = names.includes(hallFilter) ? hallFilter : (names[0] || "");
+    lineupMachine = "";
+  }
+  fillHallSelect(hallSelect, { includeAll: false, value: lineupHall });
+  document.getElementById("here-mode-machine")?.classList.toggle("is-active", lineupMode === "machine");
+  document.getElementById("here-mode-machine")?.setAttribute("aria-pressed", lineupMode === "machine" ? "true" : "false");
+  document.getElementById("here-mode-react")?.classList.toggle("is-active", lineupMode === "react");
+  document.getElementById("here-mode-react")?.setAttribute("aria-pressed", lineupMode === "react" ? "true" : "false");
+  machineWrap.classList.toggle("hidden", lineupMode !== "machine");
+  const machines = lineupMachines(lineupHall);
+  machineSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.append(text("機種を選択"));
+  machineSelect.append(placeholder);
+  machines.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.machine_name || "";
+    option.append(text(item.machine_name || "(機種不明)"));
+    machineSelect.append(option);
+  });
+  if (!machines.some((item) => item.machine_name === lineupMachine)) {
+    lineupMachine = "";
+  }
+  machineSelect.value = lineupMachine;
+  results.replaceChildren();
+  if (lineupMode === "machine" && !lineupMachine) {
+    empty.textContent = "機種を選ぶと、並びを表示します";
+    empty.classList.remove("hidden");
+    return;
+  }
+  if (!lineupMode) {
+    empty.classList.add("hidden");
+    return;
+  }
+  const entries = hereEntries();
+  const longs = entries.filter((entry) => Number(entry.block.length) >= 3);
+  const pairs = entries.filter((entry) => Number(entry.block.length) === 2);
+  if (!longs.length && !pairs.length) {
+    empty.textContent = "該当する並び高設定挙動はありません";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  if (longs.length) {
+    results.append(hereGroup("3台〜並び", longs));
+  }
+  if (pairs.length) {
+    results.append(hereGroup("2台並び", pairs));
+  }
+}
+
 function renderDigitsView() {
   if (!hallDigitBoardsEl) {
     return;
@@ -3159,9 +3368,14 @@ function render() {
   renderSelectedHallEvents();
   renderJointAnnounce();
   renderTodaySummary();
-  judgedAtEl.textContent = formatWhen(payload.judged_at);
+  if (document.body.classList.contains("is-loading-judgments") && !payload.judged_at) {
+    judgedAtEl.textContent = "読み込み中…";
+  } else {
+    judgedAtEl.textContent = formatWhen(payload.judged_at);
+  }
   updateFetchedStamps();
   updateFreshness();
+  renderHereLineup();
   if (mainView === "coverage") {
     renderCoverage();
     return;
@@ -3213,6 +3427,17 @@ async function loadHallCatalog() {
 }
 
 let judgmentsInFlight = null;
+let judgmentsLoaded = false;
+
+function setJudgmentLoading(active) {
+  document.body.classList.toggle("is-loading-judgments", active);
+  const banner = document.getElementById("judgment-loading");
+  if (!banner) {
+    return;
+  }
+  banner.classList.toggle("hidden", !active);
+  banner.setAttribute("aria-busy", active ? "true" : "false");
+}
 
 async function loadJudgments(force) {
   if (judgmentsInFlight) {
@@ -3226,34 +3451,53 @@ async function loadJudgments(force) {
 
 async function loadJudgmentsNow(force) {
   showError("");
-  const pref = prefectureFilter || DEFAULT_PREF;
-  const response = await fetch(`/api/judgments?prefecture=${encodeURIComponent(pref)}`);
-  if (redirectIfUnauthorized(response)) {
-    return;
+  const firstPaint = !judgmentsLoaded;
+  const showLoading = firstPaint || !(payload.machines || []).length;
+  if (showLoading) {
+    setJudgmentLoading(true);
+  } else if (force && judgedAtEl) {
+    judgedAtEl.textContent = "読み込み中…";
   }
-  if (!response.ok) {
-    throw new Error(`判定結果の取得に失敗しました (${response.status})`);
-  }
-  const next = await response.json();
-  const incoming = Array.isArray(next.machines) ? next.machines : [];
-  const current = Array.isArray(payload.machines) ? payload.machines : [];
-  if (!force && incoming.length === 0 && current.length > 0) {
-    if (next.reflection_status) {
-      payload.reflection_status = next.reflection_status;
-      payload.reflected_hall_count = next.reflected_hall_count;
-      payload.failed_hall_count = next.failed_hall_count;
+  let revealed = false;
+  try {
+    const pref = prefectureFilter || DEFAULT_PREF;
+    const response = await fetch(`/api/judgments?prefecture=${encodeURIComponent(pref)}`);
+    if (redirectIfUnauthorized(response)) {
+      return;
     }
-    updateFreshness();
-    return;
+    if (!response.ok) {
+      throw new Error(`判定結果の取得に失敗しました (${response.status})`);
+    }
+    const next = await response.json();
+    const incoming = Array.isArray(next.machines) ? next.machines : [];
+    const current = Array.isArray(payload.machines) ? payload.machines : [];
+    judgmentsLoaded = true;
+    if (showLoading) {
+      setJudgmentLoading(false);
+      revealed = true;
+    }
+    if (!force && incoming.length === 0 && current.length > 0) {
+      if (next.reflection_status) {
+        payload.reflection_status = next.reflection_status;
+        payload.reflected_hall_count = next.reflected_hall_count;
+        payload.failed_hall_count = next.failed_hall_count;
+      }
+      updateFreshness();
+      return;
+    }
+    const stamp = `${next.judged_at || ""}|${next.events_updated_at || ""}|${incoming.length}|${next.reflection_status || ""}`;
+    if (!force && stamp === lastJudgedAt) {
+      updateFreshness();
+      return;
+    }
+    payload = next;
+    lastJudgedAt = stamp;
+    render();
+  } finally {
+    if (showLoading && !revealed) {
+      setJudgmentLoading(false);
+    }
   }
-  const stamp = `${next.judged_at || ""}|${next.events_updated_at || ""}|${incoming.length}|${next.reflection_status || ""}`;
-  if (!force && stamp === lastJudgedAt) {
-    updateFreshness();
-    return;
-  }
-  payload = next;
-  lastJudgedAt = stamp;
-  render();
 }
 
 function setButtonBusy(button, busy) {
@@ -3341,8 +3585,33 @@ document.querySelectorAll(".main-tab").forEach((button) => {
 });
 hallSelectEl?.addEventListener("change", () => {
   hallFilter = hallSelectEl.value;
+  lineupHall = hallFilter;
+  lineupMachine = "";
   syncGroupToHall(hallFilter);
   render();
+});
+document.getElementById("here-hall")?.addEventListener("change", (event) => {
+  lineupHall = event.target.value || "";
+  lineupMachine = "";
+  if (lineupHall && lineupHall !== "all") {
+    hallFilter = lineupHall;
+    syncGroupToHall(lineupHall);
+  }
+  render();
+  document.getElementById("here-lineup")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.getElementById("here-mode-machine")?.addEventListener("click", () => {
+  lineupMode = lineupMode === "machine" ? "" : "machine";
+  renderHereLineup();
+});
+document.getElementById("here-mode-react")?.addEventListener("click", () => {
+  lineupMode = lineupMode === "react" ? "" : "react";
+  renderHereLineup();
+});
+document.getElementById("here-machine")?.addEventListener("change", (event) => {
+  lineupMachine = event.target.value || "";
+  lineupMode = "machine";
+  renderHereLineup();
 });
 digitHallSelectEl?.addEventListener("change", () => {
   digitHall = digitHallSelectEl.value || "all";
