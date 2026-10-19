@@ -217,7 +217,6 @@ def _empty_payload() -> dict:
         "machines": [],
         "results": [],
     }
-    attach_juggler_view(payload)
     _apply_hall_catalog(payload)
     return _with_events(payload)
 
@@ -826,9 +825,6 @@ def _present_judgment(payload: dict) -> dict:
                 incoming_payload = {}
             if isinstance(incoming_payload, dict):
                 payload["fetched_at"] = incoming_payload.get("fetched_at")
-    attach_juggler_view(payload)
-    # 台の内訳は machines[].units に入っている。results は同じ台の複製で、画面には渡さない。
-    payload.pop("results", None)
     return _with_events(payload)
 
 
@@ -841,6 +837,8 @@ def _attach_user_catalog(payload: dict) -> None:
 
 def _with_events(payload: dict) -> dict:
     """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
+    # 県別の画面はここを通る。島を付けないとジャグラーモードの全6・全56・全456が空になる。
+    attach_juggler_view(payload)
     today = today_jst()
     tomorrow = (datetime.now(JST).date() + timedelta(days=1)).isoformat()
     try:

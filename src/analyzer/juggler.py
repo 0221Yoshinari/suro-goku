@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.analyzer.judgment import SettingBar, _meets_setting, _meets_setting5, _meets_setting6
 from src.normalize import norm_name
 
 # 公表値（設定6 / 5 / 4 の合算・REG）。機種マスターが無い島のフォールバック。
@@ -238,6 +239,12 @@ def _games_score(avg_games: float | None, min_games: int) -> float:
     return 0.0
 
 
+def _setting_bar(entry: Any) -> SettingBar | None:
+    if not isinstance(entry, dict) or entry.get("synthetic") is None:
+        return None
+    return SettingBar(float(entry["synthetic"]), _as_float(entry.get("rb")))
+
+
 def score_island(
     *,
     unit_count: int,
@@ -246,17 +253,23 @@ def score_island(
     rb_probability: float | None,
     bars: dict[str, Any],
 ) -> dict[str, Any]:
-    """全6 / 全56 / 全456。合算とREGが両方ラインに乗れば、平均回転が低くても載せる。"""
+    """全6 / 全56 / 全456。合算とREGが両方ラインに乗れば、平均回転が低くても載せる。
+
+    設定6と設定5は、通常画面と同じく規定G以上で理論値の+4%までを同じランクにする。
+    """
     del unit_count  # 台数では外さない。1台でもラインに乗れば同じ欄に出す。
     min_games = int(bars.get("min_games") or 3000)
     six = bars.get("6") or {}
     five = bars.get("5") or {}
     four = bars.get("4") or {}
-    meets6 = _better(synthetic, _as_float(six.get("synthetic"))) and _better(rb_probability, _as_float(six.get("rb")))
-    meets5 = _better(synthetic, _as_float(five.get("synthetic"))) and _better(rb_probability, _as_float(five.get("rb")))
-    meets4 = _better(synthetic, _as_float(four.get("synthetic"))) and _better(rb_probability, _as_float(four.get("rb")))
-    reg5 = _better(rb_probability, _as_float(five.get("rb")))
-    reg6 = _better(rb_probability, _as_float(six.get("rb")))
+    bar6 = _setting_bar(six if isinstance(six, dict) else None)
+    bar5 = _setting_bar(five if isinstance(five, dict) else None)
+    bar4 = _setting_bar(four if isinstance(four, dict) else None)
+    meets6 = _meets_setting6("A", synthetic, rb_probability, bar6, bar5, sample_games=avg_games) is True
+    meets5 = _meets_setting5("A", synthetic, rb_probability, bar5, bar4, sample_games=avg_games) is True
+    meets4 = _meets_setting("A", synthetic, rb_probability, bar4) is True
+    reg5 = _better(rb_probability, _as_float(five.get("rb")) if isinstance(five, dict) else None)
+    reg6 = _better(rb_probability, _as_float(six.get("rb")) if isinstance(six, dict) else None)
     games_ready = avg_games is not None and avg_games >= min_games
     low_sample = not games_ready
     if meets6:

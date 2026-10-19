@@ -138,6 +138,23 @@ class JugglerIslandScoreTest(unittest.TestCase):
         self.assertEqual(gogo["badge"], "high456")
         self.assertTrue(gogo["low_sample"])
 
+    def test_setting5_margin_matches_store_dashboard(self) -> None:
+        # 玉屋555大橋のネオアイム。REGは設定5理論値を少し超えるが、通常画面は全56。
+        judged = score_island(
+            unit_count=10,
+            avg_games=3140.6,
+            synthetic=134.8,
+            rb_probability=280.4,
+            bars={
+                "min_games": 3000,
+                "6": {"synthetic": 127.5, "rb": 255.0},
+                "5": {"synthetic": 136.5, "rb": 273.1},
+                "4": {"synthetic": 147.6, "rb": 321.3},
+            },
+        )
+        self.assertEqual(judged["badge"], "high56")
+        self.assertFalse(judged["low_sample"])
+
 
 class JugglerSlumpTest(unittest.TestCase):
     def test_diff_and_unit_order_slump(self) -> None:
@@ -183,6 +200,30 @@ class JugglerSlumpTest(unittest.TestCase):
         )
         self.assertEqual(islands[0]["diff_medals"], 420)
         self.assertEqual(islands[0]["units"][0]["diff_medals"], 420)
+
+
+class JugglerPrefectureViewTest(unittest.TestCase):
+    def test_store_dashboard_payload_keeps_area_juggler_islands(self) -> None:
+        from src.dashboard.app import _finish_synced
+
+        payload = _finish_synced(
+            {
+                "machines": [
+                    _machine(
+                        "GOGOアリーナ天神",
+                        "ネオアイムジャグラーEX",
+                        [_unit(str(index), 3200, 14, 14) for index in range(1, 5)],
+                    )
+                ],
+                "halls": ["GOGOアリーナ天神"],
+            }
+        )
+        islands = payload["juggler"]["islands"]
+        self.assertEqual(payload["juggler"]["all6_count"], 1)
+        self.assertEqual(islands[0]["badge"], "all6")
+        self.assertEqual(islands[0]["family_id"], "neo-im-juggler")
+        self.assertEqual(islands[0]["hall_name"], "GOGOアリーナ天神")
+        self.assertNotIn("results", payload)
 
 
 class JugglerPayloadTest(unittest.TestCase):
