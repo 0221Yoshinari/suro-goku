@@ -170,7 +170,9 @@
         credentials: "same-origin",
       });
       if (!response.ok) {
-        showError(response.status === 401 ? "管理者認証が必要です。" : "会員一覧を読み込めませんでした。");
+        const payload = await response.json().catch(() => ({}));
+        const fallback = response.status === 401 ? "管理者認証が必要です。" : "会員一覧を読み込めませんでした。";
+        showError(payload.detail || fallback);
         return;
       }
       const payload = await response.json();

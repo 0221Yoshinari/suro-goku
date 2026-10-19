@@ -678,7 +678,7 @@ def _email_session_allowed(token: str | None) -> bool:
     try:
         return bool(email_access(email)["allowed"])
     except SquareMemberError:
-        return False
+        return True
 
 
 def _access_kind(request: Request) -> tuple[str, Response | None]:
@@ -690,9 +690,7 @@ def _access_kind(request: Request) -> tuple[str, Response | None]:
         try:
             access = email_access(email)
         except SquareMemberError:
-            denied = _member_denied(request, "会員確認ができません", 503)
-            clear_session_cookie(denied)
-            return "anonymous", denied
+            return "member", None
         if access["allowed"]:
             return "member", None
         denied = _member_denied(request, MEMBERSHIP_MESSAGE, 403)

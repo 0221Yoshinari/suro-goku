@@ -26,7 +26,7 @@
     </header>
 
     <p class="admin-note">
-      LINE の申込と Square の定期購入を同じ台帳で見ます。初回の有料決済が完了すると「有料会員」になります。時刻は日本時間、表示は15秒ごとに更新されます。
+      LINE の申込と Square の定期購入を同じ台帳で見ます。初回の有料決済が完了すると「有料会員」になります。サーバーが再起動しても Square の契約から会員を戻します。Square に繋がらないときは、0人とは表示しません。時刻は日本時間、表示は15秒ごとに更新されます。
     </p>
     <p id="member-status" class="admin-status" role="status"></p>
     <p id="member-error" class="error hidden" role="alert"></p>
@@ -90,6 +90,6 @@
       </div>
       <p id="member-empty" class="empty hidden">該当する会員はいません。</p>
     </section>
-    <script src="/static/members.js?v=1"></script>
+    <script src="/static/members.js?v=2"></script>
   </body>
 </html>

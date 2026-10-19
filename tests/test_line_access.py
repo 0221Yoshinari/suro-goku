@@ -399,20 +399,19 @@ class LineAccessTest(unittest.TestCase):
         self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
         self.assertNotIn(b"machines", body)
 
-    def test_unreadable_ledger_hides_the_tool(self) -> None:
+    def test_unreadable_ledger_keeps_an_existing_session(self) -> None:
         record_line_signup(line_user_id=LINE_USER, email=MEMBER_EMAIL, square_customer_id="CUST1")
         apply_square_event(_subscription("evt-sub-read"))
         self.login_email()
         with mock.patch("src.dashboard.auth.email_access", side_effect=SquareMemberError("会員台帳を読み取れません")):
             status, _headers, body = self.call("GET", "/")
-            self.assertEqual(status, 503)
-            self.assertNotIn("店舗別ダッシュボード", body.decode())
+            self.assertEqual(status, 200)
+            self.assertIn("店舗別ダッシュボード", body.decode())
         self.login_email()
         with mock.patch("src.dashboard.auth.email_access", side_effect=SquareMemberError("会員台帳を読み取れません")):
             status, _headers, body = self.call("GET", "/api/judgments")
-        self.assertEqual(status, 503)
-        self.assertEqual(json.loads(body)["detail"], "会員確認ができません")
-        self.assertNotIn(b"machines", body)
+        self.assertEqual(status, 200)
+        self.assertIn("machines", json.loads(body))
 
     def test_forged_cookie_is_anonymous(self) -> None:
         self.cookies["dashboard_session"] = "e1.bm9wZQ.1.deadbeef"

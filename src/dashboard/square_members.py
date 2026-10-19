@@ -257,11 +257,18 @@ def tool_access(line_user_id: str, now: int | None = None) -> dict:
 
 def email_access(email: str, now: int | None = None) -> dict:
     """ログインに使ったメールアドレスで台帳を引く。手元に無ければ請求サーバーへ聞く。"""
+    from src.dashboard.square_sync import ensure_square_members
+    from src.dashboard.square_sync import needs_square_restore
+
+    if needs_square_restore() and not _should_ask_billing() and not ensure_square_members():
+        raise SquareMemberError("会員確認ができません。しばらくしてから再度お試しください。")
     local = _access_for(line_user_id="", email=email, now=now)
     if local["allowed"] or not _should_ask_billing():
         return local
     remote = _ask_billing(email)
-    if remote and remote.get("allowed"):
+    if remote is None:
+        raise SquareMemberError("会員確認ができません。しばらくしてから再度お試しください。")
+    if remote.get("allowed"):
         return remote
     return local
 
@@ -285,8 +292,6 @@ def restore_members_from_square(records: list[dict], *, now: int | None = None) 
                 member = _new_member(current)
                 rows.append(member)
             square_status = str(record.get("status") or "").upper()
-            if member.get("status") == "active" and member.get("paid_at") and square_status in {"ACTIVE", "PENDING"}:
-                continue
             _fill(
                 member,
                 line_user_id=line_user_id,
@@ -295,10 +300,14 @@ def restore_members_from_square(records: list[dict], *, now: int | None = None) 
                 customer_id=customer_id,
                 subscription_id=str(record.get("subscription_id") or ""),
             )
+            _apply_note(member, record.get("note"))
             if square_status in {"CANCELED", "DEACTIVATED"}:
                 _set_status(member, "canceled", current, "square", override_operator=True)
-            elif square_status in {"ACTIVE", "PENDING", ""}:
+            elif square_status in {"ACTIVE", "PENDING"}:
                 _enter_trial(member, current, record.get("start_date"))
+            elif not member.get("status"):
+                member["status"] = "pending"
+                member["status_source"] = "square"
             member["updated_at"] = current
             _save_member(member)
             restored += 1
@@ -335,6 +344,7 @@ def _ask_billing(email: str) -> dict | None:
     if cached and time.time() - cached[0] < 60:
         return cached[1]
     import json
+    from urllib.error import HTTPError
     from urllib.parse import urlencode
     from urllib.request import Request
     from urllib.request import urlopen
@@ -344,12 +354,24 @@ def _ask_billing(email: str) -> dict | None:
     token = (os.environ.get("MASTER_PANEL_TOKEN") or "").strip()
     if token:
         headers["x-master-token"] = token
-    try:
-        with urlopen(Request(url, headers=headers), timeout=20) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except Exception:
-        print("請求サーバーの会員確認に失敗しました", flush=True)
-        return None
+    payload = None
+    for attempt in range(2):
+        try:
+            with urlopen(Request(url, headers=headers), timeout=25) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            break
+        except HTTPError as exc:
+            if exc.code >= 500 and attempt == 0:
+                time.sleep(1)
+                continue
+            print("請求サーバーの会員確認に失敗しました", flush=True)
+            return None
+        except Exception:
+            if attempt == 0:
+                time.sleep(1)
+                continue
+            print("請求サーバーの会員確認に失敗しました", flush=True)
+            return None
     if not isinstance(payload, dict):
         return None
     view = _access_view(
@@ -1026,6 +1048,57 @@ def _save_member(member: dict) -> None:
         raise SquareMemberError("会員台帳を保存できません") from exc
     finally:
         connection.close()
+    try:
+        from src.dashboard.square_sync import remember_member
+
+        remember_member(dict(member))
+    except Exception as exc:
+        print(f"会員メモの保存を開始できませんでした: {type(exc).__name__}", flush=True)
+
+
+def _apply_note(member: dict, note: object) -> None:
+    """Square の顧客メモに残した台帳の写しを会員へ戻す。"""
+    text = str(note or "")
+    if not text.startswith("SURO1:"):
+        return
+    try:
+        import json
+
+        snapshot = json.loads(text[6:])
+    except (UnicodeError, ValueError):
+        return
+    if not isinstance(snapshot, dict):
+        return
+    _fill(
+        member,
+        line_user_id=str(snapshot.get("line_user_id") or ""),
+        line_name=str(snapshot.get("line_name") or ""),
+        email=str(snapshot.get("email") or ""),
+        subscription_id=str(snapshot.get("square_subscription_id") or ""),
+    )
+    status = str(snapshot.get("status") or "")
+    if status in _STATUSES:
+        member["status"] = status
+    source = str(snapshot.get("status_source") or "")
+    if source:
+        member["status_source"] = source
+    registered = _optional_stamp(snapshot.get("registered_at"))
+    if registered:
+        member["registered_at"] = registered
+    for key in ("trial_end", "paid_at"):
+        stamp = _optional_stamp(snapshot.get(key))
+        if stamp:
+            member[key] = stamp
+
+
+def _optional_stamp(value: object) -> int:
+    if value in (None, ""):
+        return 0
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return number if number > 0 else 0
 
 
 def _event_seen(event_id: str) -> bool:

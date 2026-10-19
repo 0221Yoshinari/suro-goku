@@ -105,6 +105,11 @@ async def _lifespan(_app):
             "会員台帳が Postgres ではありません。請求サーバーと同じ DATABASE_URL を設定してください。",
             flush=True,
         )
+    from src.dashboard.square_sync import ensure_square_members
+    from src.dashboard.square_sync import keep_square_members
+
+    ensure_square_members()
+    keep_square_members()
     from src.scraper.x_monitor import ensure_background_monitor
 
     ensure_background_monitor()
@@ -362,6 +367,11 @@ def members_admin_rows(
     order: str = "desc",
 ) -> dict[str, Any]:
     _require_staff(request)
+    from src.dashboard.square_sync import ensure_square_members
+    from src.dashboard.square_sync import needs_square_restore
+
+    if needs_square_restore() and not ensure_square_members():
+        raise HTTPException(status_code=503, detail="会員台帳を読み込めませんでした。少し待って、再読み込みしてください。")
     try:
         return list_members(query=q, status=status, sort=sort, order=order)
     except SquareMemberError as exc:

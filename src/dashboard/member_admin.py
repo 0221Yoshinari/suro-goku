@@ -82,12 +82,11 @@ def register_member_admin(app: FastAPI) -> None:
                 "会員台帳が Postgres ではありません。再起動で消えないよう、Squareの定期購入から復元します。",
                 flush=True,
             )
-        try:
-            from src.dashboard.square_sync import pull_square_members
+        from src.dashboard.square_sync import ensure_square_members
+        from src.dashboard.square_sync import keep_square_members
 
-            pull_square_members()
-        except Exception as exc:
-            print(f"Squareの会員復元に失敗しました: {type(exc).__name__}", flush=True)
+        ensure_square_members()
+        keep_square_members()
 
     @app.get(f"{MASTER_PANEL_PREFIX}/members")
     def billing_members_page(request: Request):
@@ -112,7 +111,7 @@ def register_member_admin(app: FastAPI) -> None:
         try:
             access = email_access(email)
         except SquareMemberError as exc:
-            return JSONResponse({"detail": str(exc)}, status_code=400, headers=_NO_STORE)
+            return JSONResponse({"detail": str(exc)}, status_code=503, headers=_NO_STORE)
         return JSONResponse(
             {
                 "allowed": bool(access.get("allowed")),
@@ -134,6 +133,15 @@ def register_member_admin(app: FastAPI) -> None:
     ) -> JSONResponse:
         if not _member_admin_authorized(request):
             return JSONResponse({"detail": "認証が必要です"}, status_code=401, headers=_NO_STORE)
+        from src.dashboard.square_sync import ensure_square_members
+        from src.dashboard.square_sync import needs_square_restore
+
+        if needs_square_restore() and not ensure_square_members():
+            return JSONResponse(
+                {"detail": "会員台帳を読み込めませんでした。少し待って、再読み込みしてください。"},
+                status_code=503,
+                headers=_NO_STORE,
+            )
         try:
             payload = list_members(query=q, status=status, sort=sort, order=order)
         except SquareMemberError as exc:

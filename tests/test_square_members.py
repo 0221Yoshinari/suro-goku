@@ -20,6 +20,7 @@ os.environ.setdefault("DASHBOARD_PASSWORD", "owner-secret")
 os.environ.setdefault("MASTER_PANEL_TOKEN", "panel-token-value")
 
 from src.dashboard.app import app
+from src.dashboard.square_members import SquareMemberError
 from src.dashboard.square_members import apply_member_action
 from src.dashboard.square_members import apply_square_event
 from src.dashboard.square_members import describe_backend
@@ -27,6 +28,7 @@ from src.dashboard.square_members import email_access
 from src.dashboard.square_members import list_members
 from src.dashboard.square_members import record_line_signup
 from src.dashboard.square_members import restore_members_from_square
+from src.dashboard.square_sync import ensure_square_members
 
 import main
 
@@ -359,7 +361,11 @@ class SquareLedgerTest(unittest.TestCase):
     def test_billing_service_does_not_ask_itself(self) -> None:
         with mock.patch.dict(
             os.environ,
-            {"RENDER": "true", "RENDER_EXTERNAL_URL": "https://suro-goku-billing.onrender.com"},
+            {
+                "RENDER": "true",
+                "RENDER_EXTERNAL_URL": "https://suro-goku-billing.onrender.com",
+                "SQUARE_ACCESS_TOKEN": "",
+            },
         ):
             with mock.patch("urllib.request.urlopen") as opened:
                 access = email_access("missing@example.com", now=self.base)
@@ -399,6 +405,84 @@ class SquareLedgerTest(unittest.TestCase):
                 access = email_access("remote@example.com", now=self.base)
         self.assertTrue(access["allowed"])
         self.assertEqual(access["status"], "trialing")
+
+    def test_operator_status_survives_a_restart(self) -> None:
+        note = "SURO1:" + json.dumps(
+            {
+                "status": "suspended",
+                "status_source": "operator",
+                "trial_end": self.base + 20 * 86400,
+                "email": "paid@example.com",
+                "line_user_id": "U1",
+            }
+        )
+        restore_members_from_square(
+            [
+                {
+                    "email": "paid@example.com",
+                    "line_user_id": "U1",
+                    "customer_id": "CUST9",
+                    "subscription_id": "SUB9",
+                    "status": "ACTIVE",
+                    "start_date": "2026-10-19",
+                    "note": note,
+                }
+            ],
+            now=self.base,
+        )
+        access = email_access("paid@example.com", now=self.base)
+        self.assertFalse(access["allowed"])
+        self.assertEqual(access["status"], "suspended")
+
+    def test_square_cancel_overrides_a_saved_trial(self) -> None:
+        note = "SURO1:" + json.dumps({"status": "trialing", "status_source": "square", "email": "paid@example.com"})
+        restore_members_from_square(
+            [
+                {
+                    "email": "paid@example.com",
+                    "line_user_id": "U1",
+                    "customer_id": "CUST9",
+                    "subscription_id": "SUB9",
+                    "status": "CANCELED",
+                    "note": note,
+                }
+            ],
+            now=self.base,
+        )
+        access = email_access("paid@example.com", now=self.base)
+        self.assertFalse(access["allowed"])
+        self.assertEqual(access["status"], "canceled")
+
+    def test_local_ledger_does_not_call_square(self) -> None:
+        with mock.patch("src.dashboard.square_sync.pull_square_members") as pulled:
+            self.assertTrue(ensure_square_members())
+        pulled.assert_not_called()
+
+    def test_tool_does_not_treat_a_billing_outage_as_non_member(self) -> None:
+        from urllib.error import URLError
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "RENDER": "true",
+                "RENDER_EXTERNAL_URL": "https://suro-goku.onrender.com",
+                "MEMBER_LEDGER_SOURCE": "",
+            },
+        ):
+            with mock.patch("urllib.request.urlopen", side_effect=URLError("down")):
+                with mock.patch("src.dashboard.square_members.time.sleep"):
+                    with self.assertRaises(SquareMemberError):
+                        email_access("offline@example.com", now=self.base)
+
+    def test_member_list_is_not_shown_as_empty_when_square_cannot_be_read(self) -> None:
+        from fastapi.testclient import TestClient
+
+        with mock.patch.dict(os.environ, {"RENDER": "true", "SQUARE_ACCESS_TOKEN": "token", "MEMBER_ADMIN_OPEN": "1"}):
+            with mock.patch("src.dashboard.square_sync.ensure_square_members", return_value=False):
+                client = TestClient(main.app)
+                response = client.get("/master-panel-x7k3q9/members/rows")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("読み込めませんでした", response.json()["detail"])
 
 
 if __name__ == "__main__":
