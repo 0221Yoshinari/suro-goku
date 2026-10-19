@@ -1,7 +1,7 @@
 import unittest
 from typing import Optional
 
-from src.analyzer.extras import summarize_digit_units
+from src.analyzer.extras import digit_unit_rows, summarize_digit_units
 
 
 def _unit(dai: str, level: Optional[int], games: int = 1000) -> dict:
@@ -55,6 +55,39 @@ class HallDigitAverageTest(unittest.TestCase):
         self.assertEqual(f"{row['avg_setting']:.2f}", "3.20")
         self.assertNotEqual(row["status_label"], "データ不足")
         self.assertEqual(row["rated_count"], 5)
+
+    def test_digit_unit_rows_keep_only_the_requested_tail(self) -> None:
+        machines = [
+            {
+                "hall_name": "MJアリーナ干隈店",
+                "machine_name": "マイジャグラーV",
+                "units": [
+                    {
+                        "dai_no": "117",
+                        "real_normal_games": 2400,
+                        "diff_medals": 1200,
+                        "bb_count": 12,
+                        "rb_count": 8,
+                        "estimated_setting": 5,
+                        "estimated_setting_label": "設定5相当",
+                        "status_label": "全56数値",
+                    },
+                    {"dai_no": "118", "real_normal_games": 800, "estimated_setting": 2},
+                ],
+            },
+            {
+                "hall_name": "別店舗",
+                "machine_name": "別機種",
+                "units": [{"dai_no": "207", "estimated_setting": 6}],
+            },
+        ]
+        rows = digit_unit_rows(machines, "MJアリーナ干隈店", 7)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["dai_no"], "117")
+        self.assertEqual(rows[0]["machine_name"], "マイジャグラーV")
+        self.assertEqual(rows[0]["real_normal_games"], 2400)
+        self.assertEqual(rows[0]["diff_medals"], 1200)
+        self.assertEqual(rows[0]["estimated_setting"], 5)
 
     def test_representative_sample_keeps_the_average(self) -> None:
         units = [_unit(f"20{index}", 6 if index < 8 else 0, 1000) for index in range(10)]

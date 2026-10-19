@@ -305,7 +305,7 @@ def public_demo_mode() -> bool:
     return (os.getenv("SURO_PUBLIC_DEMO") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-_OPEN_TOOL_PATHS = {"/", "/api/judgments", "/api/hall-catalog", "/api/watch-config"}
+_OPEN_TOOL_PATHS = {"/", "/api/judgments", "/api/judgments/digit-units", "/api/hall-catalog", "/api/watch-config"}
 _MEMBER_TOOL_PATHS = _OPEN_TOOL_PATHS
 _BILLING_PATHS = {"/billing", "/checkout"}
 

@@ -330,6 +330,52 @@ def summarize_digit_units(units: list[dict[str, Any]], digit: int) -> dict[str, 
     }
 
 
+def _dai_sort_key(value: Any) -> int:
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if not digits:
+        return 10**9
+    return int(digits)
+
+
+def digit_unit_rows(machines: list[dict[str, Any]], hall_name: str, digit: int) -> list[dict[str, Any]]:
+    """1店舗・1末尾に属する台だけを、詳細表向けに返す。"""
+    wanted = (hall_name or "").strip()
+    rows: list[dict[str, Any]] = []
+    for machine in machines:
+        if not isinstance(machine, dict):
+            continue
+        if str(machine.get("hall_name") or "").strip() != wanted:
+            continue
+        machine_name = str(machine.get("machine_name") or "")
+        for unit in machine.get("units") or []:
+            if not isinstance(unit, dict):
+                continue
+            if unit.get("judgment_excluded") or unit.get("status") == "EXCLUDED":
+                continue
+            if dai_digit(unit.get("dai_no")) != digit:
+                continue
+            games = unit.get("real_normal_games")
+            if games is None:
+                games = unit.get("total_games")
+            rows.append(
+                {
+                    "dai_no": unit.get("dai_no"),
+                    "hall_name": wanted,
+                    "machine_name": str(unit.get("machine_name") or machine_name),
+                    "real_normal_games": games,
+                    "diff_medals": unit.get("diff_medals"),
+                    "bb_count": unit.get("bb_count"),
+                    "rb_count": unit.get("rb_count"),
+                    "estimated_setting": unit.get("estimated_setting"),
+                    "estimated_setting_label": unit.get("estimated_setting_label"),
+                    "status": unit.get("status"),
+                    "status_label": unit.get("status_label"),
+                }
+            )
+    rows.sort(key=lambda row: (_dai_sort_key(row.get("dai_no")), str(row.get("machine_name") or "")))
+    return rows
+
+
 def hall_digit_summaries(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """店舗全体の台を末尾0〜9で合算し、平均推測設定で数値判定する。"""
     by_hall: dict[str, dict[int, list[dict[str, Any]]]] = {}

@@ -295,7 +295,7 @@
       <section id="section-hall-digits" class="panel panel-hall-digits">
         <div class="panel-head">
           <h2>全館・末尾別判定</h2>
-          <p class="hint">店舗の全設置台を末尾0〜9で合算し、平均推測設定と数値判定（全6 / 全56 / 全456 / 通常）を出します。</p>
+          <p class="hint">店舗の全設置台を末尾0〜9で合算します。末尾カードの「詳しく見る」で、その末尾の台一覧を開きます。</p>
         </div>
         <div id="hall-digit-boards"></div>
       </section>
@@ -303,6 +303,34 @@
 
     <p id="error" class="error hidden" role="alert"></p>
 
+    <div id="digit-unit-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="digit-unit-title">
+      <div class="modal-backdrop" data-close-digit="true"></div>
+      <div class="modal-panel digit-unit-panel">
+        <div class="modal-head">
+          <div>
+            <h2 id="digit-unit-title">末尾の台一覧</h2>
+            <p id="digit-unit-meta" class="hint"></p>
+          </div>
+          <button type="button" id="digit-unit-close" aria-label="閉じる">閉じる</button>
+        </div>
+        <div class="table-wrap digit-unit-wrap">
+          <table class="digit-unit-table">
+            <thead>
+              <tr>
+                <th>台番号</th>
+                <th>ホール名</th>
+                <th>機種名</th>
+                <th>通常時G</th>
+                <th>差枚 / 出玉</th>
+                <th>推測設定</th>
+              </tr>
+            </thead>
+            <tbody id="digit-unit-rows"></tbody>
+          </table>
+        </div>
+        <p id="digit-unit-empty" class="empty hidden">この末尾の台データはありません。</p>
+      </div>
+    </div>
     <div id="watch-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="watch-title">
       <div class="modal-backdrop" data-close-watch="true"></div>
       <div class="modal-panel">
@@ -335,6 +363,6 @@
     </div>
     <p id="signal-toast" class="signal-toast" role="status" aria-live="polite"></p>
     <button type="button" id="to-top" class="to-top" aria-label="ページトップに戻る">▲ TOP</button>
-    <script src="/static/app.js?v=70"></script>
+    <script src="/static/app.js?v=71"></script>
   </body>
 </html>

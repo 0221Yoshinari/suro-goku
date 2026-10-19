@@ -714,6 +714,86 @@ function closeWatchModal() {
   watchModal?.classList.add("hidden");
 }
 
+const digitUnitModal = document.getElementById("digit-unit-modal");
+const digitUnitTitle = document.getElementById("digit-unit-title");
+const digitUnitMeta = document.getElementById("digit-unit-meta");
+const digitUnitRows = document.getElementById("digit-unit-rows");
+const digitUnitEmpty = document.getElementById("digit-unit-empty");
+let digitUnitRequest = 0;
+
+function closeDigitUnitModal() {
+  digitUnitModal?.classList.add("hidden");
+}
+
+function renderDigitUnitRows(units) {
+  if (!digitUnitRows) {
+    return;
+  }
+  digitUnitRows.replaceChildren();
+  units.forEach((unit) => {
+    const tr = document.createElement("tr");
+    const setting = document.createElement("td");
+    setting.className = "digit-unit-setting";
+    setting.append(text(formatUnitSettingValue(unit)));
+    [
+      formatNumber(unit.dai_no),
+      unit.hall_name || "—",
+      unit.machine_name || "—",
+      formatNumber(unit.real_normal_games),
+      formatUnitPayout(unit),
+    ].forEach((value) => {
+      const td = document.createElement("td");
+      td.append(text(value));
+      tr.append(td);
+    });
+    tr.append(setting);
+    digitUnitRows.append(tr);
+  });
+}
+
+async function openDigitUnitModal(hall, digit) {
+  if (!digitUnitModal) {
+    return;
+  }
+  const requestId = ++digitUnitRequest;
+  digitUnitModal.classList.remove("hidden");
+  if (digitUnitTitle) {
+    digitUnitTitle.textContent = `${hall}　末尾${digit}`;
+  }
+  if (digitUnitMeta) {
+    digitUnitMeta.textContent = "台一覧を読み込んでいます";
+  }
+  digitUnitRows?.replaceChildren();
+  digitUnitEmpty?.classList.add("hidden");
+  document.getElementById("digit-unit-close")?.focus();
+  const pref = prefectureFilter || DEFAULT_PREF;
+  const params = new URLSearchParams({
+    hall,
+    digit: String(digit),
+    prefecture: pref,
+  });
+  const response = await fetch(`/api/judgments/digit-units?${params}`);
+  if (requestId !== digitUnitRequest) {
+    return;
+  }
+  if (redirectIfUnauthorized(response)) {
+    return;
+  }
+  if (!response.ok) {
+    throw new Error(`末尾の台一覧を取得できません (${response.status})`);
+  }
+  const body = await response.json();
+  if (requestId !== digitUnitRequest) {
+    return;
+  }
+  const units = Array.isArray(body.units) ? body.units : [];
+  if (digitUnitMeta) {
+    digitUnitMeta.textContent = `${units.length}台`;
+  }
+  renderDigitUnitRows(units);
+  digitUnitEmpty?.classList.toggle("hidden", units.length > 0);
+}
+
 function redirectIfUnauthorized(response) {
   if (response.status !== 401 && response.status !== 403) {
     return false;
@@ -1314,6 +1394,40 @@ function renderCards(items) {
   renderOtherMachines(items);
 }
 
+function formatDiffMedals(value) {
+  if (value == null || value === "") {
+    return "";
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "";
+  }
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${formatNumber(n)}`;
+}
+
+function formatUnitPayout(unit) {
+  const diff = formatDiffMedals(unit.diff_medals);
+  const hasBonus = unit.bb_count != null || unit.rb_count != null;
+  const bonus = hasBonus ? `BB ${formatNumber(unit.bb_count)} / RB ${formatNumber(unit.rb_count)}` : "";
+  if (diff && bonus) {
+    return `${diff}（${bonus}）`;
+  }
+  return diff || bonus || "—";
+}
+
+function formatUnitSettingValue(unit) {
+  const estimate = estimateUnitSetting(unit);
+  if (estimate.level == null) {
+    const label = unit.status_label && unit.status_label !== "データ不足" ? unit.status_label : "—";
+    return label;
+  }
+  if (estimate.level >= 1 && estimate.level <= 6) {
+    return `${Number(estimate.level).toFixed(2)} ${estimate.label}`;
+  }
+  return estimate.label || "—";
+}
+
 function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForView()) {
   if (!root) {
     return;
@@ -1340,6 +1454,19 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
       const card = document.createElement("article");
       card.id = hallDigitAnchor(board.hall_name, row.digit);
       card.className = `hall-digit-card card-${row.status || "NORMAL"}${peaked ? " is-setting-peak" : ""}`;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `${board.hall_name} 末尾${row.digit}の台一覧を見る`);
+      const openDetail = () => {
+        openDigitUnitModal(board.hall_name, row.digit).catch((err) => showError(err.message));
+      };
+      card.addEventListener("click", openDetail);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDetail();
+        }
+      });
       const head = document.createElement("div");
       head.className = "hall-digit-head";
       const num = document.createElement("p");
@@ -1365,7 +1492,10 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
         ["通常時G", formatCompactCount(row.real_normal_games ?? row.total_games)],
         ["平均G", formatCompactCount(row.avg_games)],
       ].forEach(([label, value]) => appendMetric(dl, label, value));
-      card.append(head, setting, dl);
+      const more = document.createElement("span");
+      more.className = "digit-detail-open";
+      more.append(text("詳しく見る"));
+      card.append(head, setting, dl, more);
       grid.append(card);
     });
     const table = document.createElement("table");
@@ -1383,6 +1513,19 @@ function renderHallDigitBoards(root = hallDigitBoardsEl, boards = hallBoardsForV
       const peaked = isPeakAvgSetting(row, peak);
       const tr = document.createElement("tr");
       tr.className = `row-${row.status || ""}${peaked ? " is-setting-peak" : ""}`;
+      tr.tabIndex = 0;
+      tr.setAttribute("role", "button");
+      tr.setAttribute("aria-label", `${board.hall_name} 末尾${row.digit}の台一覧を見る`);
+      const openDetail = () => {
+        openDigitUnitModal(board.hall_name, row.digit).catch((err) => showError(err.message));
+      };
+      tr.addEventListener("click", openDetail);
+      tr.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDetail();
+        }
+      });
       [
         { value: String(row.digit) },
         { value: formatAvgSetting(row.avg_setting), tier: true, peak: peaked },
@@ -3163,8 +3306,17 @@ watchBtn?.addEventListener("click", () => {
 });
 watchClose?.addEventListener("click", closeWatchModal);
 watchModal?.querySelector("[data-close-watch]")?.addEventListener("click", closeWatchModal);
+document.getElementById("digit-unit-close")?.addEventListener("click", closeDigitUnitModal);
+digitUnitModal?.querySelector("[data-close-digit]")?.addEventListener("click", closeDigitUnitModal);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && watchModal && !watchModal.classList.contains("hidden")) {
+  if (event.key !== "Escape") {
+    return;
+  }
+  if (digitUnitModal && !digitUnitModal.classList.contains("hidden")) {
+    closeDigitUnitModal();
+    return;
+  }
+  if (watchModal && !watchModal.classList.contains("hidden")) {
     closeWatchModal();
   }
 });

@@ -696,6 +696,27 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "hall_name": body.get("hall_name")})
 
 
+@app.get("/api/judgments/digit-units")
+def get_digit_units(hall: str = "", digit: int = 0, prefecture: str = "") -> dict:
+    """指定した店舗の、末尾0〜9のどれか1つに属する台一覧。"""
+    name = (hall or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="hall がありません")
+    if digit < 0 or digit > 9:
+        raise HTTPException(status_code=400, detail="digit は 0 から 9 です")
+    from src.analyzer.extras import digit_unit_rows
+
+    payload = get_judgments(prefecture)
+    units = digit_unit_rows(payload.get("machines") or [], name, digit)
+    return {
+        "hall_name": name,
+        "digit": digit,
+        "prefecture": (prefecture or "").strip().lower() or "fukuoka",
+        "count": len(units),
+        "units": units,
+    }
+
+
 @app.get("/api/judgments")
 def get_judgments(prefecture: str = "") -> dict:
     """県を指定しない呼び出しは福岡だけ返す。全国分を一度に返すと画面が空になる。"""
