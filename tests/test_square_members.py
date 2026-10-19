@@ -29,6 +29,7 @@ from src.dashboard.square_members import list_members
 from src.dashboard.square_members import record_line_signup
 from src.dashboard.square_members import restore_members_from_square
 from src.dashboard.square_sync import ensure_square_members
+from src.dashboard.square_sync import pull_square_members
 
 import main
 
@@ -452,6 +453,51 @@ class SquareLedgerTest(unittest.TestCase):
         access = email_access("paid@example.com", now=self.base)
         self.assertFalse(access["allowed"])
         self.assertEqual(access["status"], "canceled")
+
+    def test_subscription_restore_continues_when_customer_search_fails(self) -> None:
+        pages = {
+            "/v2/subscriptions/search": {
+                "subscriptions": [
+                    {
+                        "id": "SUB9",
+                        "customer_id": "CUST9",
+                        "status": "ACTIVE",
+                        "start_date": "2026-10-19",
+                    }
+                ]
+            },
+            "/v2/customers/bulk-retrieve": {
+                "responses": {
+                    "CUST9": {
+                        "customer": {
+                            "id": "CUST9",
+                            "email_address": "paid@example.com",
+                            "reference_id": "U1",
+                        }
+                    }
+                }
+            },
+        }
+
+        def fake(_token: str, _method: str, path: str, _payload: dict | None = None) -> dict:
+            if path == "/v2/customers/search":
+                raise RuntimeError("bad filter")
+            if path not in pages:
+                raise AssertionError(path)
+            return pages[path]
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "SQUARE_ACCESS_TOKEN": "token",
+                "SQUARE_APPLICATION_ID": "sq0idp-test",
+                "SQUARE_ENVIRONMENT": "production",
+            },
+        ):
+            with mock.patch("src.dashboard.square_sync._square_json", side_effect=fake):
+                restored = pull_square_members()
+        self.assertEqual(restored, 1)
+        self.assertTrue(email_access("paid@example.com", now=self.base)["allowed"])
 
     def test_local_ledger_does_not_call_square(self) -> None:
         with mock.patch("src.dashboard.square_sync.pull_square_members") as pulled:

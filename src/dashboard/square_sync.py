@@ -107,7 +107,11 @@ def pull_square_members() -> int:
     if not token:
         raise RuntimeError("missing square token")
     subscriptions = _search_subscriptions(token)
-    customers = _search_customers(token)
+    try:
+        customers = _search_customers(token)
+    except Exception as exc:
+        print(f"Squareの顧客一覧は読めませんでした: {type(exc).__name__}", flush=True)
+        customers = {}
     missing = [
         str(item.get("customer_id") or "")
         for item in subscriptions
@@ -213,6 +217,26 @@ def _search_subscriptions(token: str) -> list[dict]:
         for item in page.get("subscriptions") or []:
             if isinstance(item, dict) and item.get("id"):
                 found.append(item)
+        cursor = str(page.get("cursor") or "")
+        if not cursor:
+            break
+    return found
+
+
+def _search_customers(token: str) -> dict[str, dict]:
+    found: dict[str, dict] = {}
+    cursor = ""
+    for _ in range(10):
+        payload: dict = {
+            "limit": 100,
+            "query": {"filter": {"created_at": {"start_at": "2020-01-01T00:00:00Z"}}},
+        }
+        if cursor:
+            payload["cursor"] = cursor
+        page = _square_json(token, "POST", "/v2/customers/search", payload)
+        for item in page.get("customers") or []:
+            if isinstance(item, dict) and item.get("id"):
+                found[str(item["id"])] = item
         cursor = str(page.get("cursor") or "")
         if not cursor:
             break
