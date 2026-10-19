@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import os
 import tempfile
@@ -15,10 +13,10 @@ os.environ.setdefault("DASHBOARD_PASSWORD", "2026")
 os.environ.setdefault("DASHBOARD_SESSION_DAYS", "7")
 
 from src.dashboard.app import app
+from src.dashboard.line_access import DEFAULT_LINE_OFFICIAL_URL
 from src.dashboard.members import grant_checkout
 from src.dashboard.members import grant_subscription
 from src.dashboard.members import open_member_session
-from src.dashboard.stripe_billing import verify_stripe_signature
 
 
 def request(method: str, url: str, *, body: bytes = b"", headers: dict | None = None, cookies: dict | None = None):
@@ -86,11 +84,59 @@ def absorb_cookies(jar: dict, set_cookies: list[str]) -> None:
             jar[name] = value
 
 
-def sign(payload: bytes, secret: str, timestamp: int | None = None) -> str:
-    stamp = int(time.time() if timestamp is None else timestamp)
-    signed = f"{stamp}.".encode("ascii") + payload
-    signature = hmac.new(secret.encode("utf-8"), signed, hashlib.sha256).hexdigest()
-    return f"t={stamp},v1={signature}"
+def _stripe_id(value: object) -> str:
+    if isinstance(value, dict):
+        return str(value.get("id") or "")
+    return str(value or "")
+
+
+def _apply_member_event(event: dict) -> None:
+    data = event.get("data") if isinstance(event.get("data"), dict) else {}
+    obj = data.get("object") if isinstance(data.get("object"), dict) else {}
+    kind = str(event.get("type") or "")
+    when = int(event.get("created") or 0)
+    customer = obj.get("customer")
+    email = str(customer.get("email") or "") if isinstance(customer, dict) else ""
+    name = str(customer.get("name") or "") if isinstance(customer, dict) else ""
+    customer_id = _stripe_id(customer)
+    email = email or str(obj.get("customer_email") or "")
+    meta = obj.get("metadata") if isinstance(obj.get("metadata"), dict) else {}
+    member_id = str(meta.get("user_id") or "")
+    if kind == "checkout.session.completed":
+        if str(obj.get("payment_status") or "") not in {"paid", "no_payment_required"}:
+            return
+        grant_checkout(
+            when=when,
+            session_id=_stripe_id(obj.get("id")),
+            customer_id=customer_id,
+            subscription_id=_stripe_id(obj.get("subscription")),
+            email=email,
+            name=name,
+            member_id=member_id,
+        )
+        return
+    if not kind.startswith("customer.subscription."):
+        return
+    items = (obj.get("items") or {}).get("data") if isinstance(obj.get("items"), dict) else []
+    plan_name = ""
+    if isinstance(items, list) and items and isinstance(items[0], dict):
+        price = items[0].get("price") if isinstance(items[0].get("price"), dict) else {}
+        plan_name = str(price.get("nickname") or "")
+    grant_subscription(
+        when=when,
+        customer_id=customer_id,
+        subscription_id=_stripe_id(obj.get("id")),
+        status=str(obj.get("status") or ""),
+        trial_end=obj.get("trial_end") if isinstance(obj.get("trial_end"), int) else None,
+        trial_start=obj.get("trial_start") if isinstance(obj.get("trial_start"), int) else None,
+        period_end=obj.get("current_period_end") if isinstance(obj.get("current_period_end"), int) else None,
+        deleted=kind.endswith(".deleted"),
+        member_id=member_id,
+        email=email,
+        name=name,
+        plan_name=plan_name,
+        started_at=obj.get("start_date") if isinstance(obj.get("start_date"), int) else None,
+    )
 
 
 def checkout_event(event_id: str = "evt_checkout", created: int = 1_700_000_000) -> dict:
@@ -149,31 +195,24 @@ class StripeMemberTest(unittest.TestCase):
         return status, headers_out, raw.decode(), set_cookies
 
     def post_webhook(self, event: dict, *, secret: str | None = None, timestamp: int | None = None):
-        payload = json.dumps(event).encode("utf-8")
-        header = sign(payload, secret or "whsec_test_secret", timestamp)
-        return self.call(
-            "POST",
-            "/api/stripe/webhook",
-            body=payload,
-            headers={"stripe-signature": header, "content-type": "application/json"},
-        )
+        """旧 Stripe 通知の代わりに、会員台帳へ直接反映する。"""
+        del secret, timestamp
+        _apply_member_event(event)
+        return 200, {}, '{"ok": true}', []
 
     def license_key(self) -> str:
         saved = json.loads(self.store.read_text(encoding="utf-8"))
         return saved["members"][0]["license_key"]
 
-    def test_rejects_bad_or_stale_signature(self) -> None:
-        payload = b'{"id":"evt_x","type":"checkout.session.completed"}'
-        self.assertFalse(verify_stripe_signature(payload, "t=1,v1=nope", "whsec_test_secret"))
-        stale = sign(payload, "whsec_test_secret", int(time.time()) - 600)
-        self.assertFalse(verify_stripe_signature(payload, stale, "whsec_test_secret"))
-        status, _headers, body, _cookies = self.post_webhook(checkout_event(), secret="wrong-secret")
-        self.assertEqual(status, 400)
-        self.assertIn("署名を確認できません", body)
+    def test_stripe_webhook_is_gone(self) -> None:
+        status, _headers, body, _cookies = self.call(
+            "POST",
+            "/api/stripe/webhook",
+            body=b'{"id":"evt_x"}',
+            headers={"stripe-signature": "t=1,v1=nope", "content-type": "application/json"},
+        )
+        self.assertEqual(status, 404)
         self.assertNotIn("whsec", body)
-        with mock.patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": ""}):
-            status, _headers, body, _cookies = self.post_webhook(checkout_event())
-        self.assertEqual(status, 503)
 
     def test_checkout_enables_login_and_delete_revokes_it(self) -> None:
         status, _headers, body, _cookies = self.post_webhook(checkout_event())
@@ -186,8 +225,8 @@ class StripeMemberTest(unittest.TestCase):
         key = self.license_key()
         status, headers, thanks, _cookies = self.call("GET", "/thanks?session_id=cs_test_abcdefgh")
         self.assertEqual(status, 200)
-        self.assertIn(key, thanks)
-        self.assertIn("member@example.com", thanks)
+        self.assertIn("公式LINE", thanks)
+        self.assertNotIn(key, thanks)
         self.assertNotIn("whsec_test_secret", thanks)
         self.assertNotIn("proxy-should-not-leak", thanks)
         self.assertNotIn("cus_123", thanks)
@@ -430,8 +469,9 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("利用権限がありません", body)
 
-    def test_default_password_stops_working_after_stripe_is_configured(self) -> None:
-        status, _headers, body, _cookies = self.call("POST", "/login", data={"password": "2026"})
+    def test_default_password_stops_when_shared_password_is_disabled(self) -> None:
+        with mock.patch.dict(os.environ, {"MEMBER_DISABLE_SHARED_PASSWORD": "1"}):
+            status, _headers, body, _cookies = self.call("POST", "/login", data={"password": "2026"})
         self.assertEqual(status, 200)
         self.assertIn("運営用のパスワードは、いまの設定では使えません。", body)
         with mock.patch.dict(os.environ, {"DASHBOARD_PASSWORD": "owner-only-secret"}):
@@ -465,29 +505,12 @@ class StripeMemberTest(unittest.TestCase):
             self.assertEqual(status, 404)
             self.assertNotIn("synthetic_probability_threshold", body)
 
-    def test_checkout_session_points_back_to_thanks(self) -> None:
-        class FakeResponse:
-            status_code = 200
-
-            def json(self):
-                return {"id": "cs_test_created1", "url": "https://checkout.stripe.com/c/pay/cs_test_created1"}
-
-        with mock.patch.dict(
-            os.environ,
-            {"STRIPE_SECRET_KEY": "sk_test_unit_secret", "STRIPE_PRICE_ID": "price_unit123", "STRIPE_TRIAL_DAYS": "3"},
-        ):
-            with mock.patch("src.dashboard.stripe_billing.httpx.post", return_value=FakeResponse()) as post:
-                status, headers, body, _cookies = self.call("GET", "/api/lp-checkout")
+    def test_checkout_goes_to_line(self) -> None:
+        status, headers, body, _cookies = self.call("GET", "/api/lp-checkout")
         self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "https://checkout.stripe.com/c/pay/cs_test_created1")
-        self.assertNotIn("sk_test_unit_secret", body)
-        from urllib.parse import unquote
-
-        sent = unquote(post.call_args.kwargs["content"].decode())
-        self.assertIn("price_unit123", sent)
-        self.assertIn("/thanks?session_id={CHECKOUT_SESSION_ID}", sent)
-        self.assertIn("trial_period_days", sent)
-        self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer sk_test_unit_secret")
+        self.assertEqual(headers["location"], DEFAULT_LINE_OFFICIAL_URL)
+        self.assertNotIn("sk_test", body)
+        self.assertNotIn("buy.stripe.com", body)
 
     def test_member_cannot_rejudge_or_edit_halls(self) -> None:
         self.post_webhook(checkout_event())
@@ -528,7 +551,8 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(email, page)
         self.assertIn("まだ申し込み前です", page)
-        self.assertIn("10日間無料で申し込む", page)
+        self.assertIn("公式LINEで10日間無料で試す", page)
+        self.assertIn(DEFAULT_LINE_OFFICIAL_URL, page)
         self.assertNotIn(password, page)
         self.assertNotIn("pbkdf2$", page)
         status, headers, _body, _cookies = self.call("GET", "/")
@@ -561,29 +585,11 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("8文字以上", body)
 
-        class FakeResponse:
-            status_code = 200
-
-            def json(self):
-                return {"id": "cs_test_account1", "url": "https://checkout.stripe.com/c/pay/cs_test_account1"}
-
-        with mock.patch.dict(
-            os.environ,
-            {"STRIPE_SECRET_KEY": "sk_test_unit_secret", "STRIPE_PRICE_ID": "price_unit123", "STRIPE_TRIAL_DAYS": ""},
-        ):
-            with mock.patch("src.dashboard.stripe_billing.httpx.post", return_value=FakeResponse()) as post:
-                status, headers, body, _cookies = self.call("GET", "/checkout")
+        status, headers, body, _cookies = self.call("GET", "/checkout")
         self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "https://checkout.stripe.com/c/pay/cs_test_account1")
-        self.assertNotIn("sk_test_unit_secret", body)
-        from urllib.parse import unquote
-
-        sent = unquote(post.call_args.kwargs["content"].decode())
-        self.assertIn(f"client_reference_id={member_id}", sent)
-        self.assertIn(f"metadata[user_id]={member_id}", sent)
-        self.assertIn(f"subscription_data[metadata][user_id]={member_id}", sent)
-        self.assertIn("subscription_data[trial_period_days]=11", sent)
-        self.assertIn("customer_email=player@example.com", sent)
+        self.assertEqual(headers["location"], DEFAULT_LINE_OFFICIAL_URL)
+        self.assertNotIn("sk_test", body)
+        self.assertNotIn("buy.stripe.com", body)
 
         created = {
             "id": "evt_account_created",
@@ -650,7 +656,7 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(json.loads(body)["detail"], "利用権限がありません")
         status, _headers, page, _cookies = self.call("GET", "/billing", headers={"User-Agent": "DeviceTwo"})
         self.assertEqual(status, 200)
-        self.assertIn("10日間無料で申し込む", page)
+        self.assertIn("公式LINEで10日間無料で試す", page)
 
         deleted = {
             "id": "evt_account_deleted",
@@ -671,20 +677,9 @@ class StripeMemberTest(unittest.TestCase):
         self.assertFalse(saved["members"][0]["is_active"])
         self.assertEqual(saved["members"][0]["status"], "canceled")
 
-        with mock.patch.dict(
-            os.environ,
-            {
-                "STRIPE_SECRET_KEY": "",
-                "STRIPE_PRICE_ID": "",
-                "STRIPE_CHECKOUT_URL": "https://buy.stripe.com/test_link_abcdefgh",
-            },
-        ):
-            status, headers, _body, _cookies = self.call("GET", "/checkout", headers={"User-Agent": "DeviceTwo"})
+        status, headers, _body, _cookies = self.call("GET", "/checkout", headers={"User-Agent": "DeviceTwo"})
         self.assertEqual(status, 303)
-        location = headers["location"]
-        self.assertIn("buy.stripe.com/test_link_abcdefgh", location)
-        self.assertIn(f"client_reference_id={member_id}", location)
-        self.assertIn("prefilled_email=player%40example.com", location)
+        self.assertEqual(headers["location"], DEFAULT_LINE_OFFICIAL_URL)
 
 
 if __name__ == "__main__":

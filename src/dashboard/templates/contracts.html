@@ -25,7 +25,7 @@
     </header>
 
     <p class="admin-note">
-      Stripe のサブスクリプション通知で同期した会員です。時刻は日本時間です。
+      ログイン用の会員台帳です。新規の申し込みと解約は公式LINEと Square で行います。時刻は日本時間です。
     </p>
     <p id="contract-status" class="admin-status" role="status"></p>
     <p id="contract-error" class="error hidden" role="alert"></p>
@@ -54,12 +54,12 @@
       <div class="panel-head contract-toolbar">
         <div>
           <h2>ユーザー契約</h2>
-          <p class="hint" id="contract-summary">メールアドレス、名前、Customer ID で探せます。</p>
+          <p class="hint" id="contract-summary">メールアドレスと名前で探せます。</p>
         </div>
         <div class="contract-tools">
           <label class="contract-search">
             <span>検索</span>
-            <input id="contract-query" type="search" maxlength="200" placeholder="メール / 名前 / Customer ID" autocomplete="off" />
+            <input id="contract-query" type="search" maxlength="200" placeholder="メール / 名前" autocomplete="off" />
           </label>
           <div class="contract-filters" role="tablist" aria-label="ステータス">
             <button type="button" class="filter-tab is-on" data-filter="all" role="tab" aria-selected="true">全員</button>
@@ -80,7 +80,6 @@
               <th>無料期間</th>
               <th>フェーズ</th>
               <th>次回請求</th>
-              <th></th>
             </tr>
           </thead>
           <tbody id="contract-rows"></tbody>
@@ -88,6 +87,6 @@
       </div>
       <p id="contract-empty" class="empty hidden">該当する会員はいません。</p>
     </section>
-    <script src="/static/contracts.js?v=1"></script>
+    <script src="/static/contracts.js?v=2"></script>
   </body>
 </html>

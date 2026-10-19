@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-import time
 import unittest
 from datetime import datetime
 from datetime import timedelta
@@ -18,6 +17,7 @@ os.environ.setdefault("DASHBOARD_SESSION_DAYS", "7")
 from src.dashboard.app import app
 from src.dashboard.contracts import list_contracts
 from src.dashboard.members import grant_subscription
+from tests.test_stripe_members import _apply_member_event
 
 
 JST = timezone(timedelta(hours=9))
@@ -87,16 +87,6 @@ def absorb_cookies(jar: dict, set_cookies: list[str]) -> None:
             jar[name] = value
 
 
-def sign(payload: bytes, secret: str, timestamp: int | None = None) -> str:
-    import hashlib
-    import hmac
-
-    stamp = int(time.time() if timestamp is None else timestamp)
-    signed = f"{stamp}.".encode("ascii") + payload
-    signature = hmac.new(secret.encode("utf-8"), signed, hashlib.sha256).hexdigest()
-    return f"t={stamp},v1={signature}"
-
-
 def stamp(*parts: int) -> int:
     year, month, day, hour, minute = parts
     return int(datetime(year, month, day, hour, minute, tzinfo=JST).timestamp())
@@ -138,13 +128,8 @@ class ContractAdminTest(unittest.TestCase):
         return status, headers_out, raw.decode(), set_cookies
 
     def post_webhook(self, event: dict):
-        payload = json.dumps(event).encode("utf-8")
-        return self.call(
-            "POST",
-            "/api/stripe/webhook",
-            body=payload,
-            headers={"stripe-signature": sign(payload, "whsec_test_secret"), "content-type": "application/json"},
-        )
+        _apply_member_event(event)
+        return 200, {}, '{"ok": true}', []
 
     def unlock(self) -> None:
         self.call("POST", "/login", data={"password": "owner-secret"})
@@ -189,15 +174,15 @@ class ContractAdminTest(unittest.TestCase):
         self.assertEqual(saved["plan_name"], "月額プラン")
         self.assertEqual(saved["subscription_started_at"], started)
         self.assertNotIn("license_key", json.dumps(list_contracts(now=stamp(2026, 10, 17, 21, 0))))
-        with mock.patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_contract_dashboard"}):
-            listed = list_contracts(now=stamp(2026, 10, 17, 21, 0))
+        listed = list_contracts(now=stamp(2026, 10, 17, 21, 0))
         row = listed["members"][0]
         self.assertEqual(row["created_at_jst"], "2026-10-17 09:05")
         self.assertEqual(row["trial_start_jst"], "2026-10-17 09:00")
         self.assertEqual(row["trial_end_jst"], "2026-10-20 09:00")
         self.assertEqual(row["trial_remaining_label"], "あと3日")
         self.assertEqual(row["phase"], "無料")
-        self.assertEqual(row["stripe_url"], "https://dashboard.stripe.com/test/customers/cus_contract")
+        self.assertNotIn("stripe_url", row)
+        self.assertNotIn("dashboard.stripe.com", json.dumps(listed))
         self.assertFalse(row["ending_this_week"])
         self.assertEqual(listed["summary"]["trialing"], 1)
         self.assertEqual(listed["summary"]["ending_this_week"], 0)
@@ -219,9 +204,7 @@ class ContractAdminTest(unittest.TestCase):
                 }
             },
         }
-        with mock.patch("src.dashboard.stripe_billing.httpx.get") as fetch:
-            self.post_webhook(updated)
-            fetch.assert_not_called()
+        self.post_webhook(updated)
         active = list_contracts(now=stamp(2026, 10, 21, 9, 0))["members"][0]
         self.assertEqual(active["status"], "active")
         self.assertEqual(active["phase"], "有料")
@@ -241,38 +224,6 @@ class ContractAdminTest(unittest.TestCase):
         self.assertEqual(canceled["badge"], "canceled")
         self.assertEqual(canceled["trial_end_jst"], "2026-10-20 09:00")
         self.assertEqual(canceled["next_billing_jst"], "")
-
-    def test_missing_customer_profile_is_loaded_from_stripe(self) -> None:
-        event = {
-            "id": "evt_fetch_customer",
-            "type": "customer.subscription.created",
-            "created": 1_700_000_100,
-            "data": {
-                "object": {
-                    "id": "sub_fetch",
-                    "customer": "cus_fetch123",
-                    "status": "trialing",
-                    "trial_start": 1_700_000_000,
-                    "trial_end": 1_700_000_000 + 7 * 24 * 3600,
-                }
-            },
-        }
-
-        class Response:
-            status_code = 200
-
-            def json(self):
-                return {"id": "cus_fetch123", "email": "fetch@example.com", "name": "取得 太郎"}
-
-        with mock.patch.dict(os.environ, {"STRIPE_SECRET_KEY": "sk_test_contract_dashboard"}):
-            with mock.patch("src.dashboard.stripe_billing.httpx.get", return_value=Response()) as fetch:
-                status, _headers, _body, _cookies = self.post_webhook(event)
-        self.assertEqual(status, 200)
-        fetch.assert_called_once()
-        self.assertIn("/v1/customers/cus_fetch123", fetch.call_args.args[0])
-        saved = json.loads(self.store.read_text(encoding="utf-8"))["members"][0]
-        self.assertEqual(saved["email"], "fetch@example.com")
-        self.assertEqual(saved["name"], "取得 太郎")
 
     def test_contract_api_requires_the_master_token(self) -> None:
         grant_subscription(

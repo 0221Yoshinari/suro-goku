@@ -15,8 +15,6 @@ services:
         value: "0"
       - key: X_MONITOR_DISABLE
         value: "1"
-      - key: STRIPE_CHECKOUT_URL
-        value: https://buy.stripe.com/00w14p0nB2QY6MB8Qedby00
       - key: DASHBOARD_URL
         sync: false
       - key: DASHBOARD_PASSWORD
@@ -24,14 +22,6 @@ services:
       - key: DASHBOARD_SESSION_SECRET
         sync: false
       - key: MASTER_PANEL_TOKEN
-        sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
-      - key: STRIPE_PRICE_ID
         sync: false
       - key: DATABASE_URL
         sync: false
@@ -48,7 +38,7 @@ services:
       - key: LINE_LOGIN_REDIRECT_URL
         sync: false
       - key: LINE_OFFICIAL_URL
-        sync: false
+        value: https://lin.ee/7XxLBBy
       - key: SELLER_NAME
         sync: false
       - key: SELLER_ADDRESS

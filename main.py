@@ -32,6 +32,7 @@ from fastapi import HTTPException
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
 from fastapi.responses import Response
 
 from src.dashboard.member_admin import register_member_admin
@@ -69,8 +70,26 @@ _GUIDE = (
 _CHECKOUT_TTL = 48 * 60 * 60
 _ALREADY = "このLINEアカウントは登録済みです。"
 _FAILED = "申し込みを完了できませんでした。時間をおいて、もう一度メールアドレスを送ってください。"
+_CANCEL_CONFIRM = "解約を確定する"
+_CANCEL_ABORT = "キャンセル（やめる）"
+_CANCEL_ASK = (
+    "本当に解約しますか？\n"
+    "解約すると、次回更新日以降はデータ閲覧ができなくなります。"
+)
+_CANCEL_DONE = "解約手続きが完了しました。ご利用ありがとうございました。"
+_CANCEL_KEPT = "解約を中止しました。引き続きご利用いただけます。"
+_CANCEL_MISSING = (
+    "解約できる契約が見つかりませんでした。\n"
+    "登録したメールアドレスで申し込み済みか確認し、解消しない場合はサポートへお問い合わせください。"
+)
+_CANCEL_FAILED = (
+    "解約手続きを完了できませんでした。時間をおいてもう一度お試しください。\n"
+    "解消しない場合はサポートへお問い合わせください。"
+)
+_CANCEL_WORDS = {"解約", "解約手続き", "キャンセル"}
 
 _resolved_ids: dict[str, str] = {}
+_cancel_pending: set[str] = set()
 
 
 class SquareAPIError(Exception):
@@ -94,21 +113,27 @@ def is_trial_intent(text: str) -> bool:
     return normalized.replace("🚀", "").strip() in _TRIAL_LABELS
 
 
-def line_text_message(text: str, quick_reply: str | None = None) -> dict:
+def line_text_message(text: str, quick_reply: str | list[str] | None = None) -> dict:
     message: dict = {"type": "text", "text": text}
-    label = (quick_reply or "").strip()
-    if not label:
+    if quick_reply is None:
+        labels: list[str] = []
+    elif isinstance(quick_reply, str):
+        labels = [quick_reply.strip()] if quick_reply.strip() else []
+    else:
+        labels = [item.strip() for item in quick_reply if item and item.strip()]
+    if not labels:
         return message
-    if len(label) > 20:
-        raise SquareAPIError(500, ["QUICK_REPLY_LABEL"])
-    message["quickReply"] = {
-        "items": [
+    items = []
+    for label in labels:
+        if len(label) > 20:
+            raise SquareAPIError(500, ["QUICK_REPLY_LABEL"])
+        items.append(
             {
                 "type": "action",
                 "action": {"type": "message", "label": label, "text": label},
             }
-        ]
-    }
+        )
+    message["quickReply"] = {"items": items}
     return message
 
 
@@ -230,6 +255,12 @@ def request_public_base(request: Request) -> str:
 def checkout_page_url(base: str, token: str) -> str:
     # LINE は # 以降をリンクから落とすことがある。トークンはクエリで渡す。
     return f"{normalize_public_base(base)}/checkout?t={token}"
+
+
+def register_page_url(base: str, email: str) -> str:
+    from urllib.parse import quote
+
+    return f"{normalize_public_base(base)}/register?email={quote(email.strip())}"
 
 
 def checkout_reply(url: str) -> str:
@@ -398,7 +429,7 @@ async def line_display_name(user_id: str) -> str:
     return str(body.get("displayName") or "").strip()[:80]
 
 
-async def line_reply(reply_token: str, text: str, *, quick_reply: str | None = None) -> None:
+async def line_reply(reply_token: str, text: str, *, quick_reply: str | list[str] | None = None) -> None:
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
     if not token or not reply_token:
         raise SquareAPIError(500, ["MISSING_LINE_TOKEN"])
@@ -599,9 +630,8 @@ async def register_trial(user_id: str, email: str, base_url: str) -> str:
         logger.exception("member ledger update failed")
     if await has_open_subscription(customer_id, location_id):
         return _ALREADY
-    token = issue_checkout_token(customer_id, email, user_id)
     logger.info("card checkout ready customer=%s", customer_id)
-    return checkout_reply(checkout_page_url(public_base, token))
+    return checkout_reply(register_page_url(public_base, email))
 
 
 async def start_card_subscription(
@@ -663,7 +693,84 @@ async def start_card_subscription(
     return {"ok": True, "subscription_id": subscription_id}
 
 
+def is_cancel_intent(text: str) -> bool:
+    normalized = " ".join(text.strip().split())
+    return normalized in _CANCEL_WORDS
+
+
+def is_cancel_confirm(text: str) -> bool:
+    return " ".join(text.strip().split()) == _CANCEL_CONFIRM
+
+
+def is_cancel_abort(text: str) -> bool:
+    return " ".join(text.strip().split()) == _CANCEL_ABORT
+
+
+def access_until_from_subscription(subscription: dict, now: int) -> int:
+    """Square が次回更新日に止める場合、その日の終わりまでは閲覧できる。"""
+    status = str(subscription.get("status") or "")
+    canceled_date = str(subscription.get("canceled_date") or "")[:10]
+    if status != "CANCELED" and len(canceled_date) == 10:
+        try:
+            from zoneinfo import ZoneInfo
+
+            day = datetime.strptime(canceled_date, "%Y-%m-%d").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+        except ValueError:
+            return now
+        end = day.replace(hour=23, minute=59, second=59)
+        until = int(end.timestamp())
+        if until > now:
+            return until
+    return now
+
+
+async def cancel_square_subscription(subscription_id: str) -> dict:
+    try:
+        result = await square_json("POST", f"/v2/subscriptions/{subscription_id}/cancel", payload={})
+    except SquareAPIError:
+        result = await square_json("GET", f"/v2/subscriptions/{subscription_id}")
+        subscription = result.get("subscription") if isinstance(result.get("subscription"), dict) else {}
+        if str(subscription.get("status") or "") != "CANCELED" and not subscription.get("canceled_date"):
+            raise
+    subscription = result.get("subscription") if isinstance(result.get("subscription"), dict) else {}
+    return subscription
+
+
+async def confirm_cancel(user_id: str) -> str:
+    from src.dashboard.square_members import cancel_member_record
+    from src.dashboard.square_members import find_member_by_line
+
+    member = find_member_by_line(user_id)
+    subscription_id = str((member or {}).get("square_subscription_id") or "")
+    if not member or not subscription_id:
+        return "missing"
+    subscription = await cancel_square_subscription(subscription_id)
+    until = access_until_from_subscription(subscription, int(time.time()))
+    if not cancel_member_record(user_id, access_until=until):
+        return "missing"
+    return "canceled"
+
+
 async def handle_text(user_id: str, reply_token: str, text: str, base_url: str) -> None:
+    if is_cancel_confirm(text) and user_id in _cancel_pending:
+        _cancel_pending.discard(user_id)
+        try:
+            result = await confirm_cancel(user_id)
+        except Exception:
+            logger.exception("line cancel failed")
+            await line_reply(reply_token, _CANCEL_FAILED)
+            return
+        await line_reply(reply_token, _CANCEL_DONE if result == "canceled" else _CANCEL_MISSING)
+        return
+    if is_cancel_abort(text) and user_id in _cancel_pending:
+        _cancel_pending.discard(user_id)
+        await line_reply(reply_token, _CANCEL_KEPT)
+        return
+    if is_cancel_intent(text):
+        _cancel_pending.add(user_id)
+        await line_reply(reply_token, _CANCEL_ASK, quick_reply=[_CANCEL_CONFIRM, _CANCEL_ABORT])
+        return
+    _cancel_pending.discard(user_id)
     if is_trial_intent(text):
         await line_reply(reply_token, _GUIDE)
         return
@@ -720,6 +827,11 @@ async def webhook(request: Request) -> Response:
             continue
         if event.get("type") == "follow":
             await line_reply(reply_token, _WELCOME, quick_reply=_TRIAL_BUTTON)
+            continue
+        if event.get("type") == "postback":
+            data = str((event.get("postback") or {}).get("data") or "")
+            if "cancel" in data:
+                await handle_text(user_id, reply_token, "解約", request_public_base(request))
             continue
         if event.get("type") != "message":
             continue
@@ -870,6 +982,22 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
 
 def checkout_page_html() -> str:
     return _CHECKOUT_PAGE.replace("__ITEM__", _CHECKOUT_ITEM_NAME)
+
+
+@app.get("/register")
+async def register_page(request: Request, email: str = "") -> Response:
+    """LINE が渡したメールから、カード登録ページへ進む。"""
+    from src.dashboard.square_members import find_member_by_email
+
+    if not is_email(email):
+        raise HTTPException(status_code=400, detail="メールアドレスを確認してください。")
+    member = find_member_by_email(email)
+    customer_id = str((member or {}).get("square_customer_id") or "")
+    line_user_id = str((member or {}).get("line_user_id") or "")
+    if not member or not customer_id or not line_user_id:
+        raise HTTPException(status_code=404, detail="申し込みが見つかりません。LINEでもう一度メールアドレスを送ってください。")
+    token = issue_checkout_token(customer_id, email.strip(), line_user_id)
+    return RedirectResponse(checkout_page_url(request_public_base(request), token), status_code=302)
 
 
 @app.get("/checkout")

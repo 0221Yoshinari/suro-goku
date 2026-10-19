@@ -503,7 +503,7 @@
           </svg>
           <b class="gold-type">スロ極</b>
         </a>
-        <a class="nav-cta checkout-cta" href="/checkout">申し込む</a>
+        <a class="nav-cta line-cta" href="__LINE_OFFICIAL_URL__">公式LINEで試す</a>
       </div>
     </header>
 
@@ -520,7 +520,7 @@
             <h1>全台系を、<br />一つの数字で、<br />決めない。</h1>
             <p class="lead">全台系、合同機種、あたり末尾の平均設定、取材。4つのクロス分析が同じホールを指したとき、スロ極はそこを先に出します。</p>
             <div class="hero-actions">
-              <span class="btn btn-wait" role="status">リリースまでお待ちください</span>
+              <a class="btn btn-primary line-cta" href="__LINE_OFFICIAL_URL__">公式LINEで10日間無料で試す</a>
               <a class="btn btn-ghost" href="#method">4つのクロス分析を見る</a>
             </div>
             <p class="trial-note">公開後は<strong>10日間完全無料</strong>。10日以内の解約は料金がかかりません。いつでも解約できます。</p>
@@ -880,14 +880,9 @@
               <li><b>10日以内の解約＝0円</b></li>
               <li>11日目から続ける場合だけ、月額2,980円（税込）です。</li>
             </ul>
-            <p>カード番号はこのページでは預かりません。</p>
-            <label class="consent">
-              <input id="agree-checkout" type="checkbox" />
-              <span><a href="/legal/terms">利用規約</a>、<a href="/legal/privacy">プライバシーポリシー</a>、<a href="/legal/tokusho">特定商取引法に基づく表記</a>に同意して申し込みます。</span>
-            </label>
-            <span class="btn btn-wait" aria-disabled="true">同意して申し込む</span>
-            <p class="release-wait">リリースまで、お申し込みはお待ちください。</p>
-            <p class="form-msg" id="checkout-msg" role="status"></p>
+            <p>カード番号はこのページでは預かりません。公式LINEでメールアドレスを送ると、カード登録の案内が届きます。</p>
+            <a class="btn btn-primary line-cta" href="__LINE_OFFICIAL_URL__">公式LINEで10日間無料で試す</a>
+            <p class="release-wait"><a href="/legal/terms">利用規約</a>、<a href="/legal/privacy">プライバシーポリシー</a>、<a href="/legal/tokusho">特定商取引法に基づく表記</a>に沿って申し込みます。</p>
           </article>
         </div>
       </section>
@@ -918,6 +913,10 @@
               <p>しません。公開情報の重なりを整理し、移動の判断を助けるツールです。遊技の結果は保証しません。</p>
             </details>
             <details class="faq-item">
+              <summary>解約方法について</summary>
+              <p>公式LINEのメニューより「解約手続き」を選び、画面の案内に沿っていつでも解約できます。トークで「解約」と送っても同じです。確認のあと「解約を確定する」を選ぶと、次回更新日以降はデータ閲覧ができなくなります。</p>
+            </details>
+            <details class="faq-item">
               <summary>スマートフォンでも見られますか？</summary>
               <p>このページは携帯のブラウザ幅で読めるように組んでいます。ログインなしで開けます。解析画面本体は、利用者ごとの案内で開きます。</p>
             </details>
@@ -942,6 +941,31 @@
           </form>
         </div>
       </section>
+
+      <section id="cancel">
+        <div class="wrap">
+          <p class="kicker">解約</p>
+          <h2>解約の手順</h2>
+          <p class="section-lead">いつでも解約できます。期間の縛りはありません。登録日を0日目とし、10日以内の解約は料金0円です。</p>
+          <div class="explain">
+            <article class="step">
+              <p class="num">01</p>
+              <h3>公式LINEのメニューから「解約手続き」を選ぶ</h3>
+              <p>トークで「解約」と送っても同じ案内が始まります。この時点では解約になりません。</p>
+            </article>
+            <article class="step">
+              <p class="num">02</p>
+              <h3>「本当に解約しますか？」を確認する</h3>
+              <p>解約すると、次回更新日以降はデータ閲覧ができなくなります。「キャンセル（やめる）」を選べば、契約はそのままです。</p>
+            </article>
+            <article class="step">
+              <p class="num">03</p>
+              <h3>「解約を確定する」で完了する</h3>
+              <p>確定したときだけ解約になります。10日以内なら料金0円です。11日目以降は、すでに始まっている月額2,980円（税込）の日割り返金は原則ありません。</p>
+            </article>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer>
@@ -951,7 +975,7 @@
           <a href="/legal/terms">利用規約</a>
           <a href="/legal/tokusho">特定商取引法に基づく表記</a>
           <a href="/legal/privacy">プライバシーポリシー</a>
-          <a class="checkout-cta" href="/checkout">申し込む</a>
+          <a class="line-cta" href="__LINE_OFFICIAL_URL__">公式LINEで試す</a>
         </div>
         <p>本サービスは遊技の結果を保証するものではありません。店舗のデータ公開状況により、表示は変動します。月額2,980円（税込）。</p>
       </div>
@@ -1078,20 +1102,6 @@
           });
         }
 
-        var agree = document.getElementById("agree-checkout");
-        var msg = document.getElementById("checkout-msg");
-        var offer = document.getElementById("offer");
-        var checkoutLinks = document.querySelectorAll("a.checkout-cta");
-        for (var i = 0; i < checkoutLinks.length; i++) {
-          checkoutLinks[i].addEventListener("click", function (event) {
-            if (!agree.checked) {
-              event.preventDefault();
-              msg.className = "form-msg err";
-              msg.textContent = "利用規約への同意が必要です。";
-              if (offer && offer.scrollIntoView) offer.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          });
-        }
       })();
     </script>
   </body>

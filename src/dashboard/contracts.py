@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import re
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -12,7 +10,6 @@ from src.dashboard.members import contract_records
 
 JST = timezone(timedelta(hours=9))
 _FILTERS = {"all", "trialing", "active", "past_due", "canceled", "ending_this_week"}
-_CUSTOMER_RE = re.compile(r"^cus_[A-Za-z0-9]{1,64}$")
 _STATUS_LABEL = {
     "trialing": "無料体験中",
     "active": "有料課金中",
@@ -63,7 +60,6 @@ def list_contracts(*, query: str = "", status: str = "all", now: int | None = No
     return {
         "summary": summary,
         "generated_at": _format_jst(current),
-        "stripe_mode": _stripe_mode(),
         "members": visible,
     }
 
@@ -98,7 +94,6 @@ def _present(member: dict, now: int, week_start: int, week_end: int) -> dict:
         "badge": _BADGE.get(status, "muted"),
         "phase": _PHASE.get(status, "停止"),
         "plan_name": str(member.get("plan_name") or ""),
-        "stripe_url": _stripe_customer_url(customer_id),
         "sort_at": int(started or 0),
     }
 
@@ -190,17 +185,3 @@ def _format_jst(stamp: object) -> str:
     except (OverflowError, OSError, ValueError):
         return ""
 
-
-def _stripe_mode() -> str:
-    raw = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    if raw.startswith(("sk_test_", "rk_test_")):
-        return "test"
-    return "live"
-
-
-def _stripe_customer_url(customer_id: str) -> str:
-    if not _CUSTOMER_RE.fullmatch(customer_id):
-        return ""
-    if _stripe_mode() == "test":
-        return f"https://dashboard.stripe.com/test/customers/{customer_id}"
-    return f"https://dashboard.stripe.com/customers/{customer_id}"

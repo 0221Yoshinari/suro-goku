@@ -1,8 +1,8 @@
-"""Stripe と連携する会員台帳。
+"""ログイン用の会員台帳。
 
 DATABASE_URL があるときは PostgreSQL（失敗時は sqlite3）に置く。
 未設定のときは data/members.json を使う。
-プロキシ認証、.env、Stripe の秘密鍵はこの台帳にもブラウザにも出さない。
+新規の申し込みと解約は Square の台帳で行う。プロキシ認証と .env はこの台帳に出さない。
 """
 
 from __future__ import annotations

@@ -78,6 +78,7 @@ _COLUMNS = (
     "square_customer_id",
     "square_subscription_id",
     "paid_at",
+    "access_until",
     "status_source",
     "status_event_at",
     "updated_at",
@@ -94,6 +95,7 @@ CREATE TABLE IF NOT EXISTS square_members (
   square_customer_id TEXT NOT NULL DEFAULT '',
   square_subscription_id TEXT NOT NULL DEFAULT '',
   paid_at BIGINT,
+  access_until BIGINT,
   status_source TEXT NOT NULL DEFAULT '',
   status_event_at BIGINT NOT NULL DEFAULT 0,
   updated_at BIGINT NOT NULL DEFAULT 0
@@ -250,6 +252,55 @@ def record_card_trial(
 _TOOL_ALLOWED = {"trialing", "active"}
 
 
+def find_member_by_email(email: str, now: int | None = None) -> dict | None:
+    """メールアドレスの会員。カード登録URLを出すときに使う。"""
+    current = int(time.time() if now is None else now)
+    cleaned = _clean_email(email)
+    if not cleaned:
+        return None
+    with _LOCK:
+        member = _locate(_load_members(), email=cleaned)
+        if member is None:
+            return None
+        return _present(member, current)
+
+
+def find_member_by_line(line_user_id: str, now: int | None = None) -> dict | None:
+    """LINE ID の会員。サブスクリプションIDを含む。無ければ None。"""
+    current = int(time.time() if now is None else now)
+    user_id = _clean_token(line_user_id, 100)
+    if not user_id:
+        return None
+    with _LOCK:
+        member = _locate(_load_members(), line_user_id=user_id)
+        if member is None:
+            return None
+        return _present(member, current)
+
+
+def cancel_member_record(
+    line_user_id: str,
+    when: int | None = None,
+    *,
+    access_until: int | None = None,
+) -> bool:
+    """台帳を解約済みにする。access_until までは閲覧を残す。会員がいないときは False。"""
+    current = int(time.time() if when is None else when)
+    user_id = _clean_token(line_user_id, 100)
+    if not user_id:
+        return False
+    with _LOCK:
+        rows = _load_members()
+        member = _locate(rows, line_user_id=user_id)
+        if member is None:
+            return False
+        _set_status(member, "canceled", current, "line", override_operator=True)
+        member["access_until"] = _optional_int(access_until)
+        member["updated_at"] = current
+        _save_member(member)
+        return True
+
+
 def tool_access(line_user_id: str, now: int | None = None) -> dict:
     """LINE ID で台帳を引く。呼び出しのたびに台帳を読む。"""
     return _access_for(line_user_id=line_user_id, email="", now=now)
@@ -399,6 +450,16 @@ def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:
     if member is None:
         return _access_view(False, "unregistered", "", user_id, cleaned)
     status = str(member.get("status") or "")
+    if status == "canceled":
+        until = _optional_int(member.get("access_until"))
+        if until is not None and until > current:
+            return _access_view(
+                True,
+                "cancel_scheduled",
+                status,
+                user_id or str(member.get("line_user_id") or ""),
+                cleaned or str(member.get("email") or ""),
+            )
     if status not in _TOOL_ALLOWED:
         reason = {
             "canceled": "canceled",
@@ -1006,6 +1067,9 @@ def _ensure_sqlite(path: Path) -> None:
     connection = sqlite3.connect(path, timeout=5)
     try:
         connection.executescript(_SCHEMA)
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(square_members)")}
+        if "access_until" not in columns:
+            connection.execute("ALTER TABLE square_members ADD COLUMN access_until BIGINT")
         connection.commit()
     finally:
         connection.close()
@@ -1154,7 +1218,7 @@ def _params(member: dict) -> dict:
     row = {}
     for name in _COLUMNS:
         value = member.get(name)
-        if name in {"trial_end", "paid_at"}:
+        if name in {"trial_end", "paid_at", "access_until"}:
             row[name] = _optional_int(value)
         elif name in {"registered_at", "status_event_at", "updated_at"}:
             row[name] = int(value or 0)
@@ -1167,10 +1231,11 @@ def _member_from_row(row) -> dict:
     member = {name: row[name] for name in _COLUMNS}
     member["trial_end"] = _optional_int(member.get("trial_end"))
     member["paid_at"] = _optional_int(member.get("paid_at"))
+    member["access_until"] = _optional_int(member.get("access_until"))
     for name in ("registered_at", "status_event_at", "updated_at"):
         member[name] = int(member.get(name) or 0)
     for name in _COLUMNS:
-        if name not in {"trial_end", "paid_at", "registered_at", "status_event_at", "updated_at"}:
+        if name not in {"trial_end", "paid_at", "access_until", "registered_at", "status_event_at", "updated_at"}:
             member[name] = "" if member[name] is None else str(member[name])
     return member
 
@@ -1214,6 +1279,7 @@ def _ensure_postgres(url: str) -> None:
     with engine.begin() as connection:
         for statement in (item.strip() for item in _SCHEMA.split(";") if item.strip()):
             connection.execute(text(statement))
+        connection.execute(text("ALTER TABLE square_members ADD COLUMN IF NOT EXISTS access_until BIGINT"))
     _READY.add(url)
 
 

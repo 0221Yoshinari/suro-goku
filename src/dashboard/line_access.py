@@ -103,12 +103,17 @@ def line_guard_enabled() -> bool:
     return bool(line_liff_id() or line_login_channel_id())
 
 
+DEFAULT_LINE_OFFICIAL_URL = "https://lin.ee/7XxLBBy"
+
+
 def line_official_url() -> str:
-    raw = _env("LINE_OFFICIAL_URL") or _env("LINE_ADD_FRIEND_URL")
-    parsed = urlparse(raw)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
-        return ""
-    return raw
+    """公式LINEの友だち追加URL。未設定や不正な値のときは既定のURLを使う。"""
+    candidates = (_env("LINE_OFFICIAL_URL"), _env("LINE_ADD_FRIEND_URL"), DEFAULT_LINE_OFFICIAL_URL)
+    for raw in candidates:
+        parsed = urlparse(raw)
+        if parsed.scheme == "https" and parsed.netloc and not parsed.username and not parsed.password and " " not in raw:
+            return raw
+    return DEFAULT_LINE_OFFICIAL_URL
 
 
 def issue_line_token(user_id: str, now: float | None = None) -> str:

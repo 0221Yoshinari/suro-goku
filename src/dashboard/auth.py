@@ -161,13 +161,9 @@ def member_token_claims(token: str | None, now: float | None = None) -> tuple[st
 
 
 def shared_password_enabled() -> bool:
-    """初期パスワードのまま決済連携すると、そのパスワードでは入れなくする。"""
+    """MEMBER_DISABLE_SHARED_PASSWORD=1 のとき、運営用の共通パスワードでは入れなくする。"""
     flag = (os.environ.get("MEMBER_DISABLE_SHARED_PASSWORD") or "").strip().lower()
-    if flag in {"1", "true", "yes", "on"}:
-        return False
-    if (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip() and dashboard_password() == DEFAULT_PASSWORD:
-        return False
-    return True
+    return flag not in {"1", "true", "yes", "on"}
 
 
 def client_ip(request: Request) -> str:
@@ -374,11 +370,12 @@ def is_public_path(path: str) -> bool:
         "/line",
         "/line/callback",
         "/plan",
+        "/checkout",
         "/thanks",
         "/api/lp-inquiry",
         "/api/lp-checkout",
-        "/api/line/session",
         "/api/stripe/webhook",
+        "/api/line/session",
         "/api/square/webhook",
         "/square-webhook",
         "/api/internal/hall-judgments",
@@ -538,11 +535,20 @@ async def login_post(request: Request) -> Response:
             access = email_access(email)
         except SquareMemberError:
             return render_login(error="会員確認ができません。しばらくしてから再度お試しください。", next_path=next_path)
-        if not access["allowed"] or not access.get("email"):
-            return render_login(error=MEMBERSHIP_MESSAGE, next_path=next_path)
-        response = RedirectResponse(next_path, status_code=303)
-        apply_email_cookie(response, request, str(access["email"]))
-        return response
+        if access["allowed"] and access.get("email"):
+            response = RedirectResponse(next_path, status_code=303)
+            apply_email_cookie(response, request, str(access["email"]))
+            return response
+        member_id, session_id, error = open_password_session(
+            email, raw_password, client_ip(request), client_fp(request)
+        )
+        if member_id and session_id:
+            response = RedirectResponse(_after_member_login(member_id, next_path), status_code=303)
+            apply_member_cookie(response, request, member_id, session_id)
+            return response
+        if error:
+            return render_login(error=error, next_path=next_path)
+        return render_login(error=MEMBERSHIP_MESSAGE, next_path=next_path)
     if passwords_match(password):
         if not shared_password_enabled():
             return render_login(
@@ -794,10 +800,11 @@ def billing_get(request: Request) -> Response:
         else:
             message = str(member.get("message") or "お申し込みが必要です。")
             lead = f"{message} 10日間は無料です。期間中に解約すれば、料金はかかりません。"
+        from src.dashboard.line_access import line_official_url
+
         action = (
-            '<form method="get" action="/checkout" class="login-form">'
-            '<button type="submit" class="primary">10日間無料で申し込む</button>'
-            "</form>"
+            f'<p class="login-links"><a href="{html.escape(line_official_url(), quote=True)}">'
+            "公式LINEで10日間無料で試す</a></p>"
         )
     body = (
         template.replace("__EMAIL__", html.escape(str(member.get("email") or "")))

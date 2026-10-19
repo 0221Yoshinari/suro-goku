@@ -334,8 +334,14 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("11日目から", message)
         self.assertIn("自動で引き落とされます", message)
         self.assertNotIn("square.link", message)
-        self.assertIn("https://suro-goku-billing.onrender.com/checkout?t=", message)
-        token = message.rsplit("/checkout?t=", 1)[1]
+        self.assertIn(
+            "https://suro-goku-billing.onrender.com/register?email=member%40example.com",
+            message,
+        )
+        client = TestClient(main.app)
+        opened = client.get("/register?email=member@example.com", follow_redirects=False)
+        self.assertEqual(opened.status_code, 302)
+        token = opened.headers["location"].rsplit("/checkout?t=", 1)[1]
         claims = main.read_checkout_token(token)
         self.assertEqual(claims["customer_id"], "CUST1")
         self.assertEqual(claims["user_id"], "Uline123")
@@ -409,6 +415,56 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
         listed = list_members()
         self.assertEqual(listed["members"][0]["status"], "trialing")
         self.assertEqual(listed["members"][0]["square_subscription_id"], "SUB1")
+
+    async def test_cancel_waits_for_confirmation(self) -> None:
+        from src.dashboard.square_members import list_members
+        from src.dashboard.square_members import record_card_trial
+        from src.dashboard.square_members import record_line_signup
+
+        main._cancel_pending.clear()
+        record_line_signup(line_user_id="Uline123", email="member@example.com", square_customer_id="CUST1")
+        record_card_trial(
+            line_user_id="Uline123",
+            email="member@example.com",
+            square_customer_id="CUST1",
+            subscription_id="SUB1",
+        )
+        calls: list[str] = []
+
+        async def fake_square(method: str, path: str, *, params=None, payload=None):
+            calls.append(f"{method} {path}")
+            if method == "POST" and path == "/v2/subscriptions/SUB1/cancel":
+                return {"subscription": {"id": "SUB1", "status": "ACTIVE", "canceled_date": "2026-11-19"}}
+            raise AssertionError(path)
+
+        replies: list[str] = []
+
+        async def fake_reply(token: str, text: str, quick_reply=None) -> None:
+            replies.append(text)
+            if quick_reply is not None:
+                message = main.line_text_message(text, quick_reply)
+                labels = [item["action"]["label"] for item in message["quickReply"]["items"]]
+                self.assertEqual(labels, ["解約を確定する", "キャンセル（やめる）"])
+
+        with mock.patch.object(main, "square_json", side_effect=fake_square), mock.patch.object(
+            main, "line_reply", side_effect=fake_reply
+        ):
+            await main.handle_text("Uline123", "reply-cancel", "解約", "https://example.test")
+            self.assertEqual(calls, [])
+            self.assertIn("本当に解約しますか？", replies[-1])
+            await main.handle_text("Uline123", "reply-keep", "キャンセル（やめる）", "https://example.test")
+            self.assertEqual(calls, [])
+            self.assertIn("解約を中止しました", replies[-1])
+            await main.handle_text("Uline123", "reply-again", "キャンセル", "https://example.test")
+            await main.handle_text("Uline123", "reply-done", "解約を確定する", "https://example.test")
+
+        self.assertEqual(calls, ["POST /v2/subscriptions/SUB1/cancel"])
+        self.assertIn("解約手続きが完了しました", replies[-1])
+        saved = list_members()["members"][0]
+        self.assertEqual(saved["status"], "canceled")
+        from src.dashboard.square_members import tool_access
+
+        self.assertTrue(tool_access("Uline123")["allowed"])
 
 
 if __name__ == "__main__":

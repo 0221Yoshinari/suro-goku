@@ -57,6 +57,7 @@ from src.dashboard.auth import billing_get
 from src.dashboard.line_access import accept_line_session
 from src.dashboard.line_access import line_login_page
 from src.dashboard.line_access import line_oauth_callback
+from src.dashboard.line_access import line_official_url
 from src.dashboard.line_access import render_plan
 from src.dashboard.auth import login_get
 from src.dashboard.auth import login_post
@@ -68,12 +69,6 @@ from src.dashboard.square_members import SquareWebhookError
 from src.dashboard.square_members import apply_member_action
 from src.dashboard.square_members import handle_square_webhook
 from src.dashboard.square_members import list_members
-from src.dashboard.stripe_billing import WebhookError
-from src.dashboard.stripe_billing import account_from_request
-from src.dashboard.stripe_billing import checkout_redirect_url
-from src.dashboard.stripe_billing import handle_webhook
-from src.dashboard.stripe_billing import render_thanks
-from src.dashboard.stripe_billing import start_member_checkout
 from src.dashboard.watch import build_watch_payload
 from src.scraper.site7 import _load_dotenv
 
@@ -315,8 +310,8 @@ def plan_page(request: Request) -> Response:
 
 
 @app.get("/checkout")
-def checkout_page(request: Request) -> Response:
-    return start_member_checkout(request)
+def checkout_page() -> RedirectResponse:
+    return RedirectResponse(line_official_url(), status_code=303)
 
 
 @app.post(f"{MASTER_PANEL_PATH}/unlock")
@@ -529,8 +524,15 @@ def _lp_template() -> str:
     return _LP_TEMPLATE
 
 
+def _line_official_url() -> str:
+    return html.escape(line_official_url(), quote=True)
+
+
 def _with_public_price(body: str) -> str:
-    return body.replace("__MONTHLY_PRICE__", MONTHLY_PRICE_YEN)
+    return (
+        body.replace("__MONTHLY_PRICE__", MONTHLY_PRICE_YEN)
+        .replace("__LINE_OFFICIAL_URL__", _line_official_url())
+    )
 
 
 @app.get("/lp")
@@ -560,34 +562,32 @@ def landing_page() -> StreamingResponse:
 
 
 @app.get("/api/lp-checkout")
-def lp_checkout(request: Request) -> Response:
-    member_id, email = account_from_request(request)
-    url = checkout_redirect_url(request, member_id=member_id, email=email)
-    if not url:
-        return HTMLResponse(
-            "決済画面は準備中です。",
-            status_code=503,
-            headers={"Cache-Control": "no-store"},
-        )
-    return RedirectResponse(url, status_code=303)
+def lp_checkout() -> RedirectResponse:
+    return RedirectResponse(line_official_url(), status_code=303)
+
+
+@app.api_route("/api/stripe/webhook", methods=["GET", "POST"])
+def retired_stripe_webhook() -> JSONResponse:
+    return JSONResponse({"detail": "Not Found"}, status_code=404, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/thanks")
-def thanks_page(session_id: str = "") -> HTMLResponse:
-    return render_thanks(session_id)
-
-
-@app.post("/api/stripe/webhook")
-async def stripe_webhook(request: Request) -> JSONResponse:
-    try:
-        handle_webhook(await request.body(), request.headers.get("stripe-signature") or "")
-    except WebhookError as exc:
-        return JSONResponse(
-            {"detail": exc.public_detail},
-            status_code=exc.status_code,
-            headers={"Cache-Control": "no-store"},
-        )
-    return JSONResponse({"ok": True}, headers={"Cache-Control": "no-store"})
+def thanks_page() -> HTMLResponse:
+    url = html.escape(line_official_url(), quote=True)
+    body = f"""<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>スロ極</title></head>
+<body>
+  <main>
+    <h1>申し込みは公式LINEから</h1>
+    <p>カード登録と解約は、公式LINEの案内に沿って行います。</p>
+    <p><a href="{url}">公式LINEを開く</a></p>
+    <p><a href="/lp">紹介ページへ戻る</a></p>
+  </main>
+</body>
+</html>
+"""
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/legal/terms")
@@ -1042,12 +1042,8 @@ def print_phone_access_banner(port: int, public_url: str | None = None) -> None:
         print("  同じリンクを Discord に送ります。タップするとブラウザで開けます。")
         print()
     print("  紹介ページ /lp は誰でも開けます。ツールは、課金中の会員だけが開けます。")
-    print("  会員登録は /register 、申し込みはログイン後の /checkout です。")
-    print("  運営用の閲覧パスワードは DASHBOARD_PASSWORD です。初期値のまま決済連携を入れると、そのパスワードは使えなくなります。")
-    if not (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip():
-        print("  STRIPE_WEBHOOK_SECRET が未設定です。決済後の自動有効化はまだ動きません。")
-    elif not ((os.environ.get("STRIPE_PRICE_ID") or "").strip() or (os.environ.get("STRIPE_CHECKOUT_URL") or "").strip()):
-        print("  決済画面の行き先が未設定です。STRIPE_PRICE_ID か STRIPE_CHECKOUT_URL を入れてください。")
+    print("  申し込みと解約は公式LINEから行います。")
+    print("  運営用の閲覧パスワードは DASHBOARD_PASSWORD です。")
     print()
     if phone:
         print(f"{bold}  同じWi-Fi: {phone}{reset}")

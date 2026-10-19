@@ -45,18 +45,6 @@
     return haystack.includes(needle);
   }
 
-  function stripeLink(member) {
-    const url = String(member.stripe_url || "");
-    if (!url.startsWith("https://dashboard.stripe.com/")) return text("span", "contract-sub", "");
-    const link = document.createElement("a");
-    link.className = "stripe-link";
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "Stripeで開く";
-    return link;
-  }
-
   function render() {
     const needle = queryEl.value.trim().toLowerCase();
     const visible = state.members.filter((member) => matches(member, needle));
@@ -90,9 +78,7 @@
         trial,
         text("td", "", member.phase),
         text("td", "", member.next_billing_jst),
-        document.createElement("td"),
       );
-      row.lastChild.append(stripeLink(member));
       rowsEl.append(row);
     });
     emptyEl.classList.toggle("hidden", visible.length > 0);
@@ -114,7 +100,7 @@
     return match ? `${Number(match[1])}/${Number(match[2])}` : "";
   }
 
-  function fillSummary(summary, generatedAt, mode) {
+  function fillSummary(summary, generatedAt) {
     kpi.total.textContent = String(summary.total ?? 0);
     kpi.trialing.textContent = String(summary.trialing ?? 0);
     kpi.active.textContent = String(summary.active ?? 0);
@@ -122,8 +108,7 @@
     const start = shortDate(summary.week_start_jst);
     const end = shortDate(summary.week_end_jst);
     kpi.week.textContent = start && end ? `${start}〜${end}` : "";
-    const place = mode === "test" ? "Stripeテスト" : "Stripe本番";
-    statusEl.textContent = generatedAt ? `${generatedAt} 時点 · ${place}` : "";
+    statusEl.textContent = generatedAt ? `${generatedAt} 時点` : "";
   }
 
   async function load() {
@@ -140,7 +125,7 @@
     }
     const payload = await response.json();
     state.members = Array.isArray(payload.members) ? payload.members : [];
-    fillSummary(payload.summary || {}, payload.generated_at || "", payload.stripe_mode || "");
+    fillSummary(payload.summary || {}, payload.generated_at || "");
     render();
   }
 
