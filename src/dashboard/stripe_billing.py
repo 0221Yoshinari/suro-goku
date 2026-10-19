@@ -418,7 +418,7 @@ def _with_account_query(url: str, member_id: str, email: str) -> str:
 def _trial_days() -> int:
     raw = os.environ.get("STRIPE_TRIAL_DAYS")
     if raw is None or not str(raw).strip():
-        return 7
+        return 11
     text = str(raw).strip()
     if text.isdigit():
         return int(text)

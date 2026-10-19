@@ -776,13 +776,13 @@ def billing_get(request: Request) -> Response:
     else:
         status = str(member.get("status") or "")
         if status in {"", "incomplete"}:
-            lead = "まだ申し込み前です。7日間は無料です。期間中に解約すれば、料金はかかりません。"
+            lead = "まだ申し込み前です。10日間は無料です。期間中に解約すれば、料金はかかりません。"
         else:
             message = str(member.get("message") or "お申し込みが必要です。")
-            lead = f"{message} 7日間は無料です。期間中に解約すれば、料金はかかりません。"
+            lead = f"{message} 10日間は無料です。期間中に解約すれば、料金はかかりません。"
         action = (
             '<form method="get" action="/checkout" class="login-form">'
-            '<button type="submit" class="primary">7日間無料で申し込む</button>'
+            '<button type="submit" class="primary">10日間無料で申し込む</button>'
             "</form>"
         )
     body = (

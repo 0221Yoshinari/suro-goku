@@ -189,7 +189,7 @@ class DashboardAuthTest(unittest.TestCase):
         self.assertIn("リリースまでお待ちください", body)
         self.assertIn("【重要】リリース日変更に関するお知らせ（10月20日(火)公開予定）", body)
         self.assertIn("公開日を<strong>【10月20日】</strong>", body)
-        self.assertIn("7日完全無料", body)
+        self.assertIn("10日完全無料", body)
         self.assertIn("同意して申し込む", body)
         self.assertIn("リリースまで、お申し込みはお待ちください。", body)
         self.assertNotIn("Stripeで申し込む", body)

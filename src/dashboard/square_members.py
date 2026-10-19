@@ -24,7 +24,8 @@ from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 JST = timezone(timedelta(hours=9))
-TRIAL_DAYS = 7
+# 登録日を0日目とし、11日目に有料課金が始まるまでの利用期限。
+TRIAL_DAYS = 11
 _LOCK = threading.Lock()
 _READY: set[str] = set()
 _ENGINES: dict[str, object] = {}
@@ -220,7 +221,7 @@ def record_card_trial(
     subscription_id: str,
     when: int | None = None,
 ) -> dict | None:
-    """カード登録が終わった申込を、7日間の無料体験にする。"""
+    """カード登録が終わった申込を無料体験にする。登録日が0日目で、11日目から有料。"""
     current = int(time.time() if when is None else when)
     with _LOCK:
         rows = _load_members()
@@ -486,7 +487,7 @@ def _enter_trial(member: dict, when: int, start_hint: object) -> bool:
     changed = False
     if not member.get("trial_end"):
         start = _charged_through(start_hint) or when
-        # charged_through は「その日まで請求済み」の翌日。日付ヒントが開始日なら 7 日後にする。
+        # charged_through は「その日まで請求済み」の翌日。日付ヒントが開始日なら11日後（11日目）にする。
         if _looks_like_date(start_hint):
             start_day = _date_stamp(start_hint)
             member["trial_end"] = (start_day or when) + TRIAL_DAYS * 86400

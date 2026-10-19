@@ -2,9 +2,9 @@
 
 起動: uvicorn main:app --host 0.0.0.0 --port 8000
 
-定期購入は最初の7日間が0円、その後月額2,980円。0円の Square 決済リンクはカードを
-預からないため、このページでカードを保存し、そのカードで定期購入を始める。
-8日目から Square がそのカードに月額2,980円を請求する。
+定期購入は登録日を0日目とし、案内上は最初の10日間が0円。11日目から月額2,980円。
+0円の Square 決済リンクはカードを預からないため、このページでカードを保存し、
+そのカードで定期購入を始める。11日目から Square がそのカードに月額2,980円を請求する。
 /square-webhook は会員台帳のステータスを更新する。ツール本体は同じ台帳を見て、
 無料体験中と有料会員以外をその次のアクセスから止める。
 """
@@ -20,6 +20,9 @@ import os
 import re
 import time
 import uuid
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from urllib.parse import urlparse
 
 import httpx
@@ -45,20 +48,23 @@ _EMAIL_RE = re.compile(
 _MAX_BODY = 1_000_000
 _INITIAL_AMOUNT_JPY = 0
 _MONTHLY_AMOUNT_JPY = 2980
-_TRIAL_DAYS = 7
+# 登録日を0日目とし、日次0円フェーズを11期間にする。月額フェーズは11日目から始まる。
+_TRIAL_DAYS = 11
+_JST = timezone(timedelta(hours=9))
 _SQUARE_VERSION = "2026-09-16"
 _PLAN_NAME = "スロ極"
-_VARIATION_NAME = "スロ極 7日間0円・以降月額2980円"
-_CHECKOUT_ITEM_NAME = "スロ極 月額2,980円（最初の7日間は0円）"
+_VARIATION_NAME = "スロ極 10日間0円・以降月額2980円"
+_CHECKOUT_ITEM_NAME = "スロ極 月額2,980円（最初の10日間は0円）"
 _OPEN_SUBSCRIPTION = {"PENDING", "ACTIVE"}
-_TRIAL_BUTTON = "🚀 7日間無料でスロ極を試す"
-_WELCOME = "スロ極へようこそ。7日間、全機能を無料で試せます。\n下のボタンから、1分で登録を始められます。"
+_TRIAL_LABELS = {"10日間無料でスロ極を試す", "7日間無料でスロ極を試す"}
+_TRIAL_BUTTON = "🚀 10日間無料でスロ極を試す"
+_WELCOME = "スロ極へようこそ。10日間、全機能を無料で試せます。\n下のボタンから、1分で登録を始められます。"
 _GUIDE = (
-    "スロ極の7日間無料トライアルへようこそ！✨\n"
+    "スロ極の10日間無料トライアルへようこそ！✨\n"
     "\n"
     "このチャットに【普段お使いのメールアドレス】を送信してください。すぐにカード登録ページをお届けします！\n"
     "\n"
-    "※今日の支払いは0円です。7日以内に解約すれば、料金は一切かかりません。"
+    "※今日の支払いは0円です。10日以内に解約すれば、料金は一切かかりません。"
 )
 _CHECKOUT_TTL = 48 * 60 * 60
 _ALREADY = "このLINEアカウントは登録済みです。"
@@ -85,7 +91,7 @@ def is_trial_intent(text: str) -> bool:
     normalized = " ".join(text.strip().split())
     if normalized == _TRIAL_BUTTON:
         return True
-    return normalized.replace("🚀", "").strip() == "7日間無料でスロ極を試す"
+    return normalized.replace("🚀", "").strip() in _TRIAL_LABELS
 
 
 def line_text_message(text: str, quick_reply: str | None = None) -> dict:
@@ -112,6 +118,12 @@ def line_signature_valid(body: bytes, signature: str, secret: str) -> bool:
     digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).digest()
     expected = base64.b64encode(digest).decode("ascii")
     return hmac.compare_digest(expected, signature.strip())
+
+
+def subscription_start_date(now: datetime | None = None) -> str:
+    """カード登録日を0日目にする。Square の開始日は日本時間のその日。"""
+    current = now.astimezone(_JST) if now is not None else datetime.now(_JST)
+    return current.strftime("%Y-%m-%d")
 
 
 def subscription_phases() -> list[dict]:
@@ -223,9 +235,9 @@ def checkout_page_url(base: str, token: str) -> str:
 def checkout_reply(url: str) -> str:
     return (
         "カード登録ページを開いてください。\n"
-        "月額2,980円です。最初の7日間は0円で、今日はカードを登録するだけです。\n"
-        "8日目から、登録したカードに月額2,980円が自動で引き落とされます。\n"
-        "7日以内に解約すれば、料金はかかりません。\n"
+        "月額2,980円です。最初の10日間は0円で、今日はカードを登録するだけです。\n"
+        "11日目から、登録したカードに月額2,980円が自動で引き落とされます。\n"
+        "10日以内に解約すれば、料金はかかりません。\n"
         f"{url}"
     )
 
@@ -562,6 +574,7 @@ async def start_card_subscription(
             "customer_id": customer_id,
             "plan_variation_id": variation_id,
             "card_id": card_id,
+            "start_date": subscription_start_date(),
         },
     )
     subscription = created.get("subscription") if isinstance(created.get("subscription"), dict) else {}
@@ -681,7 +694,7 @@ _CHECKOUT_PAGE = """<!DOCTYPE html>
     <section class="price">
       <p class="today">今日の支払い</p>
       <p class="yen">0円</p>
-      <p class="note">月額2,980円です。最初の7日間は0円で、このページではカードを登録するだけです。8日目から、登録したカードに月額2,980円が自動で引き落とされます。7日以内に解約すれば、料金はかかりません。</p>
+      <p class="note">月額2,980円です。最初の10日間は0円で、このページではカードを登録するだけです。11日目から、登録したカードに月額2,980円が自動で引き落とされます。10日以内に解約すれば、料金はかかりません。</p>
     </section>
     <form id="card-form" class="hidden">
       <p id="buyer-email" class="fine"></p>
@@ -841,7 +854,7 @@ async def checkout_complete(request: Request) -> JSONResponse:
     return JSONResponse(
         {
             "ok": True,
-            "message": "登録が完了しました。今日の支払いは0円です。8日目から、登録したカードに月額2,980円が自動で引き落とされます。",
+            "message": "登録が完了しました。今日の支払いは0円です。11日目から、登録したカードに月額2,980円が自動で引き落とされます。",
         }
     )
 

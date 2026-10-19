@@ -528,7 +528,7 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(email, page)
         self.assertIn("まだ申し込み前です", page)
-        self.assertIn("7日間無料で申し込む", page)
+        self.assertIn("10日間無料で申し込む", page)
         self.assertNotIn(password, page)
         self.assertNotIn("pbkdf2$", page)
         status, headers, _body, _cookies = self.call("GET", "/")
@@ -582,7 +582,7 @@ class StripeMemberTest(unittest.TestCase):
         self.assertIn(f"client_reference_id={member_id}", sent)
         self.assertIn(f"metadata[user_id]={member_id}", sent)
         self.assertIn(f"subscription_data[metadata][user_id]={member_id}", sent)
-        self.assertIn("subscription_data[trial_period_days]=7", sent)
+        self.assertIn("subscription_data[trial_period_days]=11", sent)
         self.assertIn("customer_email=player@example.com", sent)
 
         created = {
@@ -650,7 +650,7 @@ class StripeMemberTest(unittest.TestCase):
         self.assertEqual(json.loads(body)["detail"], "利用権限がありません")
         status, _headers, page, _cookies = self.call("GET", "/billing", headers={"User-Agent": "DeviceTwo"})
         self.assertEqual(status, 200)
-        self.assertIn("7日間無料で申し込む", page)
+        self.assertIn("10日間無料で申し込む", page)
 
         deleted = {
             "id": "evt_account_deleted",

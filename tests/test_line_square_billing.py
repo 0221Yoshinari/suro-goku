@@ -45,13 +45,13 @@ class BillingRulesTest(unittest.TestCase):
         self.assertIn('lang="ja"', page.text)
         self.assertIn(main._CHECKOUT_ITEM_NAME, page.text)
         self.assertIn("今日の支払い", page.text)
-        self.assertIn("最初の7日間は0円", page.text)
-        self.assertIn("8日目から", page.text)
+        self.assertIn("最初の10日間は0円", page.text)
+        self.assertIn("11日目から", page.text)
 
     def test_phases_are_free_then_monthly(self) -> None:
         phases = main.subscription_phases()
         self.assertEqual(phases[0]["cadence"], "DAILY")
-        self.assertEqual(phases[0]["periods"], 7)
+        self.assertEqual(phases[0]["periods"], 11)
         self.assertEqual(phases[0]["pricing"]["price"]["amount"], 0)
         self.assertEqual(phases[1]["cadence"], "MONTHLY")
         self.assertEqual(phases[1]["pricing"]["price"]["amount"], 2980)
@@ -65,7 +65,9 @@ class BillingRulesTest(unittest.TestCase):
         self.assertEqual(action["label"], main._TRIAL_BUTTON)
         self.assertEqual(action["text"], main._TRIAL_BUTTON)
         self.assertTrue(main.is_trial_intent(main._TRIAL_BUTTON))
+        self.assertTrue(main.is_trial_intent("10日間無料でスロ極を試す"))
         self.assertTrue(main.is_trial_intent("7日間無料でスロ極を試す"))
+        self.assertIn("10日間、全機能を無料で試せます", main._WELCOME)
         self.assertIn("【普段お使いのメールアドレス】", main._GUIDE)
         self.assertIn("料金は一切かかりません", main._GUIDE)
         self.assertNotIn("**", main._GUIDE)
@@ -276,7 +278,7 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                     return {"catalog_object": {"id": "PLAN1"}}
                 phases = payload["object"]["subscription_plan_variation_data"]["phases"]
                 self.assertEqual(phases[0]["cadence"], "DAILY")
-                self.assertEqual(phases[0]["periods"], 7)
+                self.assertEqual(phases[0]["periods"], 11)
                 self.assertEqual(phases[0]["pricing"]["price"]["amount"], 0)
                 self.assertEqual(phases[1]["pricing"]["price"]["amount"], 2980)
                 return {"catalog_object": {"id": "VAR1"}}
@@ -297,7 +299,8 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                 "https://suro-goku-billing.onrender.com",
             )
 
-        self.assertIn("最初の7日間は0円", message)
+        self.assertIn("最初の10日間は0円", message)
+        self.assertIn("11日目から", message)
         self.assertIn("自動で引き落とされます", message)
         self.assertNotIn("square.link", message)
         self.assertIn("https://suro-goku-billing.onrender.com/checkout?t=", message)
@@ -346,7 +349,7 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(payload["plan_variation_id"], "VAR1")
                 self.assertEqual(payload["customer_id"], "CUST1")
                 self.assertEqual(payload["location_id"], "LOC1")
-                self.assertNotIn("start_date", payload)
+                self.assertEqual(payload["start_date"], main.subscription_start_date())
                 return {"subscription": {"id": "SUB1", "card_id": "CARD1", "status": "ACTIVE"}}
             raise AssertionError(path)
 
@@ -367,6 +370,7 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("今日の支払いは0円", response.json()["message"])
+        self.assertIn("11日目から", response.json()["message"])
         self.assertIn("2,980円", response.json()["message"])
         self.assertFalse(any(path == "/v2/online-checkout/payment-links" for _method, path, _payload in calls))
         from src.dashboard.square_members import list_members
