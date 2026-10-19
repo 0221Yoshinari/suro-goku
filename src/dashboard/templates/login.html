@@ -10,19 +10,26 @@
     <main class="login-card">
       <p class="eyebrow">スロ極</p>
       <h1>ログイン</h1>
-      <p class="login-lead">メールアドレスとパスワードを入力してください。</p>
+      <p class="login-lead">ご登録のメールアドレスを入力してください。</p>
       __ERROR__
-      <form method="post" action="/login" class="login-form">
+      <form method="post" action="/login" class="login-form" autocomplete="on">
         <input type="hidden" name="next" value="__NEXT__" />
         <label class="login-label" for="email">メールアドレス</label>
-        <input id="email" name="email" type="email" autocomplete="username" maxlength="200" />
+        <input id="email" name="email" type="email" autocomplete="username" inputmode="email" maxlength="200" autofocus required />
         <label class="login-label" for="password">パスワード</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" autofocus required />
+        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="200" />
         <button type="submit" class="primary">ログイン</button>
       </form>
-      <p class="login-note">別の端末でログインすると、それまでの端末は自動でログアウトされます。</p>
-      <p class="login-note">ライセンスキーだけの方は、メールを空欄にしてキーをパスワード欄に入力してください。</p>
-      <p class="login-links"><a href="/register">アカウントを作成</a> · <a href="/lp">紹介ページ</a></p>
+      <p class="login-note">パスワードはメールアドレスと同じで構いません。空欄でもログインでき、入力するとブラウザに保存できます。</p>
+      <p class="login-links"><a href="/lp">紹介ページ</a></p>
+      <script>
+        document.querySelector(".login-form").addEventListener("submit", (event) => {
+          const form = event.currentTarget;
+          if (form.email.value && !form.password.value) {
+            form.password.value = form.email.value;
+          }
+        });
+      </script>
     </main>
   </body>
 </html>

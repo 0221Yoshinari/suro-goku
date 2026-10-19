@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import html
@@ -22,9 +23,8 @@ from src.dashboard.members import open_password_session
 from src.dashboard.members import present_member
 from src.dashboard.members import register_account
 from src.dashboard.line_access import clear_line_cookie
-from src.dashboard.line_access import line_guard_enabled
-from src.dashboard.line_access import line_user_from_request
-from src.dashboard.line_access import membership_block
+from src.dashboard.square_members import SquareMemberError
+from src.dashboard.square_members import email_access
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -109,11 +109,13 @@ def token_is_valid(token: str | None, now: float | None = None) -> bool:
 
 _MEMBER_ID_RE = re.compile(r"^m_[0-9a-f]{16}$")
 _SESSION_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+MEMBERSHIP_MESSAGE = "ご契約中のメールアドレスを入力するか、有料プランへご登録ください"
 _LOGIN_NOTICES = {
     "expired": "利用権限がありません",
     "trial": "無料体験は終了しています",
     "lapsed": "利用期限が切れています",
     "session": "別の端末で利用中です",
+    "membership": MEMBERSHIP_MESSAGE,
 }
 
 
@@ -176,6 +178,8 @@ def client_fp(request: Request) -> str:
 def is_authenticated(request: Request) -> bool:
     cookie = request.cookies.get(COOKIE_NAME)
     if token_is_valid(cookie):
+        return True
+    if _email_session_allowed(cookie):
         return True
     claims = member_token_claims(cookie)
     if not claims:
@@ -350,8 +354,6 @@ def is_member_tool_path(path: str) -> bool:
 
 
 def is_public_path(path: str) -> bool:
-    if line_guard_enabled() and is_member_tool_path(path):
-        return False
     if path in {
         "/health",
         "/login",
@@ -375,7 +377,7 @@ def is_public_path(path: str) -> bool:
         return True
     if path.startswith("/legal/") or path.startswith("/static/"):
         return True
-    if open_tool_mode() and path in _OPEN_TOOL_PATHS and not line_guard_enabled():
+    if open_tool_mode() and path in _OPEN_TOOL_PATHS:
         return True
     if not public_demo_mode():
         return False
@@ -457,8 +459,6 @@ async def auth_middleware(request: Request, call_next):
         return HTMLResponse("Not Found", status_code=404, headers={"Cache-Control": "no-store"})
     if is_public_path(path):
         return await call_next(request)
-    if line_guard_enabled() and is_member_tool_path(path):
-        return await _guard_member_tool(request, call_next)
     kind, denial = _access_kind(request)
     if denial is not None:
         return denial
@@ -517,14 +517,15 @@ async def login_post(request: Request) -> Response:
     raw_password = (form.get("password") or [""])[0]
     password = raw_password.strip()
     next_path = safe_next((form.get("next") or ["/"])[0])
-    if email:
-        member_id, session_id, error = open_password_session(email, raw_password, client_ip(request), client_fp(request))
-        if error:
-            return render_login(error=error, next_path=next_path)
-        if not member_id or not session_id:
-            return render_login(error="メールアドレスまたはパスワードが違います", next_path=next_path)
-        response = RedirectResponse(_after_member_login(member_id, next_path), status_code=303)
-        apply_member_cookie(response, request, member_id, session_id)
+    if email and not (password and passwords_match(password) and shared_password_enabled()):
+        try:
+            access = email_access(email)
+        except SquareMemberError:
+            return render_login(error="会員確認ができません。しばらくしてから再度お試しください。", next_path=next_path)
+        if not access["allowed"] or not access.get("email"):
+            return render_login(error=MEMBERSHIP_MESSAGE, next_path=next_path)
+        response = RedirectResponse(next_path, status_code=303)
+        apply_email_cookie(response, request, str(access["email"]))
         return response
     if passwords_match(password):
         if not shared_password_enabled():
@@ -546,36 +547,14 @@ async def login_post(request: Request) -> Response:
 
 
 async def logout(request: Request) -> Response:
-    operator = token_is_valid(request.cookies.get(COOKIE_NAME))
     claims = member_token_claims(request.cookies.get(COOKIE_NAME))
     if claims:
         close_member_session(claims[0], claims[1])
-    target = "/login" if operator or not line_user_from_request(request) else "/line"
-    response = RedirectResponse(target, status_code=303)
+    response = RedirectResponse("/login", status_code=303)
     clear_session_cookie(response)
     clear_master_cookie(response)
     clear_line_cookie(response)
     return response
-
-
-async def _guard_member_tool(request: Request, call_next):
-    """運営と有効な決済会員は従来どおり。それ以外は LINE の会員ステータスで止める。"""
-    kind, denial = _access_kind(request)
-    if denial is not None:
-        return denial
-    if kind in {"operator", "member"}:
-        return await call_next(request)
-    if kind == "member_inactive" and request.url.path not in _BILLING_PATHS:
-        detail = getattr(request.state, "member_block_detail", "") or "利用権限がありません"
-        if request.url.path.startswith("/api/") or _wants_json(request):
-            return JSONResponse({"detail": detail}, status_code=403, headers={"Cache-Control": "no-store"})
-        response = RedirectResponse("/billing", status_code=303)
-        response.headers["Cache-Control"] = "no-store"
-        return response
-    blocked = membership_block(request)
-    if blocked is not None:
-        return blocked
-    return await call_next(request)
 
 
 def safe_master_next(value: str | None) -> str:
@@ -628,10 +607,81 @@ async def master_unlock_post(request: Request) -> Response:
     return response
 
 
+def issue_email_token(email: str, now: float | None = None) -> str:
+    issued = int(now if now is not None else time.time())
+    encoded = base64.urlsafe_b64encode(email.encode("utf-8")).decode("ascii").rstrip("=")
+    body = f"e1.{encoded}.{issued}"
+    signature = hmac.new(_signing_key(), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{body}.{signature}"
+
+
+def email_from_token(token: str | None, now: float | None = None) -> str:
+    if not token:
+        return ""
+    parts = token.split(".")
+    if len(parts) != 4:
+        return ""
+    version, encoded, issued_raw, signature = parts
+    if version != "e1" or not encoded or not issued_raw.isdigit() or not signature:
+        return ""
+    body = f"e1.{encoded}.{issued_raw}"
+    expected = hmac.new(_signing_key(), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        return ""
+    issued = int(issued_raw)
+    current = int(now if now is not None else time.time())
+    age = current - issued
+    if age < -60 or age > session_max_age_seconds():
+        return ""
+    padding = "=" * (-len(encoded) % 4)
+    try:
+        email = base64.urlsafe_b64decode(encoded + padding).decode("utf-8")
+    except (UnicodeError, ValueError):
+        return ""
+    if not email or any(ch in email for ch in "\r\n\x00 <>"):
+        return ""
+    return email
+
+
+def apply_email_cookie(response: Response, request: Request, email: str) -> None:
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=issue_email_token(email),
+        max_age=session_max_age_seconds(),
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_secure(request),
+        path="/",
+    )
+
+
+def _email_session_allowed(token: str | None) -> bool:
+    email = email_from_token(token)
+    if not email:
+        return False
+    try:
+        return bool(email_access(email)["allowed"])
+    except SquareMemberError:
+        return False
+
+
 def _access_kind(request: Request) -> tuple[str, Response | None]:
     cookie = request.cookies.get(COOKIE_NAME)
     if token_is_valid(cookie):
         return "operator", None
+    email = email_from_token(cookie)
+    if email:
+        try:
+            access = email_access(email)
+        except SquareMemberError:
+            denied = _member_denied(request, "会員確認ができません", 503)
+            clear_session_cookie(denied)
+            return "anonymous", denied
+        if access["allowed"]:
+            return "member", None
+        denied = _member_denied(request, MEMBERSHIP_MESSAGE, 403)
+        clear_session_cookie(denied)
+        return "anonymous", denied
     claims = member_token_claims(cookie)
     if not claims:
         return "anonymous", None

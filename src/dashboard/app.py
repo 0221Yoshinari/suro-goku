@@ -55,7 +55,6 @@ from src.dashboard.events import today_jst
 from src.dashboard.events import update_event
 from src.dashboard.auth import billing_get
 from src.dashboard.line_access import accept_line_session
-from src.dashboard.line_access import line_guard_enabled
 from src.dashboard.line_access import line_login_page
 from src.dashboard.line_access import line_oauth_callback
 from src.dashboard.line_access import render_plan
@@ -100,15 +99,12 @@ async def _lifespan(_app):
 
     init_member_store()
     ledger = init_square_store()
-    guard = "有効" if line_guard_enabled() else "無効"
-    print(f"LINE会員ガードは{guard}です。", flush=True)
-    if line_guard_enabled() and ledger != "postgres":
+    print("ツールのログインは、登録メールアドレスです。", flush=True)
+    if ledger != "postgres":
         print(
-            "LINE会員ガードは有効ですが、台帳が Postgres ではありません。請求サーバーと同じ DATABASE_URL を設定してください。",
+            "会員台帳が Postgres ではありません。請求サーバーと同じ DATABASE_URL を設定してください。",
             flush=True,
         )
-    elif line_guard_enabled():
-        print("ツールの会員確認は Postgres の台帳を読みます。", flush=True)
     from src.scraper.x_monitor import ensure_background_monitor
 
     ensure_background_monitor()

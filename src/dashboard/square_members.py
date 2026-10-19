@@ -250,20 +250,28 @@ _TOOL_ALLOWED = {"trialing", "active"}
 
 
 def tool_access(line_user_id: str, now: int | None = None) -> dict:
-    """リッチメニューから開いたツールを許可するか。呼び出しのたびに台帳を読む。
+    """LINE ID で台帳を引く。呼び出しのたびに台帳を読む。"""
+    return _access_for(line_user_id=line_user_id, email="", now=now)
 
-    Webhook が解約や決済失敗を書き込んだ次のリクエストから拒否される。
-    無料体験の期限を過ぎた trialing は、ステータス更新を待たずに止める。
-    """
+
+def email_access(email: str, now: int | None = None) -> dict:
+    """ログインに使ったメールアドレスで台帳を引く。呼び出しのたびに台帳を読む。"""
+    return _access_for(line_user_id="", email=email, now=now)
+
+
+def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:
+    """無料体験中と有料会員だけ許可する。期限切れの体験と、解約・決済失敗は拒否する。"""
     current = int(time.time() if now is None else now)
     user_id = _clean_token(line_user_id, 100)
-    if not user_id:
-        return _access_view(False, "unregistered", "", "")
+    cleaned = _clean_email(email)
+    if not user_id and not cleaned:
+        return _access_view(False, "unregistered", "", "", "")
     with _LOCK:
         rows = _load_members()
-        member = _locate(rows, line_user_id=user_id)
+        member = _locate(rows, line_user_id=user_id, email=cleaned)
+    identity = cleaned or user_id
     if member is None:
-        return _access_view(False, "unregistered", "", user_id)
+        return _access_view(False, "unregistered", "", user_id, cleaned)
     status = str(member.get("status") or "")
     if status not in _TOOL_ALLOWED:
         reason = {
@@ -272,20 +280,21 @@ def tool_access(line_user_id: str, now: int | None = None) -> dict:
             "suspended": "suspended",
             "pending": "pending",
         }.get(status, "unregistered")
-        return _access_view(False, reason, status, user_id)
+        return _access_view(False, reason, status, user_id, cleaned or str(member.get("email") or ""))
     if status == "trialing":
         trial_end = member.get("trial_end")
         if trial_end is not None and int(trial_end) <= current:
-            return _access_view(False, "trial_ended", status, user_id)
-    return _access_view(True, "ok", status, user_id)
+            return _access_view(False, "trial_ended", status, user_id, cleaned or str(member.get("email") or ""))
+    return _access_view(True, "ok", status, user_id or str(member.get("line_user_id") or ""), cleaned or str(member.get("email") or ""))
 
 
-def _access_view(allowed: bool, reason: str, status: str, line_user_id: str) -> dict:
+def _access_view(allowed: bool, reason: str, status: str, line_user_id: str, email: str = "") -> dict:
     return {
         "allowed": allowed,
         "reason": reason,
         "status": status,
         "line_user_id": line_user_id,
+        "email": email,
     }
 
 

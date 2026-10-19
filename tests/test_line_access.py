@@ -11,6 +11,7 @@ import time
 import unittest
 from pathlib import Path
 from unittest import mock
+from urllib.parse import urlencode
 from urllib.parse import urlsplit
 
 os.environ.setdefault("DASHBOARD_PASSWORD", "owner-secret")
@@ -33,6 +34,8 @@ OTHER_USER = "U" + ("cd" * 16)
 NOTIFY_URL = "https://billing.example.com/square-webhook"
 SIGNING_KEY = "square-sign-key"
 CHANNEL_ID = "1234567890"
+DENIED = "ご契約中のメールアドレスを入力するか、有料プランへご登録ください"
+MEMBER_EMAIL = "member@example.com"
 
 
 def request(method: str, url: str, *, body: bytes = b"", headers: dict | None = None, cookies: dict | None = None):
@@ -180,25 +183,33 @@ class LineAccessTest(unittest.TestCase):
     def line_cookie(self, user_id: str = LINE_USER) -> None:
         self.cookies["line_member"] = issue_line_token(user_id)
 
+    def login_email(self, email: str = MEMBER_EMAIL, password: str = ""):
+        body = urlencode({"email": email, "password": password, "next": "/"}).encode()
+        return self.call(
+            "POST",
+            "/login",
+            body=body,
+            headers={"content-type": "application/x-www-form-urlencoded"},
+        )
+
     def test_anonymous_tool_is_hidden(self) -> None:
         status, headers, body = self.call("GET", "/")
         self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/line")
+        self.assertIn("/login", headers["location"])
         self.assertNotIn("店舗別ダッシュボード", body.decode())
         status, headers, body = self.call("GET", "/?line_user_id=" + LINE_USER)
         self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/line")
+        self.assertIn("/login", headers["location"])
+        status, _headers, page = self.call("GET", "/login")
+        text = page.decode()
+        self.assertIn('autocomplete="username"', text)
+        self.assertIn('autocomplete="current-password"', text)
+        self.assertIn('type="password"', text)
+        self.assertIn("メールアドレス", text)
         status, _headers, body = self.call("GET", "/api/judgments")
         self.assertEqual(status, 401)
-        self.assertEqual(json.loads(body)["detail"], "LINEでの確認が必要です")
+        self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
         self.assertNotIn(b"machines", body)
-
-    def test_open_mode_does_not_bypass_the_guard(self) -> None:
-        with mock.patch.dict(os.environ, {"DASHBOARD_OPEN": "1"}):
-            status, headers, body = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/line")
-        self.assertNotIn("店舗別ダッシュボード", body.decode())
 
     def test_operator_can_still_open_the_tool(self) -> None:
         status, _headers, _body = self.call(
@@ -260,25 +271,18 @@ class LineAccessTest(unittest.TestCase):
         self.assertEqual(json.loads(body)["detail"], "LINEの確認ができません")
 
     def test_trial_and_active_can_open_until_webhook_stops_them(self) -> None:
-        record_line_signup(line_user_id=LINE_USER, email="member@example.com", square_customer_id="CUST1", line_name="極子")
-        self.assertEqual(tool_access(LINE_USER)["reason"], "pending")
-        apply_square_event(_subscription("evt-sub"))
-        self.assertEqual(tool_access(LINE_USER)["status"], "trialing")
-        self.assertTrue(tool_access(LINE_USER)["allowed"])
-
-        with mock.patch("src.dashboard.line_access.verify_line_id_token", return_value=LINE_USER):
-            status, _headers, body = self.call(
-                "POST",
-                "/api/line/session",
-                body=json.dumps({"id_token": "signed-token"}).encode(),
-                headers={"content-type": "application/json"},
-            )
+        record_line_signup(line_user_id=LINE_USER, email=MEMBER_EMAIL, square_customer_id="CUST1", line_name="極子")
+        status, _headers, body = self.login_email()
         self.assertEqual(status, 200)
-        payload = json.loads(body)
-        self.assertTrue(payload["allowed"])
-        self.assertEqual(payload["next"], "/")
-        self.assertIn("line_member", self.cookies)
+        self.assertIn(DENIED, body.decode())
+        self.assertNotIn("dashboard_session", self.cookies)
+        self.assertNotIn("店舗別ダッシュボード", body.decode())
 
+        apply_square_event(_subscription("evt-sub"))
+        status, headers, _body = self.login_email(password=MEMBER_EMAIL)
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
+        self.assertIn("dashboard_session", self.cookies)
         status, _headers, body = self.call("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn("店舗別ダッシュボード", body.decode())
@@ -287,48 +291,42 @@ class LineAccessTest(unittest.TestCase):
         self.assertIn("machines", json.loads(body))
 
         failed = json.dumps(_invoice("evt-fail", 2980, "invoice.payment_failed")).encode()
-        result = handle_square_webhook(failed, _sign(failed))
-        self.assertEqual(result["result"], "updated")
-        self.assertEqual(tool_access(LINE_USER)["reason"], "past_due")
-        status, headers, body = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/plan?reason=past_due")
-        self.assertNotIn("店舗別ダッシュボード", body.decode())
-        status, _headers, body = self.call("GET", "/api/judgments", headers={"accept": "application/json"})
-        denied = json.loads(body)
+        self.assertEqual(handle_square_webhook(failed, _sign(failed))["result"], "updated")
+        status, _headers, body = self.call("GET", "/")
         self.assertEqual(status, 403)
-        self.assertEqual(denied["reason"], "past_due")
-        self.assertNotIn("machines", denied)
-        status, _headers, page = self.call("GET", "/plan")
-        text = page.decode()
+        self.assertIn(DENIED, body.decode())
+        self.assertNotIn("店舗別ダッシュボード", body.decode())
+        self.assertNotIn("dashboard_session", self.cookies)
+        status, _headers, denied = self.login_email()
         self.assertEqual(status, 200)
-        self.assertIn("お支払いを確認できないため停止しています", text)
-        self.assertNotIn("店舗別ダッシュボード", text)
+        self.assertIn(DENIED, denied.decode())
 
         paid = json.dumps(_invoice("evt-paid", 2980)).encode()
         self.assertEqual(handle_square_webhook(paid, _sign(paid))["result"], "updated")
+        status, headers, _body = self.login_email()
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
         status, _headers, body = self.call("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn("店舗別ダッシュボード", body.decode())
 
         canceled = json.dumps(_subscription("evt-cancel", "CANCELED", created_at="2099-01-03T00:00:00Z")).encode()
         self.assertEqual(handle_square_webhook(canceled, _sign(canceled))["result"], "updated")
-        status, headers, body = self.call("GET", "/api/hall-catalog")
+        status, _headers, body = self.call("GET", "/api/hall-catalog")
         self.assertEqual(status, 403)
-        self.assertEqual(json.loads(body)["reason"], "canceled")
+        self.assertEqual(json.loads(body)["detail"], DENIED)
         self.assertNotIn(b"halls", body)
-        status, headers, body = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/plan?reason=canceled")
-        self.assertNotIn("店舗別ダッシュボード", body.decode())
+        self.assertNotIn(b"machines", body)
 
     def test_billing_webhook_stops_the_tool_on_the_shared_ledger(self) -> None:
         import main
         from fastapi.testclient import TestClient
 
-        record_line_signup(line_user_id=LINE_USER, email="member@example.com", square_customer_id="CUST1")
+        record_line_signup(line_user_id=LINE_USER, email=MEMBER_EMAIL, square_customer_id="CUST1")
         apply_square_event(_subscription("evt-sub-main"))
-        self.line_cookie()
+        status, headers, _body = self.login_email()
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
         status, _headers, body = self.call("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn("店舗別ダッシュボード", body.decode())
@@ -341,24 +339,23 @@ class LineAccessTest(unittest.TestCase):
             headers={"x-square-hmacsha256-signature": _sign(body)},
         )
         self.assertEqual(response.status_code, 200)
-        status, headers, page = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/plan?reason=canceled")
+        status, _headers, page = self.call("GET", "/")
+        self.assertEqual(status, 403)
+        self.assertIn(DENIED, page.decode())
         self.assertNotIn("店舗別ダッシュボード", page.decode())
 
     def test_pending_suspended_unknown_and_expired_trial_are_blocked(self) -> None:
-        record_line_signup(line_user_id=LINE_USER, email="member@example.com", square_customer_id="CUST1")
-        self.line_cookie()
-        status, headers, body = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/plan?reason=pending")
+        record_line_signup(line_user_id=LINE_USER, email=MEMBER_EMAIL, square_customer_id="CUST1")
+        status, _headers, body = self.login_email()
+        self.assertEqual(status, 200)
+        self.assertIn(DENIED, body.decode())
         self.assertNotIn("店舗別ダッシュボード", body.decode())
 
         apply_square_event(_subscription("evt-old", charged_through="2020-01-01"))
         self.assertEqual(tool_access(LINE_USER)["reason"], "trial_ended")
-        status, headers, _body = self.call("GET", "/api/watch-config")
-        self.assertEqual(status, 403)
-        self.assertEqual(json.loads(_body)["reason"], "trial_ended")
+        status, _headers, body = self.login_email()
+        self.assertEqual(status, 200)
+        self.assertIn(DENIED, body.decode())
 
         apply_square_event(_invoice("evt-paid-hold", 2980))
         from src.dashboard.square_members import apply_member_action
@@ -366,14 +363,14 @@ class LineAccessTest(unittest.TestCase):
 
         member_id = list_members()["members"][0]["id"]
         apply_member_action(member_id, "suspend")
-        status, headers, _body = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/plan?reason=suspended")
+        status, _headers, body = self.login_email()
+        self.assertEqual(status, 200)
+        self.assertIn(DENIED, body.decode())
+        self.assertNotIn("dashboard_session", self.cookies)
 
-        self.line_cookie(OTHER_USER)
-        status, headers, body = self.call("GET", "/")
-        self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/plan?reason=unregistered")
+        status, _headers, body = self.login_email("missing@example.com")
+        self.assertEqual(status, 200)
+        self.assertIn(DENIED, body.decode())
         self.assertNotIn("店舗別ダッシュボード", body.decode())
 
     def test_quoted_line_env_enables_the_guard(self) -> None:
@@ -399,25 +396,30 @@ class LineAccessTest(unittest.TestCase):
         self.assertNotEqual(status, 500)
         status, _headers, body = self.call("GET", "/api/judgments/")
         self.assertEqual(status, 401)
-        self.assertEqual(json.loads(body)["detail"], "LINEでの確認が必要です")
+        self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
         self.assertNotIn(b"machines", body)
 
     def test_unreadable_ledger_hides_the_tool(self) -> None:
-        self.line_cookie()
-        with mock.patch("src.dashboard.line_access.tool_access", side_effect=SquareMemberError("会員台帳を読み取れません")):
+        record_line_signup(line_user_id=LINE_USER, email=MEMBER_EMAIL, square_customer_id="CUST1")
+        apply_square_event(_subscription("evt-sub-read"))
+        self.login_email()
+        with mock.patch("src.dashboard.auth.email_access", side_effect=SquareMemberError("会員台帳を読み取れません")):
             status, _headers, body = self.call("GET", "/")
             self.assertEqual(status, 503)
             self.assertNotIn("店舗別ダッシュボード", body.decode())
+        self.login_email()
+        with mock.patch("src.dashboard.auth.email_access", side_effect=SquareMemberError("会員台帳を読み取れません")):
             status, _headers, body = self.call("GET", "/api/judgments")
         self.assertEqual(status, 503)
         self.assertEqual(json.loads(body)["detail"], "会員確認ができません")
         self.assertNotIn(b"machines", body)
 
     def test_forged_cookie_is_anonymous(self) -> None:
+        self.cookies["dashboard_session"] = "e1.bm9wZQ.1.deadbeef"
         self.cookies["line_member"] = f"l1.{LINE_USER}.{int(time.time())}.deadbeef"
         status, headers, body = self.call("GET", "/")
         self.assertEqual(status, 303)
-        self.assertEqual(headers["location"], "/line")
+        self.assertIn("/login", headers["location"])
         self.assertNotIn("店舗別ダッシュボード", body.decode())
 
     def test_verify_line_id_token_checks_audience_and_subject(self) -> None:

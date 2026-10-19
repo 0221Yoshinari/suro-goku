@@ -723,6 +723,7 @@ function redirectIfUnauthorized(response) {
     "無料体験は終了しています": "trial",
     "利用期限が切れています": "lapsed",
     "別の端末で利用中です": "session",
+    "ご契約中のメールアドレスを入力するか、有料プランへご登録ください": "membership",
   };
   const planReasons = {
     unregistered: true,
