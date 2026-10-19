@@ -561,6 +561,52 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertFalse(machine["is_all_high"])
         self.assertEqual(find_lineup_blocks(machine), [])
 
+    def test_magia_record_uses_bb_as_first_hit(self) -> None:
+        from src.analyzer.judgment import aggregate_machine_groups, match_machine
+
+        master = next(item for item in self.masters if item.id == "magia-record")
+        expected = {1: 240.6, 2: 236.1, 3: 222.8, 4: 208.5, 5: 195.1, 6: 184.3}
+        for level, value in expected.items():
+            self.assertEqual(master.settings[level].synthetic, value)
+        self.assertEqual(master.probability_source, "bb")
+        self.assertEqual(master.hit_target, "bb")
+        self.assertEqual(match_machine("ＬマギアレコードＲＮ", self.masters).id, "magia-record")
+        self.assertEqual(match_machine("L　マギレコ RN", self.masters).id, "magia-record")
+
+        # 玉屋∞本店。RB（連チャン）だと 3203/56 ≒ 1/57.2 で全6になる。
+        # BB（初当たり）は 6+9=15 で 3203/15 ≒ 1/213.5。設定4の 1/208.5 に届かない。
+        units = [("679", 1268, 6, 10), ("680", 1935, 9, 46)]
+        judged = [
+            judge_record(
+                {
+                    "hall_name": "玉屋∞本店",
+                    "fields": {
+                        "machine_name": "ＬマギアレコードＲＮ",
+                        "dai_no": dai,
+                        "total_games": games,
+                        "bb_count": bb,
+                        "rb_count": rb,
+                        "includes_art_in_total_games": False,
+                    },
+                },
+                self.masters,
+            )
+            for dai, games, bb, rb in units
+        ]
+        self.assertEqual(judged[0]["first_hit_count"], 6)
+        self.assertEqual(judged[1]["first_hit_count"], 9)
+        self.assertAlmostEqual(judged[0]["synthetic_probability"], round(1268 / 6, 4))
+        self.assertAlmostEqual(judged[1]["synthetic_probability"], round(1935 / 9, 4))
+        self.assertEqual(judged[0]["criteria"]["hit_target"], "bb")
+        machine = aggregate_machine_groups(judged)[0]
+        self.assertEqual(machine["first_hit_count"], 15)
+        self.assertAlmostEqual(machine["synthetic_probability"], round(3203 / 15, 4))
+        self.assertNotAlmostEqual(machine["synthetic_probability"], round(3203 / 56, 4))
+        self.assertNotIn(machine["status"], ("ALL_HIGH", "HIGH_56", "HIGH_BASE"))
+        self.assertFalse(machine["is_all_high"])
+        self.assertFalse(machine["is_high_56"])
+        self.assertFalse(machine["is_high_base"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,8 @@ CSV 列:
 enabled:
   false / 0 で判定除外（is_disabled）。空欄は既存値を維持する。
 probability_source:
-  rb のとき初当たりはサイトの RB 回数だけを使う。空欄は既存値を維持する。
+  rb のとき初当たりはサイトの RB 回数だけを使う。
+  bb のとき初当たりはサイトの BB 回数だけを使う（RBは連チャン）。空欄は既存値を維持する。
 
 target_count:
   bonus  サイトセブン BB（無ければ ART → RB）とボーナス確率を突合
@@ -64,6 +65,17 @@ KNOWN_OVERRIDES = {
         "setting_5": 171.3,
         "setting_6": 151.3,
         "comment": "ボーナス合算の公表値。設定1〜6は 1/237.0 / 1/230.7 / 1/214.0 / 1/186.5 / 1/171.3 / 1/151.3。ST合算（設定6=1/290.6）は使わない。",
+    },
+    "magia-record": {
+        "target_count": "bonus",
+        "probability_source": "bb",
+        "setting_1": 240.6,
+        "setting_2": 236.1,
+        "setting_3": 222.8,
+        "setting_4": 208.5,
+        "setting_5": 195.1,
+        "setting_6": 184.3,
+        "comment": "ボーナス初当り合算。BB回数が初当たりでRBは連チャン。設定1〜6は 1/240.6 / 1/236.1 / 1/222.8 / 1/208.5 / 1/195.1 / 1/184.3。",
     },
 }
 
@@ -268,6 +280,9 @@ def apply_known(payload: dict[str, Any]) -> int:
             settings=settings,
             comment=str(override.get("comment") or ""),
         )
+        source = str(override.get("probability_source") or "").strip().lower()
+        if source:
+            item["probability_source"] = source
         updated += 1
     return updated
 

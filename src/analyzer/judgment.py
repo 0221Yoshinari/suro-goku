@@ -25,6 +25,7 @@ SETTING_ESTIMATE_LABELS = {
     6: "設定6相当",
     5: "設定5相当",
     4: "設定4相当",
+    3: "設定3相当",
     2: "設定2相当",
     1: "設定1相当",
     0: "基準未満",
@@ -413,7 +414,13 @@ def load_masters(
             hit_source = str(
                 item.get("hit_source") or hit_source_from_target_count(target_count)
             ).strip().lower()
-            if machine_type != "A":
+            source = probability_source_of(item)
+            if machine_type != "A" and source == "bb":
+                # BB回数が初当たりで、RBは連チャンの機種。他のAT機はRBのまま。
+                hit_target = HIT_TARGET_BB
+                hit_source = "bb"
+                target_count = TARGET_COUNT_BONUS
+            elif machine_type != "A":
                 # AT機の初当りはデータサイトのRB回数だけ。BB・ART・合算は使わない。
                 hit_target = HIT_TARGET_RB
                 hit_source = "rb"
@@ -669,8 +676,10 @@ def at_first_hit_count(
     target_count: str | None = None,
     probability_source: str | None = None,
 ) -> int | None:
-    """AT機の初当り回数。機種設定に関わらず RB 回数だけを使う。"""
-    del art_count, hit_source, probability_source
+    """AT機の初当り回数。通常は RB。probability_source が bb の機種だけ BB。"""
+    del art_count, hit_source
+    if str(probability_source or "").strip().lower() == "bb":
+        return bb_count if bb_count and bb_count > 0 else None
     return at_hit_count(bb_count, rb_count, None, target_count or TARGET_COUNT_CZ)
 
 
@@ -685,11 +694,15 @@ def at_observation(
 ) -> tuple[int | None, float | None, float | None]:
     """初当り回数、初当り確率、RB確率を返す。
 
-    AT機は通常時G ÷ RB回数だけを判定に使う。
-    BB（ST中・連チャン中のボーナスを含む）と ART、合成ボーナス確率は集計しない。
+    AT機は通常時G ÷ RB回数を判定に使う。
+    probability_source が bb の機種は、RB（連チャン）を含めず BB 回数だけを初当たりにする。
     """
-    del bb_count, art_count, target_count, probability_source
-    first_hit = rb_count if rb_count and rb_count > 0 else None
+    del art_count, target_count
+    if str(probability_source or "").strip().lower() == "bb":
+        first_hit = bb_count if bb_count and bb_count > 0 else None
+    else:
+        del bb_count
+        first_hit = rb_count if rb_count and rb_count > 0 else None
     probability = _ratio_from_counts(games, first_hit)
     return first_hit, probability, probability
 
