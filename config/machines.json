@@ -1747,37 +1747,58 @@
       "maker": "",
       "aliases": [
         "化物語",
-        "L化物語"
+        "L化物語",
+        "Lスマスロ化物語 KH",
+        "スマスロ化物語 KH",
+        "化物語KH"
       ],
+      "enabled": true,
+      "is_disabled": false,
+      "probability_source": "rb",
       "published": {
-        "first_hit_denominator": 319.0,
-        "comment": "設定6 AT初当たりの解析概算"
+        "first_hit_denominator": 219.6,
+        "comment": "AT初当たりの公表値。設定1〜6は 1/265.1 / 1/260.7 / 1/252.1 / 1/238.8 / 1/230.8 / 1/219.6。設定6の仮置き1/319から算出した1/341.3・1/370は使わない。機種全体の合算初当たりが設定4以上の公表値に届いてから全456・全56・全6にする。"
       },
       "criteria": {
         "min_games": 3000,
-        "synthetic_probability_threshold": 319.0,
+        "synthetic_probability_threshold": 219.6,
         "early_min_games": 300,
         "settings": {
-          "6": {
-            "synthetic": 319.0,
-            "first_hit": 319.0
+          "1": {
+            "synthetic": 265.1,
+            "first_hit": 265.1
           },
-          "5": {
-            "synthetic": 341.3,
-            "first_hit": 341.3
+          "2": {
+            "synthetic": 260.7,
+            "first_hit": 260.7
+          },
+          "3": {
+            "synthetic": 252.1,
+            "first_hit": 252.1
           },
           "4": {
-            "synthetic": 370.0,
-            "first_hit": 370.0
+            "synthetic": 238.8,
+            "first_hit": 238.8
+          },
+          "5": {
+            "synthetic": 230.8,
+            "first_hit": 230.8
+          },
+          "6": {
+            "synthetic": 219.6,
+            "first_hit": 219.6
           }
         }
       },
       "type": "AT",
       "hit_source": "rb",
       "target_count": "cz",
-      "setting_6": 319.0,
-      "setting_5": 341.3,
-      "setting_4": 370.0
+      "setting_1": 265.1,
+      "setting_2": 260.7,
+      "setting_3": 252.1,
+      "setting_6": 219.6,
+      "setting_5": 230.8,
+      "setting_4": 238.8
     },
     {
       "id": "sengoku-otome-4",
@@ -3285,26 +3306,41 @@
         "S 甲鉄城のカバネリZR",
         "パチスロ甲鉄城のカバネリZR"
       ],
+      "enabled": true,
+      "is_disabled": false,
+      "probability_source": "rb",
       "published": {
-        "first_hit_denominator": 299.0,
-        "comment": "設定6 初当たりの解析概算"
+        "first_hit_denominator": 151.3,
+        "comment": "ボーナス合算の公表値。設定1〜6は 1/237.0 / 1/230.7 / 1/214.0 / 1/186.5 / 1/171.3 / 1/151.3。ST合算（設定6=1/290.6）や、そこから算出した1/299・1/319.9・1/346.8は使わない。機種全体の合算初当たりが設定4以上に届いてから全456・全56・全6にする。"
       },
       "criteria": {
         "min_games": 3000,
-        "synthetic_probability_threshold": 299.0,
+        "synthetic_probability_threshold": 151.3,
         "early_min_games": 300,
         "settings": {
-          "6": {
-            "synthetic": 299.0,
-            "first_hit": 299.0
+          "1": {
+            "synthetic": 237.0,
+            "first_hit": 237.0
           },
-          "5": {
-            "synthetic": 319.9,
-            "first_hit": 319.9
+          "2": {
+            "synthetic": 230.7,
+            "first_hit": 230.7
+          },
+          "3": {
+            "synthetic": 214.0,
+            "first_hit": 214.0
           },
           "4": {
-            "synthetic": 346.8,
-            "first_hit": 346.8
+            "synthetic": 186.5,
+            "first_hit": 186.5
+          },
+          "5": {
+            "synthetic": 171.3,
+            "first_hit": 171.3
+          },
+          "6": {
+            "synthetic": 151.3,
+            "first_hit": 151.3
           }
         }
       },
@@ -3312,9 +3348,12 @@
       "hit_source": "rb",
       "hit_target": "rb",
       "target_count": "cz",
-      "setting_6": 299.0,
-      "setting_5": 319.9,
-      "setting_4": 346.8
+      "setting_1": 237.0,
+      "setting_2": 230.7,
+      "setting_3": 214.0,
+      "setting_6": 151.3,
+      "setting_5": 171.3,
+      "setting_4": 186.5
     },
     {
       "id": "higurashi-2",

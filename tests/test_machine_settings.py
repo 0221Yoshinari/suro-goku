@@ -393,6 +393,138 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertEqual(only4["status"], "HIGH_BASE")
         self.assertEqual(only4["status_label"], "全456数値")
 
+    def test_bakemonogatari_uses_published_at_rates_for_kh_and_plain(self) -> None:
+        from src.analyzer.judgment import aggregate_machine_groups, match_machine
+
+        master = next(item for item in self.masters if item.id == "bakemonogatari")
+        expected = {1: 265.1, 2: 260.7, 3: 252.1, 4: 238.8, 5: 230.8, 6: 219.6}
+        for level, value in expected.items():
+            self.assertEqual(master.settings[level].synthetic, value)
+        self.assertEqual(match_machine("Lスマスロ化物語 KH", self.masters).id, "bakemonogatari")
+        self.assertEqual(match_machine("L化物語", self.masters).id, "bakemonogatari")
+        self.assertNotEqual(master.settings[6].synthetic, 319.0)
+        self.assertNotEqual(master.settings[4].synthetic, 370.0)
+
+        # 玉屋GO＋空港の5台。合算は 3805/13 ≒ 1/292.7 で設定1（1/265.1）より悪い。
+        # 84番だけ 867/4 ≒ 1/216.8 で設定6だが、機種全体が届かないので全6にしない。
+        units = [
+            ("82", 235, 1),
+            ("83", 712, 2),
+            ("84", 867, 4),
+            ("85", 466, 1),
+            ("86", 1525, 5),
+        ]
+        judged = [
+            judge_record(
+                {
+                    "hall_name": "玉屋GO＋空港",
+                    "fields": {
+                        "machine_name": "Lスマスロ化物語 KH",
+                        "dai_no": dai,
+                        "total_games": games,
+                        "bb_count": 0,
+                        "rb_count": hits,
+                        "includes_art_in_total_games": False,
+                    },
+                },
+                self.masters,
+            )
+            for dai, games, hits in units
+        ]
+        hot = next(item for item in judged if item["dai_no"] == "84")
+        self.assertEqual(hot["status"], "ALL_HIGH")
+        grouped = aggregate_machine_groups(judged)[0]
+        self.assertAlmostEqual(grouped["synthetic_probability"], round(3805 / 13, 4))
+        self.assertGreater(grouped["synthetic_probability"], 265.1)
+        self.assertNotIn(grouped["status"], ("ALL_HIGH", "HIGH_56", "HIGH_BASE"))
+        self.assertFalse(grouped["is_all_high"])
+        self.assertFalse(grouped["is_high_56"])
+        self.assertFalse(grouped["is_high_base"])
+
+        # MJアリーナ空港店のL化物語2台。1台は 1/348.8、合算は 3496/9 ≒ 1/388.4。
+        pair = [
+            judge_record(
+                {
+                    "hall_name": "MJアリーナ空港店",
+                    "fields": {
+                        "machine_name": "L化物語",
+                        "dai_no": dai,
+                        "total_games": games,
+                        "rb_count": hits,
+                        "includes_art_in_total_games": False,
+                    },
+                },
+                self.masters,
+            )
+            for dai, games, hits in (("629", 1744, 5), ("630", 1752, 4))
+        ]
+        self.assertAlmostEqual(pair[0]["synthetic_probability"], 348.8)
+        self.assertNotEqual(pair[0]["status"], "HIGH_56")
+        machine = aggregate_machine_groups(pair)[0]
+        self.assertAlmostEqual(machine["synthetic_probability"], round(3496 / 9, 4))
+        self.assertNotIn(machine["status"], ("ALL_HIGH", "HIGH_56", "HIGH_BASE"))
+
+    def test_kabaneri_bonus_total_does_not_treat_cold_pair_as_setting6(self) -> None:
+        from src.analyzer.judgment import aggregate_machine_groups, match_machine
+        from src.analyzer.lineup import find_lineup_blocks
+
+        master = next(item for item in self.masters if item.id == "kabaneri-1")
+        expected = {1: 237.0, 2: 230.7, 3: 214.0, 4: 186.5, 5: 171.3, 6: 151.3}
+        for level, value in expected.items():
+            self.assertEqual(master.settings[level].synthetic, value)
+        self.assertNotEqual(master.settings[6].synthetic, 299.0)
+        self.assertNotEqual(master.settings[6].synthetic, 290.6)
+        self.assertEqual(match_machine("甲鉄城のｶﾊﾞﾈﾘ", self.masters).id, "kabaneri-1")
+        kaimon = match_machine("L甲鉄城のカバネリ海門決戦", self.masters)
+        self.assertEqual(kaimon.id, "kabaneri-kaimon")
+        self.assertEqual(kaimon.settings[6].synthetic, 195.1)
+
+        # 2台の合算は 2623/9 ≒ 1/291.4。設定1のボーナス合算 1/237.0 より悪く、全6にしない。
+        # 766番の 1713/8 ≒ 1/214.1 は設定3付近で、全6・全56・全456ではない。
+        judged = [
+            judge_record(
+                {
+                    "hall_name": "MJアリーナ空港店",
+                    "fields": {
+                        "machine_name": "甲鉄城のｶﾊﾞﾈﾘ",
+                        "dai_no": dai,
+                        "total_games": games,
+                        "rb_count": hits,
+                        "art_count": art,
+                        "includes_art_in_total_games": False,
+                    },
+                },
+                self.masters,
+            )
+            for dai, games, hits, art in (("766", 1713, 8, 10), ("767", 910, 1, 2))
+        ]
+        self.assertAlmostEqual(judged[0]["synthetic_probability"], round(1713 / 8, 4))
+        self.assertNotIn(judged[0]["status"], ("ALL_HIGH", "HIGH_56", "HIGH_BASE"))
+        self.assertEqual(judged[0]["estimated_setting"], 2)
+        near_setting3 = judge_record(
+            {
+                "hall_name": "MJアリーナ空港店",
+                "fields": {
+                    "machine_name": "甲鉄城のｶﾊﾞﾈﾘ",
+                    "dai_no": "766",
+                    "total_games": 2902,
+                    "rb_count": 14,
+                    "includes_art_in_total_games": False,
+                },
+            },
+            self.masters,
+        )
+        self.assertAlmostEqual(near_setting3["synthetic_probability"], round(2902 / 14, 4))
+        self.assertEqual(near_setting3["estimated_setting"], 3)
+        self.assertEqual(near_setting3["estimated_setting_label"], "設定3相当")
+        self.assertNotIn(near_setting3["status"], ("ALL_HIGH", "HIGH_56", "HIGH_BASE"))
+        machine = aggregate_machine_groups(judged)[0]
+        self.assertAlmostEqual(machine["synthetic_probability"], round(2623 / 9, 4))
+        self.assertGreater(machine["synthetic_probability"], 237.0)
+        self.assertNotIn(machine["status"], ("ALL_HIGH", "HIGH_56", "HIGH_BASE"))
+        self.assertFalse(machine["is_all_high"])
+        self.assertEqual(find_lineup_blocks(machine), [])
+
 
 if __name__ == "__main__":
     unittest.main()

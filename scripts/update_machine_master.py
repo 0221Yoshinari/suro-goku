@@ -45,6 +45,26 @@ KNOWN_OVERRIDES = {
         "setting_6": 195.1,
         "comment": "サイトセブン集計はボーナス初当たり。設定4/5/6は 1/214.0 / 1/203.2 / 1/195.1（ST 1/318.5 は使わない）",
     },
+    "bakemonogatari": {
+        "target_count": "cz",
+        "setting_1": 265.1,
+        "setting_2": 260.7,
+        "setting_3": 252.1,
+        "setting_4": 238.8,
+        "setting_5": 230.8,
+        "setting_6": 219.6,
+        "comment": "AT初当たりの公表値。設定1〜6は 1/265.1 / 1/260.7 / 1/252.1 / 1/238.8 / 1/230.8 / 1/219.6。仮置き1/319から算出した値は使わない。",
+    },
+    "kabaneri-1": {
+        "target_count": "cz",
+        "setting_1": 237.0,
+        "setting_2": 230.7,
+        "setting_3": 214.0,
+        "setting_4": 186.5,
+        "setting_5": 171.3,
+        "setting_6": 151.3,
+        "comment": "ボーナス合算の公表値。設定1〜6は 1/237.0 / 1/230.7 / 1/214.0 / 1/186.5 / 1/171.3 / 1/151.3。ST合算（設定6=1/290.6）は使わない。",
+    },
 }
 
 CSV_FIELDS = [
@@ -237,10 +257,15 @@ def apply_known(payload: dict[str, Any]) -> int:
         item = by_id.get(machine_id)
         if not item:
             continue
+        settings = {
+            level: float(override[key])
+            for level in range(1, 7)
+            if (key := f"setting_{level}") in override and override[key] is not None
+        }
         apply_fields(
             item,
             target_count=str(override["target_count"]),
-            settings={4: float(override["setting_4"]), 5: float(override["setting_5"]), 6: float(override["setting_6"])},
+            settings=settings,
             comment=str(override.get("comment") or ""),
         )
         updated += 1
