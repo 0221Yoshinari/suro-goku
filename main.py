@@ -1,8 +1,10 @@
-"""LINE のメールアドレス受信から、Square の決済リンクを返す。
+"""LINE のメールアドレス受信から、カード登録ページを返す。
 
 起動: uvicorn main:app --host 0.0.0.0 --port 8000
 
-定期購入は初回 0 円、その後月額 2,980 円。決済 URL は LINE のトークへ送る。
+定期購入は最初の7日間が0円、その後月額2,980円。0円の Square 決済リンクはカードを
+預からないため、このページでカードを保存し、そのカードで定期購入を始める。
+8日目から Square がそのカードに月額2,980円を請求する。
 /square-webhook は会員台帳のステータスを更新する。ツール本体は同じ台帳を見て、
 無料体験中と有料会員以外をその次のアクセスから止める。
 """
@@ -12,9 +14,11 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
+import time
 import uuid
 from urllib.parse import urlparse
 
@@ -23,6 +27,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Request
+from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
 from fastapi.responses import Response
 
 from src.dashboard.member_admin import register_member_admin
@@ -39,19 +45,22 @@ _EMAIL_RE = re.compile(
 _MAX_BODY = 1_000_000
 _INITIAL_AMOUNT_JPY = 0
 _MONTHLY_AMOUNT_JPY = 2980
+_TRIAL_DAYS = 7
 _SQUARE_VERSION = "2026-09-16"
 _PLAN_NAME = "スロ極"
-_VARIATION_NAME = "スロ極 初回0円・以降月額2980円"
+_VARIATION_NAME = "スロ極 7日間0円・以降月額2980円"
+_CHECKOUT_ITEM_NAME = "スロ極 月額2,980円（最初の7日間は0円）"
 _OPEN_SUBSCRIPTION = {"PENDING", "ACTIVE"}
 _TRIAL_BUTTON = "🚀 7日間無料でスロ極を試す"
 _WELCOME = "スロ極へようこそ。7日間、全機能を無料で試せます。\n下のボタンから、1分で登録を始められます。"
 _GUIDE = (
     "スロ極の7日間無料トライアルへようこそ！✨\n"
     "\n"
-    "このチャットに【普段お使いのメールアドレス】を送信してください。すぐに専用の決済リンクをお届けします！\n"
+    "このチャットに【普段お使いのメールアドレス】を送信してください。すぐにカード登録ページをお届けします！\n"
     "\n"
-    "※7日間の無料期間内に解約すれば、料金は一切かかりません。"
+    "※今日の支払いは0円です。7日以内に解約すれば、料金は一切かかりません。"
 )
+_CHECKOUT_TTL = 48 * 60 * 60
 _ALREADY = "このLINEアカウントは登録済みです。"
 _FAILED = "申し込みを完了できませんでした。時間をおいて、もう一度メールアドレスを送ってください。"
 
@@ -109,8 +118,8 @@ def subscription_phases() -> list[dict]:
     return [
         {
             "ordinal": 0,
-            "cadence": "MONTHLY",
-            "periods": 1,
+            "cadence": "DAILY",
+            "periods": _TRIAL_DAYS,
             "pricing": {
                 "type": "STATIC",
                 "price": {"amount": _INITIAL_AMOUNT_JPY, "currency": "JPY"},
@@ -127,43 +136,125 @@ def subscription_phases() -> list[dict]:
     ]
 
 
-def build_payment_link_payload(
-    *,
-    location_id: str,
-    plan_variation_id: str,
-    email: str,
-    user_id: str,
-    idempotency_key: str,
-) -> dict:
-    return {
-        "idempotency_key": idempotency_key,
-        "description": "スロ極 月額プラン",
-        "quick_pay": {
-            "name": "スロ極 月額",
-            "price_money": {"amount": _INITIAL_AMOUNT_JPY, "currency": "JPY"},
-            "location_id": location_id,
-        },
-        "checkout_options": {
-            "subscription_plan_id": plan_variation_id,
-            "ask_for_shipping_address": False,
-        },
-        "pre_populated_data": {"buyer_email": email},
-        "payment_note": f"LINE:{user_id}"[:500],
-    }
+def checkout_secret() -> str:
+    secret = os.getenv("LINE_CHANNEL_SECRET", "").strip()
+    if not secret:
+        raise SquareAPIError(500, ["MISSING_CHECKOUT_SECRET"])
+    return secret
 
 
-def checkout_url(payload: dict) -> str:
-    link = payload.get("payment_link")
-    raw = str(link.get("url") or "").strip() if isinstance(link, dict) else ""
+def _b64e(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _b64d(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + ("=" * (-len(text) % 4)))
+
+
+def issue_checkout_token(customer_id: str, email: str, user_id: str, *, now: int | None = None) -> str:
+    issued = int(time.time() if now is None else now)
+    body = _b64e(
+        json.dumps(
+            {"c": customer_id, "e": email, "u": user_id, "exp": issued + _CHECKOUT_TTL},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    )
+    mac = _b64e(hmac.new(checkout_secret().encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest())
+    return f"{body}.{mac}"
+
+
+def read_checkout_token(token: str, *, now: int | None = None) -> dict[str, str | int]:
+    current = int(time.time() if now is None else now)
+    parts = (token or "").split(".")
+    if len(parts) != 2 or not token or len(token) > 2000:
+        raise SquareAPIError(400, ["TOKEN_INVALID"])
+    body, mac = parts
+    expected = _b64e(hmac.new(checkout_secret().encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest())
+    try:
+        valid = hmac.compare_digest(expected, mac)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise SquareAPIError(400, ["TOKEN_INVALID"])
+    try:
+        payload = json.loads(_b64d(body))
+    except (ValueError, json.JSONDecodeError):
+        raise SquareAPIError(400, ["TOKEN_INVALID"]) from None
+    if not isinstance(payload, dict):
+        raise SquareAPIError(400, ["TOKEN_INVALID"])
+    customer_id = str(payload.get("c") or "")
+    email = str(payload.get("e") or "")
+    user_id = str(payload.get("u") or "")
+    exp = payload.get("exp")
+    if not customer_id or not email or not user_id or not isinstance(exp, int):
+        raise SquareAPIError(400, ["TOKEN_INVALID"])
+    if exp < current:
+        raise SquareAPIError(400, ["TOKEN_EXPIRED"])
+    return {"customer_id": customer_id, "email": email, "user_id": user_id, "exp": exp}
+
+
+def normalize_public_base(base_url: str) -> str:
+    raw = (base_url or "").strip().rstrip("/")
     parsed = urlparse(raw)
     host = (parsed.hostname or "").lower()
-    if parsed.scheme != "https" or not (host == "square.link" or host.endswith(".square.link")):
-        raise SquareAPIError(502, ["PAYMENT_LINK_URL"])
-    return raw
+    local = host in {"localhost", "127.0.0.1", "testserver"}
+    if parsed.scheme == "https" and host:
+        return raw
+    if parsed.scheme == "http" and local:
+        return raw
+    raise SquareAPIError(500, ["PUBLIC_BASE_URL"])
+
+
+def request_public_base(request: Request) -> str:
+    configured = os.getenv("PUBLIC_BASE_URL", "").strip() or os.getenv("RENDER_EXTERNAL_URL", "").strip()
+    if configured:
+        return normalize_public_base(configured)
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "https").split(",")[0].strip()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+    return normalize_public_base(f"{proto}://{host}")
+
+
+def checkout_page_url(base: str, token: str) -> str:
+    return f"{normalize_public_base(base)}/checkout#t={token}"
 
 
 def checkout_reply(url: str) -> str:
-    return f"決済ページを開いて、登録を完了してください。\n{url}"
+    return (
+        "カード登録ページを開いてください。\n"
+        "月額2,980円です。最初の7日間は0円で、今日はカードを登録するだけです。\n"
+        "8日目から、登録したカードに月額2,980円が自動で引き落とされます。\n"
+        "7日以内に解約すれば、料金はかかりません。\n"
+        f"{url}"
+    )
+
+
+def square_web_sdk_url() -> str:
+    if os.getenv("SQUARE_ENVIRONMENT", "sandbox").strip().lower() == "production":
+        return "https://web.squarecdn.com/v1/square.js"
+    return "https://sandbox.web.squarecdn.com/v1/square.js"
+
+
+def buyer_message(exc: SquareAPIError) -> str:
+    codes = set(exc.codes)
+    if "TOKEN_EXPIRED" in codes or "TOKEN_INVALID" in codes:
+        return "この登録リンクは無効か、期限切れです。LINEにもう一度メールアドレスを送ってください。"
+    if codes & {
+        "CARD_DECLINED",
+        "GENERIC_DECLINE",
+        "CVV_FAILURE",
+        "VERIFY_CVV_FAILURE",
+        "VERIFY_AVS_FAILURE",
+        "INVALID_CARD",
+        "PAN_FAILURE",
+        "SOURCE_ID",
+    }:
+        return "カードを登録できませんでした。別のカードで試してください。"
+    return "登録を完了できませんでした。時間をおいて、もう一度お試しください。"
+
+
+def checkout_error(status: int, message: str) -> JSONResponse:
+    return JSONResponse({"ok": False, "message": message}, status_code=status)
 
 
 def square_base_url() -> str:
@@ -263,18 +354,34 @@ def _variation_id(objects: list[dict]) -> str:
 
 async def resolve_location_id() -> str:
     configured = os.getenv("SQUARE_LOCATION_ID", "").strip()
-    if configured:
-        return configured
     cached = _resolved_ids.get("location")
-    if cached:
+    if cached and (not configured or cached == configured):
         return cached
     payload = await square_json("GET", "/v2/locations")
+    chosen: dict | None = None
     for location in payload.get("locations") or []:
-        if isinstance(location, dict) and location.get("status") == "ACTIVE" and location.get("id"):
-            location_id = str(location["id"])
-            _resolved_ids["location"] = location_id
-            return location_id
-    raise SquareAPIError(404, ["LOCATION_NOT_FOUND"])
+        if not isinstance(location, dict) or location.get("status") != "ACTIVE" or not location.get("id"):
+            continue
+        if configured and str(location["id"]) != configured:
+            continue
+        chosen = location
+        break
+    if chosen is None:
+        if not configured:
+            raise SquareAPIError(404, ["LOCATION_NOT_FOUND"])
+        location_id = configured
+        language = ""
+    else:
+        location_id = str(chosen["id"])
+        language = str(chosen.get("language_code") or "")
+    if not str(language).lower().startswith("ja"):
+        await square_json(
+            "PUT",
+            f"/v2/locations/{location_id}",
+            payload={"location": {"language_code": "ja-JP"}},
+        )
+    _resolved_ids["location"] = location_id
+    return location_id
 
 
 async def resolve_variation_id() -> str:
@@ -392,11 +499,12 @@ async def has_open_subscription(customer_id: str, location_id: str) -> bool:
     return False
 
 
-async def register_trial(user_id: str, email: str) -> str:
+async def register_trial(user_id: str, email: str, base_url: str) -> str:
     if len(user_id) > 100:
         raise SquareAPIError(400, ["USER_ID_TOO_LONG"])
+    public_base = normalize_public_base(base_url)
     location_id = await resolve_location_id()
-    variation_id = await resolve_variation_id()
+    await resolve_variation_id()
     customer_id = await upsert_customer(user_id, email)
     line_name = await line_display_name(user_id)
     try:
@@ -412,24 +520,69 @@ async def register_trial(user_id: str, email: str) -> str:
         logger.exception("member ledger update failed")
     if await has_open_subscription(customer_id, location_id):
         return _ALREADY
+    token = issue_checkout_token(customer_id, email, user_id)
+    logger.info("card checkout ready customer=%s", customer_id)
+    return checkout_reply(checkout_page_url(public_base, token))
+
+
+async def start_card_subscription(
+    *,
+    customer_id: str,
+    email: str,
+    user_id: str,
+    source_id: str,
+    verification_token: str = "",
+) -> dict:
+    if not source_id or len(source_id) > 2048 or any(char.isspace() for char in source_id):
+        raise SquareAPIError(400, ["SOURCE_ID"])
+    if verification_token and (len(verification_token) > 4096 or any(char.isspace() for char in verification_token)):
+        raise SquareAPIError(400, ["SOURCE_ID"])
+    location_id = await resolve_location_id()
+    variation_id = await resolve_variation_id()
+    if await has_open_subscription(customer_id, location_id):
+        return {"ok": False, "code": "ALREADY"}
+    card_payload: dict = {
+        "idempotency_key": str(uuid.uuid4()),
+        "source_id": source_id,
+        "card": {"customer_id": customer_id, "cardholder_name": "スロ極会員"},
+    }
+    if verification_token:
+        card_payload["verification_token"] = verification_token
+    created_card = await square_json("POST", "/v2/cards", payload=card_payload)
+    card_id = str((created_card.get("card") or {}).get("id") or "")
+    if not card_id:
+        raise SquareAPIError(502, ["CARD_CREATE_FAILED"])
     created = await square_json(
         "POST",
-        "/v2/online-checkout/payment-links",
-        payload=build_payment_link_payload(
-            location_id=location_id,
-            plan_variation_id=variation_id,
-            email=email,
-            user_id=user_id,
-            idempotency_key=str(uuid.uuid4()),
-        ),
+        "/v2/subscriptions",
+        payload={
+            "idempotency_key": str(uuid.uuid4()),
+            "location_id": location_id,
+            "customer_id": customer_id,
+            "plan_variation_id": variation_id,
+            "card_id": card_id,
+        },
     )
-    url = checkout_url(created)
-    link_id = str((created.get("payment_link") or {}).get("id") or "")
-    logger.info("square payment link ready id=%s", link_id)
-    return checkout_reply(url)
+    subscription = created.get("subscription") if isinstance(created.get("subscription"), dict) else {}
+    subscription_id = str(subscription.get("id") or "")
+    if not subscription_id:
+        raise SquareAPIError(502, ["SUBSCRIPTION_CREATE_FAILED"])
+    logger.info("card subscription ready id=%s", subscription_id)
+    try:
+        from src.dashboard.square_members import record_card_trial
+
+        record_card_trial(
+            line_user_id=user_id,
+            email=email,
+            square_customer_id=customer_id,
+            subscription_id=subscription_id,
+        )
+    except Exception:
+        logger.exception("member ledger trial update failed")
+    return {"ok": True, "subscription_id": subscription_id}
 
 
-async def handle_text(user_id: str, reply_token: str, text: str) -> None:
+async def handle_text(user_id: str, reply_token: str, text: str, base_url: str) -> None:
     if is_trial_intent(text):
         await line_reply(reply_token, _GUIDE)
         return
@@ -437,7 +590,7 @@ async def handle_text(user_id: str, reply_token: str, text: str) -> None:
         await line_reply(reply_token, _WELCOME, quick_reply=_TRIAL_BUTTON)
         return
     try:
-        message = await register_trial(user_id, text.strip())
+        message = await register_trial(user_id, text.strip(), base_url)
     except Exception:
         logger.exception("trial registration failed")
         await line_reply(reply_token, _FAILED)
@@ -492,8 +645,200 @@ async def webhook(request: Request) -> Response:
         message = event.get("message") or {}
         if not isinstance(message, dict) or message.get("type") != "text":
             continue
-        await handle_text(user_id, reply_token, str(message.get("text") or ""))
+        await handle_text(user_id, reply_token, str(message.get("text") or ""), request_public_base(request))
     return Response(status_code=200)
+
+
+_CHECKOUT_PAGE = """<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__ITEM__</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; background: #f4f1ea; color: #1c1915; }
+    main { max-width: 28rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    h1 { font-size: 1.25rem; line-height: 1.5; margin: 0 0 1rem; }
+    .price { background: #fff; border: 1px solid #e4dccf; border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .today { font-size: 0.85rem; margin: 0; color: #5c564c; }
+    .yen { font-size: 2rem; font-weight: 700; margin: 0.15rem 0 0.6rem; }
+    .note { margin: 0; line-height: 1.6; }
+    form { background: #fff; border: 1px solid #e4dccf; border-radius: 12px; padding: 1rem 1.1rem 1.2rem; }
+    #card-container { min-height: 5.5rem; margin: 0.8rem 0 1rem; }
+    button { width: 100%; border: 0; border-radius: 999px; background: #1f6b45; color: #fff; font-size: 1rem; padding: 0.85rem 1rem; }
+    button:disabled { opacity: 0.6; }
+    .fine { color: #5c564c; font-size: 0.82rem; line-height: 1.6; }
+    .error { color: #8d2b2b; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>__ITEM__</h1>
+    <section class="price">
+      <p class="today">今日の支払い</p>
+      <p class="yen">0円</p>
+      <p class="note">月額2,980円です。最初の7日間は0円で、このページではカードを登録するだけです。8日目から、登録したカードに月額2,980円が自動で引き落とされます。7日以内に解約すれば、料金はかかりません。</p>
+    </section>
+    <form id="card-form" class="hidden">
+      <p id="buyer-email" class="fine"></p>
+      <div id="card-container"></div>
+      <button id="submit" type="submit">カードを登録してはじめる</button>
+      <p class="fine">カード番号は Square に直接送信されます。</p>
+    </form>
+    <p id="status" role="status">カードの入力欄を準備しています。</p>
+  </main>
+  <script>
+    const statusNode = document.getElementById("status");
+    const form = document.getElementById("card-form");
+    const submit = document.getElementById("submit");
+    const token = new URLSearchParams((location.hash || "").replace(/^#/, "")).get("t") || "";
+
+    function show(message, isError) {
+      statusNode.textContent = message;
+      statusNode.className = isError ? "error" : "";
+    }
+
+    async function loadScript(src) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function start() {
+      if (!token) {
+        form.classList.add("hidden");
+        show("この登録リンクは無効か、期限切れです。LINEにもう一度メールアドレスを送ってください。", true);
+        return;
+      }
+      const configResponse = await fetch("/checkout/config?t=" + encodeURIComponent(token));
+      const config = await configResponse.json();
+      if (!configResponse.ok || !config.ok) {
+        form.classList.add("hidden");
+        show(config.message || "登録ページを開けませんでした。", true);
+        return;
+      }
+      document.getElementById("buyer-email").textContent = config.email;
+      await loadScript(config.scriptUrl);
+      const payments = window.Square.payments(config.applicationId, config.locationId);
+      const card = await payments.card({ style: { input: { fontSize: "16px" } } });
+      await card.attach("#card-container");
+      form.classList.remove("hidden");
+      show("", false);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        show("カードを登録しています。", false);
+        try {
+          const tokenResult = await card.tokenize({
+            intent: "STORE",
+            customerInitiated: true,
+            sellerKeyedIn: false,
+            billingContact: { givenName: "スロ極会員", email: config.email, countryCode: "JP" }
+          });
+          if (tokenResult.status !== "OK" || !tokenResult.token) {
+            throw new Error("card");
+          }
+          const saved = await fetch("/checkout/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token: token,
+              sourceId: tokenResult.token,
+              verificationToken: tokenResult.verificationToken || ""
+            })
+          });
+          const body = await saved.json();
+          if (!saved.ok || !body.ok) {
+            show(body.message || "登録を完了できませんでした。", true);
+            submit.disabled = false;
+            return;
+          }
+          form.classList.add("hidden");
+          show(body.message, false);
+        } catch (error) {
+          show("カードを登録できませんでした。入力内容を確認して、もう一度お試しください。", true);
+          submit.disabled = false;
+        }
+      });
+    }
+
+    start().catch(() => {
+      form.classList.add("hidden");
+      show("登録ページを開けませんでした。時間をおいて、もう一度開いてください。", true);
+    });
+  </script>
+</body>
+</html>
+"""
+
+
+def checkout_page_html() -> str:
+    return _CHECKOUT_PAGE.replace("__ITEM__", _CHECKOUT_ITEM_NAME)
+
+
+@app.get("/checkout")
+async def checkout_page() -> HTMLResponse:
+    return HTMLResponse(checkout_page_html(), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/checkout/config")
+async def checkout_config(t: str = "") -> JSONResponse:
+    try:
+        claims = read_checkout_token(t)
+        location_id = await resolve_location_id()
+    except SquareAPIError as exc:
+        return checkout_error(400, buyer_message(exc))
+    application_id = os.getenv("SQUARE_APPLICATION_ID", "").strip()
+    if not application_id:
+        return checkout_error(500, "カード登録の準備ができていません。")
+    return JSONResponse(
+        {
+            "ok": True,
+            "applicationId": application_id,
+            "locationId": location_id,
+            "scriptUrl": square_web_sdk_url(),
+            "email": str(claims["email"]),
+        }
+    )
+
+
+@app.post("/checkout/complete")
+async def checkout_complete(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:
+        return checkout_error(400, "登録内容を確認できませんでした。")
+    if not isinstance(body, dict):
+        return checkout_error(400, "登録内容を確認できませんでした。")
+    try:
+        claims = read_checkout_token(str(body.get("token") or ""))
+        result = await start_card_subscription(
+            customer_id=str(claims["customer_id"]),
+            email=str(claims["email"]),
+            user_id=str(claims["user_id"]),
+            source_id=str(body.get("sourceId") or "").strip(),
+            verification_token=str(body.get("verificationToken") or "").strip(),
+        )
+    except SquareAPIError as exc:
+        logger.warning("checkout failed status=%s codes=%s", exc.status, ",".join(exc.codes))
+        return checkout_error(400, buyer_message(exc))
+    except Exception:
+        logger.exception("checkout failed")
+        return checkout_error(400, "登録を完了できませんでした。時間をおいて、もう一度お試しください。")
+    if not result.get("ok"):
+        return checkout_error(409, "このアカウントは登録済みです。")
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "登録が完了しました。今日の支払いは0円です。8日目から、登録したカードに月額2,980円が自動で引き落とされます。",
+        }
+    )
 
 
 register_member_admin(app)

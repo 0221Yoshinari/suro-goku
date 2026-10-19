@@ -28,17 +28,31 @@ class BillingRulesTest(unittest.TestCase):
         self.assertFalse(main.is_email("こんにちは"))
         self.assertFalse(main.is_email("user@example"))
 
-    def test_checkout_url_accepts_square_link_only(self) -> None:
-        url = "https://sandbox.square.link/u/abc123"
-        self.assertEqual(main.checkout_url({"payment_link": {"url": url}}), url)
+    def test_checkout_token_round_trip(self) -> None:
+        token = main.issue_checkout_token("CUST1", "member@example.com", "U1", now=1_700_000_000)
+        claims = main.read_checkout_token(token, now=1_700_000_000)
+        self.assertEqual(claims["customer_id"], "CUST1")
+        self.assertEqual(claims["email"], "member@example.com")
+        url = main.checkout_page_url("https://suro-goku-billing.onrender.com", token)
+        self.assertTrue(url.startswith("https://suro-goku-billing.onrender.com/checkout#t="))
         with self.assertRaises(main.SquareAPIError):
-            main.checkout_url({"payment_link": {"url": "https://example.com/pay"}})
+            main.normalize_public_base("http://example.com")
         with self.assertRaises(main.SquareAPIError):
-            main.checkout_url({"payment_link": {"url": "http://square.link/u/abc"}})
+            main.read_checkout_token(token, now=1_700_000_000 + main._CHECKOUT_TTL + 1)
+        page = TestClient(main.app).get("/checkout")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('lang="ja"', page.text)
+        self.assertIn(main._CHECKOUT_ITEM_NAME, page.text)
+        self.assertIn("今日の支払い", page.text)
+        self.assertIn("最初の7日間は0円", page.text)
+        self.assertIn("8日目から", page.text)
 
     def test_phases_are_free_then_monthly(self) -> None:
         phases = main.subscription_phases()
+        self.assertEqual(phases[0]["cadence"], "DAILY")
+        self.assertEqual(phases[0]["periods"], 7)
         self.assertEqual(phases[0]["pricing"]["price"]["amount"], 0)
+        self.assertEqual(phases[1]["cadence"], "MONTHLY")
         self.assertEqual(phases[1]["pricing"]["price"]["amount"], 2980)
         self.assertEqual(phases[1]["pricing"]["price"]["currency"], "JPY")
 
@@ -214,9 +228,10 @@ class WebhookTest(unittest.TestCase):
 
         checkout = main.checkout_reply("https://sandbox.square.link/u/member")
 
-        async def fake_register(user_id: str, email: str) -> str:
+        async def fake_register(user_id: str, email: str, base_url: str) -> str:
             self.assertEqual(user_id, "U999")
             self.assertEqual(email, "member@example.com")
+            self.assertEqual(base_url, "http://testserver")
             return checkout
 
         with mock.patch.object(main, "register_trial", side_effect=fake_register), mock.patch.object(
@@ -242,13 +257,16 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
         self.env.start()
         self.addCleanup(self.env.stop)
 
-    async def test_creates_customer_and_replies_with_payment_link(self) -> None:
+    async def test_creates_customer_and_replies_with_card_link(self) -> None:
         calls: list[tuple[str, str, dict | None]] = []
 
         async def fake_square(method: str, path: str, *, params=None, payload=None):
             calls.append((method, path, payload))
-            if path == "/v2/locations":
-                return {"locations": [{"id": "LOC1", "status": "ACTIVE"}]}
+            if path == "/v2/locations" and method == "GET":
+                return {"locations": [{"id": "LOC1", "status": "ACTIVE", "language_code": "en"}]}
+            if method == "PUT" and path == "/v2/locations/LOC1":
+                self.assertEqual(payload["location"]["language_code"], "ja-JP")
+                return {"location": {"id": "LOC1", "language_code": "ja-JP"}}
             if path == "/v2/catalog/list":
                 return {"objects": []}
             if path == "/v2/catalog/object":
@@ -256,6 +274,8 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                 if kind == "SUBSCRIPTION_PLAN":
                     return {"catalog_object": {"id": "PLAN1"}}
                 phases = payload["object"]["subscription_plan_variation_data"]["phases"]
+                self.assertEqual(phases[0]["cadence"], "DAILY")
+                self.assertEqual(phases[0]["periods"], 7)
                 self.assertEqual(phases[0]["pricing"]["price"]["amount"], 0)
                 self.assertEqual(phases[1]["pricing"]["price"]["amount"], 2980)
                 return {"catalog_object": {"id": "VAR1"}}
@@ -265,22 +285,23 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
                 return {"customer": {"id": "CUST1"}}
             if path == "/v2/subscriptions/search":
                 return {"subscriptions": []}
-            if path == "/v2/online-checkout/payment-links":
-                self.assertEqual(payload["quick_pay"]["location_id"], "LOC1")
-                self.assertEqual(payload["quick_pay"]["price_money"]["amount"], 0)
-                self.assertEqual(payload["quick_pay"]["price_money"]["currency"], "JPY")
-                self.assertEqual(payload["checkout_options"]["subscription_plan_id"], "VAR1")
-                self.assertEqual(payload["pre_populated_data"]["buyer_email"], "member@example.com")
-                self.assertEqual(payload["payment_note"], "LINE:Uline123")
-                return {"payment_link": {"id": "LINK1", "url": "https://sandbox.square.link/u/member"}}
             raise AssertionError(path)
 
         with mock.patch.object(main, "square_json", side_effect=fake_square), mock.patch.object(
             main, "line_display_name", new=mock.AsyncMock(return_value="極子")
         ):
-            message = await main.register_trial("Uline123", "member@example.com")
+            message = await main.register_trial(
+                "Uline123",
+                "member@example.com",
+                "https://suro-goku-billing.onrender.com",
+            )
 
-        self.assertEqual(message, main.checkout_reply("https://sandbox.square.link/u/member"))
+        self.assertIn("最初の7日間は0円", message)
+        self.assertIn("自動で引き落とされます", message)
+        token = message.rsplit("/checkout#t=", 1)[1]
+        claims = main.read_checkout_token(token)
+        self.assertEqual(claims["customer_id"], "CUST1")
+        self.assertEqual(claims["user_id"], "Uline123")
         from src.dashboard.square_members import list_members
 
         listed = list_members()
@@ -292,6 +313,64 @@ class SquareFlowTest(unittest.IsolatedAsyncioTestCase):
         customer = next(payload for method, path, payload in calls if path == "/v2/customers" and method == "POST")
         self.assertEqual(customer["reference_id"], "Uline123")
         self.assertEqual(customer["email_address"], "member@example.com")
+
+    def test_complete_stores_card_and_starts_subscription(self) -> None:
+        calls: list[tuple[str, str, dict | None]] = []
+
+        async def fake_square(method: str, path: str, *, params=None, payload=None):
+            calls.append((method, path, payload))
+            if path == "/v2/locations" and method == "GET":
+                return {"locations": [{"id": "LOC1", "status": "ACTIVE", "language_code": "ja"}]}
+            if path == "/v2/catalog/list":
+                return {
+                    "objects": [
+                        {
+                            "type": "SUBSCRIPTION_PLAN_VARIATION",
+                            "id": "VAR1",
+                            "subscription_plan_variation_data": {"name": main._VARIATION_NAME},
+                        }
+                    ]
+                }
+            if path == "/v2/subscriptions/search":
+                return {"subscriptions": []}
+            if path == "/v2/cards":
+                self.assertEqual(payload["source_id"], "cnon:card-nonce-ok")
+                self.assertEqual(payload["card"]["customer_id"], "CUST1")
+                self.assertNotIn("start_date", payload)
+                return {"card": {"id": "CARD1", "customer_id": "CUST1"}}
+            if path == "/v2/subscriptions" and method == "POST":
+                self.assertEqual(payload["card_id"], "CARD1")
+                self.assertEqual(payload["plan_variation_id"], "VAR1")
+                self.assertEqual(payload["customer_id"], "CUST1")
+                self.assertEqual(payload["location_id"], "LOC1")
+                self.assertNotIn("start_date", payload)
+                return {"subscription": {"id": "SUB1", "card_id": "CARD1", "status": "ACTIVE"}}
+            raise AssertionError(path)
+
+        token = main.issue_checkout_token("CUST1", "member@example.com", "Uline123")
+        from src.dashboard.square_members import record_line_signup
+
+        record_line_signup(
+            line_user_id="Uline123",
+            email="member@example.com",
+            square_customer_id="CUST1",
+        )
+        with mock.patch.object(main, "square_json", side_effect=fake_square):
+            client = TestClient(main.app)
+            response = client.post(
+                "/checkout/complete",
+                json={"token": token, "sourceId": "cnon:card-nonce-ok"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("今日の支払いは0円", response.json()["message"])
+        self.assertIn("2,980円", response.json()["message"])
+        self.assertFalse(any(path == "/v2/online-checkout/payment-links" for _method, path, _payload in calls))
+        from src.dashboard.square_members import list_members
+
+        listed = list_members()
+        self.assertEqual(listed["members"][0]["status"], "trialing")
+        self.assertEqual(listed["members"][0]["square_subscription_id"], "SUB1")
 
 
 if __name__ == "__main__":

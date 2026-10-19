@@ -212,6 +212,39 @@ def record_line_signup(
         return _present(member, current)
 
 
+def record_card_trial(
+    *,
+    line_user_id: str,
+    email: str,
+    square_customer_id: str,
+    subscription_id: str,
+    when: int | None = None,
+) -> dict | None:
+    """カード登録が終わった申込を、7日間の無料体験にする。"""
+    current = int(time.time() if when is None else when)
+    with _LOCK:
+        rows = _load_members()
+        member = _locate(
+            rows,
+            line_user_id=_clean_token(line_user_id, 100),
+            customer_id=_clean_token(square_customer_id, 128),
+            email=_clean_email(email),
+        )
+        if member is None:
+            return None
+        _fill(
+            member,
+            line_user_id=line_user_id,
+            email=email,
+            customer_id=square_customer_id,
+            subscription_id=subscription_id,
+        )
+        _enter_trial(member, current, None)
+        member["updated_at"] = current
+        _save_member(member)
+        return _present(member, current)
+
+
 # 画面上の「無料体験中」は trialing、「有料会員」は active。これ以外はツールを開けない。
 _TOOL_ALLOWED = {"trialing", "active"}
 

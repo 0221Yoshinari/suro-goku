@@ -69,6 +69,8 @@ services:
         value: "3.12.8"
       - key: SQUARE_ENVIRONMENT
         value: sandbox
+      - key: PUBLIC_BASE_URL
+        value: https://suro-goku-billing.onrender.com
       - key: LINE_CHANNEL_ACCESS_TOKEN
         sync: false
       - key: LINE_CHANNEL_SECRET
