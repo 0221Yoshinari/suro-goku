@@ -435,6 +435,26 @@ class SquareLedgerTest(unittest.TestCase):
         self.assertFalse(access["allowed"])
         self.assertEqual(access["status"], "suspended")
 
+    def test_unpaid_cancel_keeps_the_free_period(self) -> None:
+        from src.dashboard.square_members import email_access
+
+        record_line_signup(
+            line_user_id="Uline123",
+            email="member@example.com",
+            square_customer_id="CUST1",
+            when=self.base,
+        )
+        apply_square_event(_subscription("evt-sub", self.base + 10))
+        trial_end = list_members(now=self.base + 10)["members"][0]["trial_end"]
+        early = dict(_subscription("evt-cancel-early", self.base + 20, "CANCELED"))
+        early["data"]["object"]["subscription"]["charged_through_date"] = "2026-10-19"
+        self.assertEqual(apply_square_event(early), "updated")
+        kept = list_members(now=self.base + 20)["members"][0]
+        self.assertEqual(kept["status"], "canceled")
+        self.assertEqual(kept["trial_end"], trial_end)
+        self.assertTrue(email_access("member@example.com", now=self.base + 20)["allowed"])
+        self.assertFalse(email_access("member@example.com", now=int(trial_end))["allowed"])
+
     def test_square_cancel_overrides_a_saved_trial(self) -> None:
         note = "SURO1:" + json.dumps({"status": "trialing", "status_source": "square", "email": "paid@example.com"})
         restore_members_from_square(

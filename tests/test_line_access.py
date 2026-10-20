@@ -340,9 +340,13 @@ class LineAccessTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         status, _headers, page = self.call("GET", "/")
-        self.assertEqual(status, 403)
-        self.assertIn(DENIED, page.decode())
-        self.assertNotIn("店舗別ダッシュボード", page.decode())
+        self.assertEqual(status, 200)
+        self.assertIn("店舗別ダッシュボード", page.decode())
+        from src.dashboard.square_members import email_access
+        from src.dashboard.square_members import list_members
+
+        trial_end = list_members()["members"][0]["trial_end"]
+        self.assertFalse(email_access(MEMBER_EMAIL, now=int(trial_end))["allowed"])
 
     def test_pending_suspended_unknown_and_expired_trial_are_blocked(self) -> None:
         record_line_signup(line_user_id=LINE_USER, email=MEMBER_EMAIL, square_customer_id="CUST1")

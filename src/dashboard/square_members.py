@@ -104,7 +104,14 @@ CREATE TABLE IF NOT EXISTS square_events (
   event_id TEXT PRIMARY KEY,
   received_at BIGINT NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS square_members_email_idx ON square_members (email);
+CREATE INDEX IF NOT EXISTS square_members_line_user_idx ON square_members (line_user_id);
 """
+# ツールを開くたびに会員全員を引き直すと、判定APIの前に待ちが出る。
+_MEMBER_CACHE_TTL_SECONDS = 15.0
+_MEMBER_CACHE: dict[str, tuple[int, float, list[dict]]] = {}
+_MEMBER_CACHE_GEN = 0
+_MEMBER_CACHE_LOCK = threading.Lock()
 _INSERT = (
     "INSERT INTO square_members ("
     + ", ".join(_COLUMNS)
@@ -296,6 +303,7 @@ def cancel_member_record(
             return False
         _set_status(member, "canceled", current, "line", override_operator=True)
         member["access_until"] = _optional_int(access_until)
+        _retain_unpaid_trial(member, current)
         member["updated_at"] = current
         _save_member(member)
         return True
@@ -354,6 +362,7 @@ def restore_members_from_square(records: list[dict], *, now: int | None = None) 
             _apply_note(member, record.get("note"))
             if square_status in {"CANCELED", "DEACTIVATED"}:
                 _set_status(member, "canceled", current, "square", override_operator=True)
+                _retain_unpaid_trial(member, current)
             elif square_status in {"ACTIVE", "PENDING"}:
                 _enter_trial(member, current, record.get("start_date"))
             elif not member.get("status"):
@@ -437,7 +446,7 @@ def _ask_billing(email: str) -> dict | None:
 
 
 def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:
-    """無料体験中と有料会員だけ許可する。期限切れの体験と、解約・決済失敗は拒否する。"""
+    """無料体験中と有料会員を許可する。未課金の解約は体験終了まで残す。期限切れと決済失敗は拒否する。"""
     current = int(time.time() if now is None else now)
     user_id = _clean_token(line_user_id, 100)
     cleaned = _clean_email(email)
@@ -452,6 +461,10 @@ def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:
     status = str(member.get("status") or "")
     if status == "canceled":
         until = _optional_int(member.get("access_until"))
+        if not member.get("paid_at"):
+            trial_end = _optional_int(member.get("trial_end"))
+            if trial_end is not None and trial_end > current:
+                until = trial_end if until is None else max(until, trial_end)
         if until is not None and until > current:
             return _access_view(
                 True,
@@ -653,13 +666,20 @@ def _apply_subscription(subscription: dict, when: int) -> bool:
     _fill(member, customer_id=customer_id, subscription_id=subscription_id)
     status = str(subscription.get("status") or "").upper()
     changed = False
+    canceling = status in {"CANCELED", "DEACTIVATED"}
+    prior_trial_end = _optional_int(member.get("trial_end"))
     charge_at = _charged_through(subscription.get("charged_through_date"))
     if charge_at and not member.get("paid_at") and member.get("status_source") != "operator":
-        if member.get("trial_end") != charge_at:
+        # 解約通知の請求日で、残っている無料期間を短くしない。
+        if canceling and prior_trial_end and charge_at < prior_trial_end:
+            pass
+        elif member.get("trial_end") != charge_at:
             member["trial_end"] = charge_at
             changed = True
-    if status in {"CANCELED", "DEACTIVATED"}:
+    if canceling:
         changed = _set_status(member, "canceled", when, "square", override_operator=True) or changed
+        if _retain_unpaid_trial(member, when):
+            changed = True
     elif status == "PAUSED":
         changed = _set_status(member, "suspended", when, "square", override_operator=True) or changed
     elif status in {"ACTIVE", "PENDING", ""}:
@@ -667,6 +687,20 @@ def _apply_subscription(subscription: dict, when: int) -> bool:
     member["updated_at"] = int(time.time())
     _save_member(member)
     return changed
+
+
+def _retain_unpaid_trial(member: dict, when: int) -> bool:
+    """カード登録後、まだ月額を払っていない解約は、無料期間の終わりまでログインを残す。"""
+    if member.get("paid_at"):
+        return False
+    trial_end = _optional_int(member.get("trial_end"))
+    if trial_end is None or trial_end <= int(when):
+        return False
+    current_until = _optional_int(member.get("access_until"))
+    if current_until is not None and current_until >= trial_end:
+        return False
+    member["access_until"] = trial_end
+    return True
 
 
 def _enter_trial(member: dict, when: int, start_hint: object) -> bool:
@@ -1083,10 +1117,39 @@ def _connect_sqlite(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def _drop_member_cache() -> None:
+    global _MEMBER_CACHE_GEN
+    with _MEMBER_CACHE_LOCK:
+        _MEMBER_CACHE_GEN += 1
+        _MEMBER_CACHE.clear()
+
+
+def _cached_members(target: str) -> list[dict] | None:
+    with _MEMBER_CACHE_LOCK:
+        cached = _MEMBER_CACHE.get(target)
+        if cached is None or time.monotonic() - cached[1] >= _MEMBER_CACHE_TTL_SECONDS:
+            return None
+        return [dict(row) for row in cached[2]]
+
+
+def _remember_members(target: str, generation: int, rows: list[dict]) -> None:
+    with _MEMBER_CACHE_LOCK:
+        if generation != _MEMBER_CACHE_GEN:
+            return
+        _MEMBER_CACHE[target] = (generation, time.monotonic(), [dict(row) for row in rows])
+
+
 def _load_members() -> list[dict]:
     kind, target = _backend()
     if kind == "postgres":
-        return _postgres_load(str(target))
+        cached = _cached_members(str(target))
+        if cached is not None:
+            return cached
+        with _MEMBER_CACHE_LOCK:
+            generation = _MEMBER_CACHE_GEN
+        rows = _postgres_load(str(target))
+        _remember_members(str(target), generation, rows)
+        return [dict(row) for row in rows]
     connection = _connect_sqlite(Path(target))
     try:
         found = connection.execute("SELECT * FROM square_members").fetchall()
@@ -1102,6 +1165,7 @@ def _save_member(member: dict) -> None:
     kind, target = _backend()
     if kind == "postgres":
         _postgres_save(str(target), params)
+        _drop_member_cache()
         return
     connection = _connect_sqlite(Path(target))
     try:
