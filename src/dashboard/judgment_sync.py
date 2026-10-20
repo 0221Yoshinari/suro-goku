@@ -127,6 +127,58 @@ def read_prefecture_payloads(prefecture: str, output_dir: Path | None = None) ->
     return [by_name[name] for name in sorted(by_name)]
 
 
+def _summary_units(machines: list[dict[str, Any]], hall_name: str) -> list[dict[str, Any]]:
+    """末尾集計に必要な台だけを揃える。店舗名と判定型が既にある台はコピーしない。"""
+    units: list[dict[str, Any]] = []
+    for item in machines:
+        for unit in item.get("units") or []:
+            if not isinstance(unit, dict):
+                continue
+            if unit.get("hall_name") and unit.get("judgment_type"):
+                units.append(unit)
+                continue
+            copied = dict(unit)
+            copied.setdefault("hall_name", item.get("hall_name") or hall_name)
+            copied.setdefault("judgment_type", item.get("judgment_type"))
+            units.append(copied)
+    return units
+
+
+def _stored_boards(payload: dict[str, Any], hall_name: str) -> list[dict[str, Any]] | None:
+    boards = payload.get("hall_digit_summaries")
+    if not isinstance(boards, list) or not boards:
+        return None
+    usable: list[dict[str, Any]] = []
+    for board in boards:
+        if not isinstance(board, dict) or not isinstance(board.get("digits"), list):
+            return None
+        board_hall = str(board.get("hall_name") or "")
+        if hall_name and board_hall and board_hall != hall_name:
+            continue
+        if hall_name and not board_hall:
+            board = dict(board, hall_name=hall_name)
+        usable.append(board)
+    return usable or None
+
+
+def _digit_boards(payload: dict[str, Any], hall_name: str, machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """店舗に末尾集計が残っていればそれを使う。無ければその店舗だけ計算して記憶する。"""
+    stored = _stored_boards(payload, hall_name)
+    if stored is not None:
+        return stored
+    from src.analyzer.extras import hall_digit_summaries
+
+    units = _summary_units(machines, hall_name)
+    try:
+        boards = hall_digit_summaries(units) if units else []
+    except Exception as exc:
+        _note(f"末尾集計を飛ばして店舗データは返します: {type(exc).__name__}")
+        return []
+    if boards:
+        payload["hall_digit_summaries"] = boards
+    return boards
+
+
 def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict[str, Any]:
     """県内の店舗ファイルを、画面向けの1レスポンスにまとめる。
 
@@ -136,37 +188,35 @@ def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict
     if not payloads:
         return {}
     machines: list[dict[str, Any]] = []
-    units: list[dict[str, Any]] = []
     halls: list[str] = []
+    digits: list[dict[str, Any]] = []
+    unit_count = 0
     judged_at = ""
     fetched_at = ""
     for payload in payloads:
         try:
             name = str(payload.get("hall_name") or "")
-            if name:
-                halls.append(name)
-            judged_at = max(judged_at, str(payload.get("judged_at") or ""))
-            fetched_at = max(fetched_at, str(payload.get("fetched_at") or ""))
+            hall_machines: list[dict[str, Any]] = []
             for row in payload.get("machines") or []:
                 if not isinstance(row, dict):
                     continue
                 item = row if row.get("hall_name") or not name else dict(row, hall_name=name)
-                machines.append(item)
-                for unit in item.get("units") or []:
-                    if isinstance(unit, dict):
-                        copied = dict(unit)
-                        copied.setdefault("hall_name", item.get("hall_name") or name)
-                        copied.setdefault("judgment_type", item.get("judgment_type"))
-                        units.append(copied)
+                hall_machines.append(item)
+                unit_count += sum(1 for unit in (item.get("units") or []) if isinstance(unit, dict))
+            if not name:
+                for item in hall_machines:
+                    name = str(item.get("hall_name") or "")
+                    if name:
+                        break
+            if name:
+                halls.append(name)
+            judged_at = max(judged_at, str(payload.get("judged_at") or ""))
+            fetched_at = max(fetched_at, str(payload.get("fetched_at") or ""))
+            machines.extend(hall_machines)
+            digits.extend(_digit_boards(payload, name, hall_machines))
         except Exception as exc:
             _note(f"店舗判定の読み込みを飛ばしました: {type(exc).__name__}")
-    from src.analyzer.extras import hall_digit_summaries
-
-    try:
-        digits = hall_digit_summaries(units) if units else []
-    except Exception as exc:
-        _note(f"末尾集計を飛ばして店舗データは返します: {type(exc).__name__}")
-        digits = []
+    digits.sort(key=lambda board: str(board.get("hall_name") or ""))
     return {
         "judged_at": judged_at or None,
         "fetched_at": fetched_at or None,
@@ -174,7 +224,7 @@ def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict
         "halls": halls,
         "hall_digit_summaries": digits,
         "machine_count": len(machines),
-        "unit_count": len(units),
+        "unit_count": unit_count,
         "count": len(machines),
     }
 

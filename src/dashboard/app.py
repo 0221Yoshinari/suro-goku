@@ -24,6 +24,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.responses import Response
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 
 from src.analyzer.judgment import DEFAULT_OUTPUT_DIR, PROJECT_ROOT, judge_all
 from src.analyzer.juggler import attach_juggler_view
@@ -114,6 +115,7 @@ async def _lifespan(_app):
 
 _DOC_URLS = {} if api_docs_enabled() else {"docs_url": None, "redoc_url": None, "openapi_url": None}
 app = FastAPI(title="全台系判定ダッシュボード", lifespan=_lifespan, **_DOC_URLS)
+app.add_middleware(GZipMiddleware, minimum_size=800)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -653,12 +655,14 @@ def hall_catalog() -> dict:
     return payload
 
 
-# 県ごとの画面用レスポンス。店舗の受信ごとに捨てると、開くたびに全台を組み直す。
-_VIEW_TTL_SECONDS = 20.0
+# 県ごとの画面用レスポンス。期限が切れても、組み直しが終わるまでは前の画面を返す。
+_VIEW_TTL_SECONDS = 120.0
 _VIEW_EMPTY_TTL_SECONDS = 3.0
 _VIEW_CACHE: dict[str, tuple[float, float, float, dict]] = {}
 _VIEW_GUARD = threading.Lock()
 _VIEW_LOCKS: dict[str, threading.Lock] = {}
+_VIEW_REFRESHING: set[str] = set()
+_LINEUP_RUNNING: set[int] = set()
 
 
 def _events_mtime() -> float:
@@ -706,6 +710,60 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "hall_name": body.get("hall_name")})
 
 
+def _without_units(row: dict) -> dict:
+    if "units" not in row:
+        return row
+    slim = dict(row)
+    slim.pop("units", None)
+    return slim
+
+
+def public_judgment_view(payload: dict) -> dict:
+    """画面の最初の応答から台明細を外す。台明細は開いたときだけ別APIで返す。"""
+    view = dict(payload)
+    machines = payload.get("machines")
+    if isinstance(machines, list):
+        view["machines"] = [_without_units(row) if isinstance(row, dict) else row for row in machines]
+    juggler = payload.get("juggler")
+    if isinstance(juggler, dict):
+        slim = dict(juggler)
+        islands = juggler.get("islands")
+        if isinstance(islands, list):
+            slim["islands"] = [_without_units(row) if isinstance(row, dict) else row for row in islands]
+        view["juggler"] = slim
+    view.pop("results", None)
+    return view
+
+
+def machine_units_from(payload: dict, hall: str, machine: str) -> list[dict]:
+    wanted_hall = (hall or "").strip()
+    wanted_machine = (machine or "").strip()
+    for row in payload.get("machines") or []:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("hall_name") or "").strip() != wanted_hall:
+            continue
+        if str(row.get("machine_name") or "").strip() != wanted_machine:
+            continue
+        return [unit for unit in (row.get("units") or []) if isinstance(unit, dict)]
+    return []
+
+
+def juggler_units_from(payload: dict, hall: str, family: str) -> list[dict]:
+    wanted_hall = (hall or "").strip()
+    wanted_family = (family or "").strip()
+    islands = ((payload.get("juggler") or {}).get("islands") or [])
+    for island in islands:
+        if not isinstance(island, dict):
+            continue
+        if str(island.get("hall_name") or "").strip() != wanted_hall:
+            continue
+        if str(island.get("family_id") or "").strip() != wanted_family:
+            continue
+        return [unit for unit in (island.get("units") or []) if isinstance(unit, dict)]
+    return []
+
+
 @app.get("/api/judgments/digit-units")
 def get_digit_units(hall: str = "", digit: int = 0, prefecture: str = "") -> dict:
     """指定した店舗の、末尾0〜9のどれか1つに属する台一覧。"""
@@ -716,11 +774,47 @@ def get_digit_units(hall: str = "", digit: int = 0, prefecture: str = "") -> dic
         raise HTTPException(status_code=400, detail="digit は 0 から 9 です")
     from src.analyzer.extras import digit_unit_rows
 
-    payload = get_judgments(prefecture)
+    payload = _full_judgments(prefecture)
     units = digit_unit_rows(payload.get("machines") or [], name, digit)
     return {
         "hall_name": name,
         "digit": digit,
+        "prefecture": (prefecture or "").strip().lower() or "fukuoka",
+        "count": len(units),
+        "units": units,
+    }
+
+
+@app.get("/api/judgments/machine-units")
+def get_machine_units(hall: str = "", machine: str = "", prefecture: str = "") -> dict:
+    """1店舗・1機種の台明細。一覧の応答には含めない。"""
+    name = (hall or "").strip()
+    machine_name = (machine or "").strip()
+    if not name or not machine_name:
+        raise HTTPException(status_code=400, detail="hall と machine が必要です")
+    payload = _full_judgments(prefecture)
+    units = machine_units_from(payload, name, machine_name)
+    return {
+        "hall_name": name,
+        "machine_name": machine_name,
+        "prefecture": (prefecture or "").strip().lower() or "fukuoka",
+        "count": len(units),
+        "units": units,
+    }
+
+
+@app.get("/api/judgments/juggler-units")
+def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "") -> dict:
+    """ジャグラー島の台明細。島の集計とは別に、開いたときだけ返す。"""
+    name = (hall or "").strip()
+    family_id = (family or "").strip()
+    if not name or not family_id:
+        raise HTTPException(status_code=400, detail="hall と family が必要です")
+    payload = _full_judgments(prefecture)
+    units = juggler_units_from(payload, name, family_id)
+    return {
+        "hall_name": name,
+        "family_id": family_id,
         "prefecture": (prefecture or "").strip().lower() or "fukuoka",
         "count": len(units),
         "units": units,
@@ -743,12 +837,38 @@ def _view_lock(prefecture: str) -> threading.Lock:
 
 def _cached_view(prefecture: str, events_mtime: float) -> dict | None:
     cached = _VIEW_CACHE.get(prefecture)
-    if cached is None:
+    if cached is None or not _view_is_fresh(cached, events_mtime):
         return None
-    stored_at, stored_events, ttl, payload = cached
-    if stored_events != events_mtime or time.monotonic() - stored_at >= ttl:
-        return None
-    return payload
+    return cached[3]
+
+
+def _view_is_fresh(entry: tuple[float, float, float, dict], events_mtime: float) -> bool:
+    stored_at, stored_events, ttl, _payload = entry
+    return stored_events == events_mtime and time.monotonic() - stored_at < ttl
+
+
+def _schedule_view_refresh(prefecture: str, events_mtime: float) -> None:
+    """期限切れの画面は裏で組み直す。開いた人は、今ある数値を先に見る。"""
+    with _VIEW_GUARD:
+        if prefecture in _VIEW_REFRESHING:
+            return
+        _VIEW_REFRESHING.add(prefecture)
+
+    def run() -> None:
+        try:
+            with _view_lock(prefecture):
+                with _VIEW_GUARD:
+                    current = _VIEW_CACHE.get(prefecture)
+                    if current is not None and _view_is_fresh(current, events_mtime):
+                        return
+                built = _build_prefecture_view(prefecture)
+                with _VIEW_GUARD:
+                    _store_view(prefecture, events_mtime, built)
+        finally:
+            with _VIEW_GUARD:
+                _VIEW_REFRESHING.discard(prefecture)
+
+    threading.Thread(target=run, name=f"judgment-refresh-{prefecture}", daemon=True).start()
 
 
 def _store_view(prefecture: str, events_mtime: float, payload: dict) -> None:
@@ -770,25 +890,70 @@ def _build_prefecture_view(prefecture: str) -> dict:
     return _build_judgments(latest) if latest.is_file() else _empty_payload()
 
 
-@app.get("/api/judgments")
-def get_judgments(prefecture: str = "") -> dict:
-    """県を指定しない呼び出しは福岡だけ返す。全国分を一度に返すと画面が空になる。"""
+def _full_judgments(prefecture: str) -> dict:
+    """県の判定一式。台明細も保持する。画面へ返す前に public_judgment_view を通す。"""
     from src.dashboard.judgment_sync import read_reflection_status
 
     selected = (prefecture or "").strip().lower() or "fukuoka"
     events_mtime = _events_mtime()
     with _VIEW_GUARD:
+        entry = _VIEW_CACHE.get(selected)
         cached = _cached_view(selected, events_mtime)
+    if cached is None and entry is not None:
+        cached = entry[3]
+        _schedule_view_refresh(selected, events_mtime)
     if cached is None:
         with _view_lock(selected):
             with _VIEW_GUARD:
+                entry = _VIEW_CACHE.get(selected)
                 cached = _cached_view(selected, events_mtime)
-            if cached is None:
+            if cached is None and entry is not None:
+                cached = entry[3]
+                _schedule_view_refresh(selected, events_mtime)
+            elif cached is None:
                 cached = _build_prefecture_view(selected)
                 with _VIEW_GUARD:
                     _store_view(selected, events_mtime, cached)
     _attach_reflection_status(cached, read_reflection_status())
     return cached
+
+
+def _revision_body(prefecture: str, payload: dict) -> dict:
+    return {
+        "prefecture": prefecture,
+        "judged_at": payload.get("judged_at"),
+        "fetched_at": payload.get("fetched_at"),
+        "events_updated_at": payload.get("events_updated_at"),
+        "machine_count": payload.get("machine_count") or 0,
+        "unit_count": payload.get("unit_count") or 0,
+        "reflection_status": payload.get("reflection_status") or "",
+        "reflected_hall_count": payload.get("reflected_hall_count"),
+        "failed_hall_count": payload.get("failed_hall_count"),
+        "lineup_ready": bool(payload.get("lineup_ready")),
+    }
+
+
+@app.get("/api/judgments/revision")
+def get_judgment_revision(prefecture: str = "") -> dict:
+    """更新の有無だけ返す。15秒ごとの確認で全台JSONを組み直さない。"""
+    from src.dashboard.judgment_sync import read_reflection_status
+
+    selected = (prefecture or "").strip().lower() or "fukuoka"
+    events_mtime = _events_mtime()
+    with _VIEW_GUARD:
+        entry = _VIEW_CACHE.get(selected)
+    payload = entry[3] if entry is not None else {}
+    if entry is not None and not _view_is_fresh(entry, events_mtime):
+        _schedule_view_refresh(selected, events_mtime)
+    body = _revision_body(selected, payload)
+    _attach_reflection_status(body, read_reflection_status())
+    return body
+
+
+@app.get("/api/judgments")
+def get_judgments(prefecture: str = "") -> dict:
+    """県を指定しない呼び出しは福岡だけ返す。全国分を一度に返すと画面が空になる。"""
+    return public_judgment_view(_full_judgments(prefecture))
 
 
 def _attach_reflection_status(payload: dict, status: dict) -> None:
@@ -868,16 +1033,40 @@ def _attach_user_catalog(payload: dict) -> None:
     payload["hall_status"] = hall_status_index()
 
 
+def _schedule_lineup(payload: dict) -> None:
+    """並び分析は台数が多いので、数値を返したあとに裏で付ける。"""
+    if payload.get("lineup_ready"):
+        return
+    machines = payload.get("machines") or []
+    if not machines:
+        payload["lineup_ready"] = True
+        return
+    key = id(payload)
+    with _VIEW_GUARD:
+        if key in _LINEUP_RUNNING:
+            return
+        _LINEUP_RUNNING.add(key)
+
+    def run() -> None:
+        try:
+            from src.analyzer.lineup import attach_lineup_blocks
+
+            attach_lineup_blocks(machines)
+        except Exception as exc:
+            print(f"並び分析をスキップ: {type(exc).__name__}", flush=True)
+        finally:
+            payload["lineup_ready"] = True
+            with _VIEW_GUARD:
+                _LINEUP_RUNNING.discard(key)
+
+    threading.Thread(target=run, name="lineup-blocks", daemon=True).start()
+
+
 def _with_events(payload: dict) -> dict:
     """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
     # 県別の画面はここを通る。島を付けないとジャグラーモードの全6・全56・全456が空になる。
     attach_juggler_view(payload)
-    try:
-        from src.analyzer.lineup import attach_lineup_blocks
-
-        attach_lineup_blocks(payload.get("machines") or [])
-    except Exception as exc:
-        print(f"並び分析をスキップ: {type(exc).__name__}", flush=True)
+    _schedule_lineup(payload)
     today = today_jst()
     tomorrow = (datetime.now(JST).date() + timedelta(days=1)).isoformat()
     try:

@@ -1283,13 +1283,17 @@ function makeCard(item, { inspect = false } = {}) {
   details.addEventListener("toggle", () => {
     if (details.open) {
       expanded.add(key);
+      fillMachineUnits(details, item, inspect);
     } else {
       expanded.delete(key);
     }
   });
   const summary = document.createElement("summary");
   summary.append(text(`台別内訳を表示（${item.unit_count || 0}台）`));
-  details.append(summary, makeUnitTable(item, { inspect }));
+  details.append(summary);
+  if (details.open) {
+    fillMachineUnits(details, item, inspect);
+  }
   const digits = makeDigitTable(item);
   if (digits) {
     card.append(title, series, badge, dl, digits, details);
@@ -2871,7 +2875,12 @@ function renderJugglerIsland(island) {
   details.className = "juggler-units";
   const summary = document.createElement("summary");
   summary.append(text(`台別（総回転・BIG/REG・合算・REG・差枚） ${formatNumber(island.unit_count)}台`));
-  details.append(summary, renderJugglerUnitTable(island));
+  details.append(summary);
+  details.addEventListener("toggle", () => {
+    if (details.open) {
+      fillJugglerUnits(details, island);
+    }
+  });
   card.append(head, metrics, details);
   if (island.low_sample) {
     const note = document.createElement("p");
@@ -3125,7 +3134,7 @@ function lineupMachines(hall) {
     return [];
   }
   return machineList()
-    .filter((item) => (item.hall_name || "") === hall && (item.units || []).length >= 2)
+    .filter((item) => (item.hall_name || "") === hall && (item.unit_count || (item.units || []).length) >= 2)
     .sort((a, b) => String(a.machine_name || "").localeCompare(String(b.machine_name || ""), "ja"));
 }
 
@@ -3439,6 +3448,147 @@ function setJudgmentLoading(active) {
   banner.setAttribute("aria-busy", active ? "true" : "false");
 }
 
+const machineUnitCache = new Map();
+const jugglerUnitCache = new Map();
+
+function judgmentStamp(next, machineCount) {
+  const count = machineCount == null ? (next.machine_count || 0) : machineCount;
+  return `${next.judged_at || ""}|${next.events_updated_at || ""}|${count}|${next.reflection_status || ""}|${next.lineup_ready ? 1 : 0}`;
+}
+
+function applyReflection(next) {
+  if (!next || !next.reflection_status) {
+    return;
+  }
+  payload.reflection_status = next.reflection_status;
+  payload.reflected_hall_count = next.reflected_hall_count;
+  payload.failed_hall_count = next.failed_hall_count;
+}
+
+async function readJudgmentJson(response, failure) {
+  if (redirectIfUnauthorized(response)) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`${failure} (${response.status})`);
+  }
+  return response.json();
+}
+
+async function ensureMachineUnits(item) {
+  if (Array.isArray(item.units)) {
+    return item.units;
+  }
+  const key = `${item.hall_name || ""}|${item.machine_name || ""}`;
+  if (machineUnitCache.has(key)) {
+    item.units = machineUnitCache.get(key);
+    return item.units;
+  }
+  const params = new URLSearchParams({
+    hall: item.hall_name || "",
+    machine: item.machine_name || "",
+    prefecture: prefectureFilter || DEFAULT_PREF,
+  });
+  const body = await readJudgmentJson(
+    await fetch(`/api/judgments/machine-units?${params}`),
+    "台別を取得できません",
+  );
+  if (!body) {
+    return [];
+  }
+  const units = Array.isArray(body.units) ? body.units : [];
+  machineUnitCache.set(key, units);
+  item.units = units;
+  return units;
+}
+
+function fillMachineUnits(details, item, inspect) {
+  if (details.querySelector(".unit-table-wrap") || details.dataset.loading === "1") {
+    return;
+  }
+  if (Array.isArray(item.units) || !item.unit_count) {
+    item.units = item.units || [];
+    details.append(makeUnitTable(item, { inspect }));
+    return;
+  }
+  details.dataset.loading = "1";
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.append(text("台別を読み込んでいます"));
+  details.append(note);
+  ensureMachineUnits(item)
+    .then(() => {
+      if (!details.isConnected) {
+        return;
+      }
+      note.remove();
+      details.append(makeUnitTable(item, { inspect }));
+    })
+    .catch(() => {
+      note.textContent = "台別を読み込めませんでした";
+    })
+    .finally(() => {
+      delete details.dataset.loading;
+    });
+}
+
+async function ensureJugglerUnits(island) {
+  if (Array.isArray(island.units)) {
+    return island.units;
+  }
+  const key = `${island.hall_name || ""}|${island.family_id || ""}`;
+  if (jugglerUnitCache.has(key)) {
+    island.units = jugglerUnitCache.get(key);
+    return island.units;
+  }
+  const params = new URLSearchParams({
+    hall: island.hall_name || "",
+    family: island.family_id || "",
+    prefecture: prefectureFilter || DEFAULT_PREF,
+  });
+  const body = await readJudgmentJson(
+    await fetch(`/api/judgments/juggler-units?${params}`),
+    "台別を取得できません",
+  );
+  if (!body) {
+    return [];
+  }
+  const units = Array.isArray(body.units) ? body.units : [];
+  jugglerUnitCache.set(key, units);
+  island.units = units;
+  return units;
+}
+
+function fillJugglerUnits(details, island) {
+  if (details.querySelector(".unit-table-wrap") || details.dataset.loading === "1") {
+    return;
+  }
+  if (Array.isArray(island.units) || !island.unit_count) {
+    island.units = island.units || [];
+    details.append(renderJugglerUnitTable(island));
+    return;
+  }
+  details.dataset.loading = "1";
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.append(text("台別を読み込んでいます"));
+  details.append(note);
+  ensureJugglerUnits(island)
+    .then(() => {
+      if (!details.isConnected) {
+        return;
+      }
+      note.remove();
+      details.append(renderJugglerUnitTable(island));
+    })
+    .catch(() => {
+      note.textContent = "台別を読み込めませんでした";
+    })
+    .finally(() => {
+      delete details.dataset.loading;
+    });
+}
+
 async function loadJudgments(force) {
   if (judgmentsInFlight) {
     return judgmentsInFlight;
@@ -3461,38 +3611,62 @@ async function loadJudgmentsNow(force) {
   let revealed = false;
   try {
     const pref = prefectureFilter || DEFAULT_PREF;
+    if (!force && judgmentsLoaded) {
+      const revision = await readJudgmentJson(
+        await fetch(`/api/judgments/revision?prefecture=${encodeURIComponent(pref)}`),
+        "更新確認に失敗しました",
+      );
+      if (!revision) {
+        return;
+      }
+      const stamp = judgmentStamp(revision);
+      if (stamp === lastJudgedAt) {
+        updateFreshness();
+        return;
+      }
+      const currentCount = Array.isArray(payload.machines) ? payload.machines.length : 0;
+      const sameData = judgmentStamp(
+        {
+          judged_at: payload.judged_at,
+          events_updated_at: payload.events_updated_at,
+          reflection_status: revision.reflection_status,
+        },
+        currentCount,
+      ) === stamp;
+      if (sameData) {
+        applyReflection(revision);
+        lastJudgedAt = stamp;
+        updateFreshness();
+        return;
+      }
+    }
     const response = await fetch(`/api/judgments?prefecture=${encodeURIComponent(pref)}`);
-    if (redirectIfUnauthorized(response)) {
+    const next = await readJudgmentJson(response, "判定結果の取得に失敗しました");
+    if (!next) {
       return;
     }
-    if (!response.ok) {
-      throw new Error(`判定結果の取得に失敗しました (${response.status})`);
-    }
-    const next = await response.json();
     const incoming = Array.isArray(next.machines) ? next.machines : [];
     const current = Array.isArray(payload.machines) ? payload.machines : [];
     judgmentsLoaded = true;
-    if (showLoading) {
-      setJudgmentLoading(false);
-      revealed = true;
-    }
     if (!force && incoming.length === 0 && current.length > 0) {
-      if (next.reflection_status) {
-        payload.reflection_status = next.reflection_status;
-        payload.reflected_hall_count = next.reflected_hall_count;
-        payload.failed_hall_count = next.failed_hall_count;
-      }
+      applyReflection(next);
       updateFreshness();
       return;
     }
-    const stamp = `${next.judged_at || ""}|${next.events_updated_at || ""}|${incoming.length}|${next.reflection_status || ""}`;
+    const stamp = judgmentStamp(next);
     if (!force && stamp === lastJudgedAt) {
       updateFreshness();
       return;
     }
+    machineUnitCache.clear();
+    jugglerUnitCache.clear();
     payload = next;
     lastJudgedAt = stamp;
     render();
+    if (showLoading) {
+      setJudgmentLoading(false);
+      revealed = true;
+    }
   } finally {
     if (showLoading && !revealed) {
       setJudgmentLoading(false);
