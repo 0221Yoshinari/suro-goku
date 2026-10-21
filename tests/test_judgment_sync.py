@@ -6,7 +6,14 @@ import unittest.mock
 from pathlib import Path
 
 from src.dashboard import judgment_store
-from src.dashboard.judgment_sync import _digit_boards, assemble_prefecture, store_hall_payload, token_matches
+from src.dashboard.judgment_sync import (
+    _digit_boards,
+    assemble_opening,
+    assemble_prefecture,
+    build_hall_parts,
+    store_hall_payload,
+    token_matches,
+)
 
 
 class JudgmentSyncTest(unittest.TestCase):
@@ -64,6 +71,8 @@ class JudgmentSyncTest(unittest.TestCase):
         sql = "\n".join(judgment_store._SCHEMA_SQL)
         self.assertIn("hall_judgments_prefecture_hall_idx", sql)
         self.assertIn("(prefecture, hall_name)", sql)
+        self.assertIn("ADD COLUMN IF NOT EXISTS summary", sql)
+        self.assertIn("ADD COLUMN IF NOT EXISTS board", sql)
 
     def test_durable_cache_skips_another_database_read(self) -> None:
         judgment_store.clear_durable_cache()
@@ -169,6 +178,123 @@ class JudgmentSyncTest(unittest.TestCase):
         self.assertEqual(machine_units_from(payload, "テスト店", "マイジャグラーV")[0]["dai_no"], "10")
         self.assertEqual(juggler_units_from(payload, "テスト店", "my")[0]["dai_no"], "10")
         self.assertIn("units", payload["machines"][0])
+
+    def test_hall_parts_keep_unit_rows_out_of_the_summary(self) -> None:
+        payload = {
+            "hall_name": "テスト店",
+            "prefecture": "fukuoka",
+            "judged_at": "2026-10-22T09:00:00+09:00",
+            "machines": [
+                {
+                    "hall_name": "テスト店",
+                    "machine_name": "全台機",
+                    "status": "NOT_HIGH",
+                    "checks": {"meets_setting_6": True, "early_enough": True},
+                    "synthetic_probability": 120,
+                    "units": [{"dai_no": "10", "hall_name": "テスト店", "judgment_type": "A"}],
+                }
+            ],
+        }
+        summary, board = build_hall_parts(payload)
+        self.assertEqual(summary["all_high_count"], 1)
+        self.assertEqual(summary["machine_count"], 1)
+        self.assertNotIn("units", summary["featured"][0])
+        self.assertEqual(summary["featured"][0]["machine_name"], "全台機")
+        self.assertEqual(summary["featured"][0]["unit_count"], 1)
+        self.assertNotIn("units", board["machines"][0])
+        self.assertEqual(board["machines"][0]["unit_count"], 1)
+        self.assertEqual(payload["machines"][0]["units"][0]["dai_no"], "10")
+
+    def test_opening_view_lists_featured_halls_without_machines(self) -> None:
+        view = assemble_opening(
+            [
+                {
+                    "hall_name": "テスト店",
+                    "machine_count": 8,
+                    "unit_count": 40,
+                    "all_high_count": 1,
+                    "high_56_count": 0,
+                    "high_base_count": 0,
+                    "judged_at": "2026-10-22T09:00:00+09:00",
+                    "featured": [{"hall_name": "テスト店", "machine_name": "全台機"}],
+                    "hall_digit_summaries": [{"hall_name": "テスト店", "digits": []}],
+                    "juggler_islands": [],
+                }
+            ],
+            pending=False,
+            stamp="10:1:1",
+            hall_count=1,
+        )
+        self.assertEqual(view["machines"], [])
+        self.assertEqual(view["featured_machines"][0]["machine_name"], "全台機")
+        self.assertEqual(view["machine_count"], 8)
+        self.assertEqual(view["reported_halls"], ["テスト店"])
+        self.assertFalse(view["summary_pending"])
+
+    def test_summary_does_not_assemble_the_prefecture(self) -> None:
+        from src.dashboard.app import clear_judgment_view_cache, get_judgment_summary
+
+        clear_judgment_view_cache()
+        coverage = {"halls": 1, "ready": 1, "updated_at": 10}
+        rows = [
+            {
+                "hall_name": "テスト店",
+                "machine_count": 4,
+                "unit_count": 12,
+                "all_high_count": 1,
+                "high_56_count": 0,
+                "high_base_count": 0,
+                "judged_at": "2026-10-22T09:00:00+09:00",
+                "featured": [
+                    {
+                        "hall_name": "テスト店",
+                        "machine_name": "全台機",
+                        "status": "ALL_HIGH",
+                        "checks": {"meets_setting_6": True},
+                    }
+                ],
+                "hall_digit_summaries": [],
+                "juggler_islands": [],
+            }
+        ]
+        try:
+            with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
+                with unittest.mock.patch("src.dashboard.judgment_store.summary_coverage", return_value=coverage):
+                    with unittest.mock.patch("src.dashboard.judgment_store.load_opening_summaries", return_value=rows) as loaded:
+                        with unittest.mock.patch(
+                            "src.dashboard.judgment_sync.assemble_prefecture",
+                            side_effect=AssertionError("assembled"),
+                        ):
+                            with unittest.mock.patch("src.dashboard.judgment_sync.read_reflection_status", return_value={}):
+                                first = get_judgment_summary("fukuoka")
+                                second = get_judgment_summary("fukuoka")
+            self.assertEqual(loaded.call_count, 1)
+            self.assertTrue(first["opening"])
+            self.assertEqual(first["machines"], [])
+            self.assertEqual(first["featured_machines"][0]["machine_name"], "全台機")
+            self.assertEqual(first["machine_count"], 4)
+            self.assertEqual(second["summary_stamp"], first["summary_stamp"])
+        finally:
+            clear_judgment_view_cache()
+
+    def test_machine_units_read_one_hall(self) -> None:
+        from src.dashboard.app import get_machine_units
+
+        payload = {
+            "hall_name": "テスト店",
+            "machines": [
+                {
+                    "hall_name": "テスト店",
+                    "machine_name": "全台機",
+                    "units": [{"dai_no": "10"}],
+                }
+            ],
+        }
+        with unittest.mock.patch("src.dashboard.judgment_sync.read_hall_payload", return_value=payload) as read:
+            body = get_machine_units("テスト店", "全台機", "fukuoka")
+        read.assert_called_once_with("テスト店")
+        self.assertEqual(body["units"][0]["dai_no"], "10")
+        self.assertEqual(body["count"], 1)
 
 
 if __name__ == "__main__":

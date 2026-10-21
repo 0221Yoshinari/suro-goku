@@ -32,6 +32,15 @@ _SCHEMA_SQL = (
     CREATE INDEX IF NOT EXISTS hall_judgments_prefecture_hall_idx
       ON hall_judgments (prefecture, hall_name)
     """,
+    # 開いた瞬間の一覧は、台明細を含まない小さな集計だけを読む。
+    """
+    ALTER TABLE hall_judgments
+      ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT ''
+    """,
+    """
+    ALTER TABLE hall_judgments
+      ADD COLUMN IF NOT EXISTS board TEXT NOT NULL DEFAULT ''
+    """,
 )
 
 
@@ -129,6 +138,22 @@ def _cache_replace(prefecture: str, payload: dict[str, Any]) -> None:
         _DURABLE_CACHE[prefecture] = (stamp, rows)
 
 
+def _dump(body: dict[str, Any]) -> str:
+    return json.dumps(body, ensure_ascii=False, separators=(",", ":"))
+
+
+def _stored_parts(payload: dict[str, Any]) -> tuple[str, str]:
+    """台明細なしの一覧と、1店舗分の機種カード。失敗しても台帳本体は残す。"""
+    try:
+        from src.dashboard.judgment_sync import build_hall_parts
+
+        summary, board = build_hall_parts(payload)
+    except Exception as exc:
+        print(f"サマリーの作成を飛ばします: {type(exc).__name__}", flush=True)
+        return "", ""
+    return _dump(summary), _dump(board)
+
+
 def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
     """1店舗分を台帳へ残す。データベースが無いときは何もしない。"""
     if not _postgres_url():
@@ -144,22 +169,29 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
         engine = _engine()
         body = dict(payload)
         body.pop("results", None)
+        summary, board = _stored_parts(body)
         with engine.begin() as connection:
             connection.execute(
                 text(
                     """
-                    INSERT INTO hall_judgments (hall_name, prefecture, payload, updated_at)
-                    VALUES (:hall_name, :prefecture, :payload, :updated_at)
+                    INSERT INTO hall_judgments
+                      (hall_name, prefecture, payload, summary, board, updated_at)
+                    VALUES
+                      (:hall_name, :prefecture, :payload, :summary, :board, :updated_at)
                     ON CONFLICT (hall_name) DO UPDATE SET
                       prefecture = EXCLUDED.prefecture,
                       payload = EXCLUDED.payload,
+                      summary = EXCLUDED.summary,
+                      board = EXCLUDED.board,
                       updated_at = EXCLUDED.updated_at
                     """
                 ),
                 {
                     "hall_name": name,
                     "prefecture": (prefecture or "").strip().lower(),
-                    "payload": json.dumps(body, ensure_ascii=False, separators=(",", ":")),
+                    "payload": _dump(body),
+                    "summary": summary,
+                    "board": board,
                     "updated_at": int(time.time()),
                 },
             )
@@ -221,11 +253,256 @@ def load_durable(prefecture: str) -> list[dict[str, Any]]:
         return []
     payloads: list[dict[str, Any]] = []
     for row in rows:
-        try:
-            loaded = json.loads(row["payload"])
-        except (TypeError, json.JSONDecodeError):
-            continue
-        if isinstance(loaded, dict):
+        loaded = _object(row.get("payload"))
+        if loaded is not None:
             payloads.append(loaded)
     _remember_prefecture(wanted, payloads)
     return payloads
+
+
+def _object(raw: Any) -> dict[str, Any] | None:
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        loaded = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def summary_coverage(prefecture: str) -> dict[str, int] | None:
+    """サマリーが何店舗分あるか。台のJSONは読まない。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    SELECT COUNT(*) AS halls,
+                           COUNT(*) FILTER (WHERE summary <> '') AS ready,
+                           COALESCE(MAX(updated_at), 0) AS updated_at
+                    FROM hall_judgments
+                    WHERE prefecture = :prefecture
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().one()
+    except Exception as exc:
+        print(f"サマリー件数の確認に失敗しました: {type(exc).__name__}", flush=True)
+        return None
+    return {
+        "halls": int(row["halls"] or 0),
+        "ready": int(row["ready"] or 0),
+        "updated_at": int(row["updated_at"] or 0),
+    }
+
+
+def load_opening_summaries(prefecture: str) -> list[dict[str, Any]]:
+    """開いた瞬間に出す、全6・全56・全456の集計。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return []
+    try:
+        if not _ensure():
+            return []
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    SELECT summary FROM hall_judgments
+                    WHERE prefecture = :prefecture AND summary <> ''
+                    ORDER BY hall_name
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().all()
+    except Exception as exc:
+        print(f"サマリーの読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return []
+    return [item for item in (_object(row.get("summary")) for row in rows) if item is not None]
+
+
+def load_hall_board(hall_name: str) -> dict[str, Any] | None:
+    """1店舗の機種カード。台明細は含まない。"""
+    return _load_column(hall_name, "board")
+
+
+def load_hall_payload(hall_name: str) -> dict[str, Any] | None:
+    """1店舗の台明細。開いた機種のときだけ読む。"""
+    return _load_column(hall_name, "payload")
+
+
+def load_prefecture_boards(prefecture: str) -> list[dict[str, Any]]:
+    """機種横断を開いたとき、県内の機種カードをまとめて返す。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return []
+    try:
+        if not _ensure():
+            return []
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    SELECT board FROM hall_judgments
+                    WHERE prefecture = :prefecture AND board <> ''
+                    ORDER BY hall_name
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().all()
+    except Exception as exc:
+        print(f"機種カードの読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return []
+    return [item for item in (_object(row.get("board")) for row in rows) if item is not None]
+
+
+def _load_column(hall_name: str, column: str) -> dict[str, Any] | None:
+    name = (hall_name or "").strip()
+    if not name or column not in {"board", "payload"} or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    f"""
+                    SELECT {column} AS body FROM hall_judgments
+                    WHERE hall_name = :hall_name
+                    """
+                ),
+                {"hall_name": name},
+            ).mappings().first()
+    except Exception as exc:
+        print(f"店舗判定の読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return None
+    if row is None:
+        return None
+    return _object(row.get("body"))
+
+
+def write_hall_parts(hall_name: str, summary: dict[str, Any], board: dict[str, Any]) -> bool:
+    """既にある台帳へ、一覧用の集計と機種カードだけを書き戻す。"""
+    name = (hall_name or "").strip()
+    if not name or not _postgres_url():
+        return False
+    try:
+        if not _ensure():
+            return False
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    UPDATE hall_judgments
+                    SET summary = :summary, board = :board
+                    WHERE hall_name = :hall_name
+                    """
+                ),
+                {"hall_name": name, "summary": _dump(summary), "board": _dump(board)},
+            )
+    except Exception as exc:
+        print(f"サマリーの書き戻しに失敗しました: {type(exc).__name__}", flush=True)
+        return False
+    return True
+
+
+_BACKFILL_LOCK = threading.Lock()
+_BACKFILL_RUNNING = False
+_BACKFILL_ORDER = (
+    "fukuoka",
+    "tokyo",
+    "osaka",
+    "aichi",
+    "kanagawa",
+    "saitama",
+    "chiba",
+    "hyogo",
+)
+
+
+def schedule_summary_backfill() -> None:
+    """保存済みの台帳から、一覧用の集計を後から作る。画面の応答は待たせない。"""
+    global _BACKFILL_RUNNING
+    if os.getenv("PYTEST_CURRENT_TEST") or not _postgres_url():
+        return
+    with _BACKFILL_LOCK:
+        if _BACKFILL_RUNNING:
+            return
+        _BACKFILL_RUNNING = True
+    threading.Thread(target=_run_summary_backfill, name="summary-backfill", daemon=True).start()
+
+
+def _run_summary_backfill() -> None:
+    global _BACKFILL_RUNNING
+    done = 0
+    try:
+        if not _ensure():
+            return
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    SELECT hall_name, prefecture FROM hall_judgments
+                    WHERE summary = '' OR board = ''
+                    """
+                )
+            ).mappings().all()
+        pending = sorted(
+            rows,
+            key=lambda row: (
+                _BACKFILL_ORDER.index(str(row.get("prefecture") or ""))
+                if str(row.get("prefecture") or "") in _BACKFILL_ORDER
+                else len(_BACKFILL_ORDER),
+                str(row.get("hall_name") or ""),
+            ),
+        )
+        for row in pending:
+            if _backfill_one(str(row.get("hall_name") or "")):
+                done += 1
+        if done:
+            print(f"サマリーを{done}店舗分、保存しました。", flush=True)
+    except Exception as exc:
+        print(f"サマリーの作成を中断しました: {type(exc).__name__}", flush=True)
+    finally:
+        with _BACKFILL_LOCK:
+            _BACKFILL_RUNNING = False
+
+
+def _backfill_one(hall_name: str) -> bool:
+    payload = load_hall_payload(hall_name)
+    if not payload:
+        return False
+    try:
+        from src.dashboard.judgment_sync import build_hall_parts
+
+        summary, board = build_hall_parts(payload)
+    except Exception as exc:
+        print(f"サマリーを作れませんでした: {type(exc).__name__}", flush=True)
+        summary = {"hall_name": hall_name, "machine_count": 0, "featured": [], "broken": True}
+        board = {"hall_name": hall_name, "machines": []}
+    return write_hall_parts(hall_name, summary, board)
