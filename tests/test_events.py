@@ -180,6 +180,9 @@ class EventApiTest(unittest.TestCase):
         )
         self.assertEqual(status, 400)
 
+        from src.dashboard.app import clear_judgment_view_cache
+
+        clear_judgment_view_cache()
         status, _headers, body, _cookies = api("GET", "/api/judgments", cookies=self.cookies)
         self.assertEqual(status, 200)
         payload = json.loads(body)
