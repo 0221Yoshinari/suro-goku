@@ -274,8 +274,17 @@ class JudgmentSyncTest(unittest.TestCase):
             self.assertEqual(first["featured_machines"][0]["machine_name"], "全台機")
             self.assertEqual(first["machine_count"], 4)
             self.assertEqual(second["summary_stamp"], first["summary_stamp"])
+            self.assertEqual(first["summary_stamp"], "10:0:1:1")
         finally:
             clear_judgment_view_cache()
+
+    def test_same_second_hall_update_changes_the_opening_stamp(self) -> None:
+        from src.dashboard.app import _opening_cache_key
+
+        before = _opening_cache_key({"updated_at": 100, "updated_sum": 1000, "ready": 2, "halls": 2})
+        after = _opening_cache_key({"updated_at": 100, "updated_sum": 1050, "ready": 2, "halls": 2})
+        self.assertNotEqual(before, after)
+        self.assertEqual(after, "100:1050:2:2")
 
     def test_machine_units_read_one_hall(self) -> None:
         from src.dashboard.app import get_machine_units

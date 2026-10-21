@@ -289,7 +289,8 @@ def summary_coverage(prefecture: str) -> dict[str, int] | None:
                     """
                     SELECT COUNT(*) AS halls,
                            COUNT(*) FILTER (WHERE summary <> '') AS ready,
-                           COALESCE(MAX(updated_at), 0) AS updated_at
+                           COALESCE(MAX(updated_at), 0) AS updated_at,
+                           COALESCE(SUM(updated_at), 0) AS updated_sum
                     FROM hall_judgments
                     WHERE prefecture = :prefecture
                     """
@@ -303,6 +304,7 @@ def summary_coverage(prefecture: str) -> dict[str, int] | None:
         "halls": int(row["halls"] or 0),
         "ready": int(row["ready"] or 0),
         "updated_at": int(row["updated_at"] or 0),
+        "updated_sum": int(row["updated_sum"] or 0),
     }
 
 

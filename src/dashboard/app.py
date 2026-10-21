@@ -871,7 +871,13 @@ def _finish_opening(payload: dict) -> dict:
 
 
 def _opening_cache_key(coverage: dict[str, int]) -> str:
-    return f"{int(coverage.get('updated_at') or 0)}:{int(coverage.get('ready') or 0)}:{int(coverage.get('halls') or 0)}"
+    # 同じ秒に別店舗が届いても、合計が変わるので一覧キャッシュを作り直す。
+    return (
+        f"{int(coverage.get('updated_at') or 0)}:"
+        f"{int(coverage.get('updated_sum') or 0)}:"
+        f"{int(coverage.get('ready') or 0)}:"
+        f"{int(coverage.get('halls') or 0)}"
+    )
 
 
 def _opening_judgments(prefecture: str) -> dict | None:
