@@ -713,6 +713,15 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
 
         saved = save_openings([row for row in rows[:40] if isinstance(row, dict)])
         return JSONResponse({"ok": True, "saved": saved})
+    if body.get("kind") == "prefecture_opening":
+        rows = body.get("halls")
+        prefecture = str(body.get("prefecture") or "").strip().lower()
+        if not prefecture or not isinstance(rows, list):
+            return JSONResponse({"detail": "県一覧ではありません"}, status_code=400)
+        from src.dashboard.judgment_store import save_prefecture_opening
+
+        saved = save_prefecture_opening(prefecture, [row for row in rows if isinstance(row, dict)][:800])
+        return JSONResponse({"ok": saved, "prefecture": prefecture, "halls": len(rows)})
     try:
         store_hall_payload(body)
     except ValueError as exc:
@@ -1053,10 +1062,30 @@ def _revision_body(prefecture: str, payload: dict) -> dict:
 @app.get("/api/judgments/revision")
 def get_judgment_revision(prefecture: str = "") -> dict:
     """更新の有無だけ返す。15秒ごとの確認で全台JSONを組み直さない。"""
-    from src.dashboard.judgment_store import durable_enabled, summary_coverage
+    from src.dashboard.judgment_store import durable_enabled, load_prefecture_opening, summary_coverage
     from src.dashboard.judgment_sync import read_reflection_status
 
     selected = (prefecture or "").strip().lower() or "fukuoka"
+    if durable_enabled():
+        packed = load_prefecture_opening(selected)
+        if packed is not None:
+            rows, updated_at = packed
+            try:
+                events_at = events_updated_at()
+            except EventError:
+                events_at = None
+            body = {
+                "prefecture": selected,
+                "opening": True,
+                "summary_stamp": f"row:{updated_at}:{len(rows)}",
+                "summary_pending": False,
+                "events_updated_at": events_at,
+                "machine_count": 0,
+                "unit_count": 0,
+                "lineup_ready": True,
+            }
+            _attach_reflection_status(body, read_reflection_status())
+            return body
     coverage = summary_coverage(selected) if durable_enabled() else None
     if coverage is not None:
         try:
@@ -1086,10 +1115,37 @@ def get_judgment_revision(prefecture: str = "") -> dict:
     return body
 
 
+def _stored_prefecture_opening(prefecture: str) -> dict | None:
+    """県1行の一覧。店舗台帳の走査はしない。"""
+    from src.dashboard.judgment_store import load_prefecture_opening
+    from src.dashboard.judgment_sync import assemble_opening, read_reflection_status
+
+    packed = load_prefecture_opening(prefecture)
+    if packed is None:
+        return None
+    rows, updated_at = packed
+    stamp = f"row:{updated_at}:{len(rows)}"
+    with _VIEW_GUARD:
+        cached = _OPENING_CACHE.get(prefecture)
+    if cached is not None and cached[0] == stamp:
+        view = dict(cached[2])
+    else:
+        body = assemble_opening(rows, pending=False, stamp=stamp, hall_count=len(rows))
+        view = _finish_opening(body)
+        with _VIEW_GUARD:
+            _OPENING_CACHE[prefecture] = (stamp, _events_mtime(), view)
+        view = dict(view)
+    _attach_reflection_status(view, read_reflection_status())
+    return view
+
+
 @app.get("/api/judgments/summary")
 def get_judgment_summary(prefecture: str = "") -> dict:
     """開いた瞬間の全6・全56・全456。台明細と全機種カードは含めない。"""
     selected = (prefecture or "").strip().lower() or "fukuoka"
+    stored = _stored_prefecture_opening(selected)
+    if stored is not None:
+        return stored
     opening = _opening_judgments(selected)
     if opening is not None:
         return opening

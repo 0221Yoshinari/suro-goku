@@ -305,6 +305,62 @@ class JudgmentSyncTest(unittest.TestCase):
         finally:
             clear_judgment_view_cache()
 
+    def test_stored_prefecture_row_skips_the_hall_table(self) -> None:
+        from src.dashboard.app import clear_judgment_view_cache, get_judgment_summary
+
+        clear_judgment_view_cache()
+        rows = [
+            {
+                "hall_name": "GOGOアリーナ天神",
+                "machine_count": 4,
+                "unit_count": 12,
+                "all_high_count": 1,
+                "high_56_count": 2,
+                "high_base_count": 1,
+                "featured": [
+                    {
+                        "hall_name": "GOGOアリーナ天神",
+                        "machine_name": "化物語",
+                        "status": "ALL_HIGH",
+                        "checks": {"meets_setting_6": True},
+                    }
+                ],
+            },
+            {
+                "hall_name": "玉屋409雑餉隈",
+                "machine_count": 3,
+                "unit_count": 8,
+                "all_high_count": 0,
+                "high_56_count": 0,
+                "high_base_count": 1,
+                "featured": [
+                    {
+                        "hall_name": "玉屋409雑餉隈",
+                        "machine_name": "モンキーターン",
+                        "status": "HIGH_BASE",
+                        "checks": {},
+                    }
+                ],
+            },
+        ]
+        try:
+            with unittest.mock.patch(
+                "src.dashboard.judgment_store.load_prefecture_opening",
+                return_value=(rows, 50),
+            ):
+                with unittest.mock.patch(
+                    "src.dashboard.judgment_store.summary_coverage",
+                    side_effect=AssertionError("scanned"),
+                ):
+                    with unittest.mock.patch("src.dashboard.judgment_sync.read_reflection_status", return_value={}):
+                        body = get_judgment_summary("fukuoka")
+            self.assertEqual(body["summary_stamp"], "row:50:2")
+            self.assertEqual(len(body["featured_machines"]), 2)
+            self.assertFalse(body["summary_pending"])
+            self.assertEqual(body["machines"], [])
+        finally:
+            clear_judgment_view_cache()
+
     def test_incomplete_opening_does_not_read_hall_cards(self) -> None:
         from src.dashboard.app import clear_judgment_view_cache, get_judgment_summary
 

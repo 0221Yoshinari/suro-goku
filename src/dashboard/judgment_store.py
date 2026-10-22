@@ -46,6 +46,14 @@ _SCHEMA_SQL = (
     ALTER TABLE hall_judgments
       ADD COLUMN IF NOT EXISTS opening TEXT NOT NULL DEFAULT ''
     """,
+    # 県一覧は店舗台帳を走査しない。県につき1行の小さいJSONだけを読む。
+    """
+    CREATE TABLE IF NOT EXISTS prefecture_openings (
+      prefecture TEXT PRIMARY KEY,
+      body TEXT NOT NULL,
+      updated_at BIGINT NOT NULL DEFAULT 0
+    )
+    """,
 )
 
 
@@ -238,6 +246,76 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
         return False
     _cache_replace((prefecture or "").strip().lower(), body)
     return True
+
+
+def save_prefecture_opening(prefecture: str, rows: list[dict[str, Any]]) -> bool:
+    """県一覧を1行で保存する。店舗ごとの大きい列は触らない。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return False
+    slim_rows = [_slim_opening(row) for row in rows if isinstance(row, dict) and str(row.get("hall_name") or "").strip()]
+    try:
+        if not _ensure():
+            return False
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.begin() as connection:
+            connection.execute(text("SELECT set_config('statement_timeout', '8000', false)")).scalar()
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO prefecture_openings (prefecture, body, updated_at)
+                    VALUES (:prefecture, :body, :updated_at)
+                    ON CONFLICT (prefecture) DO UPDATE SET
+                      body = EXCLUDED.body,
+                      updated_at = EXCLUDED.updated_at
+                    """
+                ),
+                {
+                    "prefecture": wanted,
+                    "body": _dump({"halls": slim_rows}),
+                    "updated_at": int(time.time()),
+                },
+            )
+    except Exception as exc:
+        print(f"県一覧の保存に失敗しました: {type(exc).__name__}", flush=True)
+        return False
+    return True
+
+
+def load_prefecture_opening(prefecture: str) -> tuple[list[dict[str, Any]], int] | None:
+    """県一覧の1行。店舗台帳は読まない。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.begin() as connection:
+            connection.execute(text("SELECT set_config('statement_timeout', '3000', false)")).scalar()
+            row = connection.execute(
+                text(
+                    """
+                    SELECT body, updated_at FROM prefecture_openings
+                    WHERE prefecture = :prefecture
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().first()
+    except Exception as exc:
+        print(f"県一覧を読めませんでした: {type(exc).__name__}", flush=True)
+        return None
+    if row is None:
+        return None
+    loaded = _object(row.get("body"))
+    halls = loaded.get("halls") if isinstance(loaded, dict) else None
+    if not isinstance(halls, list):
+        return None
+    return halls, int(row.get("updated_at") or 0)
 
 
 def save_openings(rows: list[dict[str, Any]]) -> int:
