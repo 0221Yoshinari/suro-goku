@@ -375,6 +375,97 @@ def load_opening_summaries(prefecture: str) -> list[dict[str, Any]]:
     return [item for item in (_object(row.get("summary")) for row in rows) if item is not None]
 
 
+_CARD_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+_CARD_TTL_SECONDS = 45.0
+
+
+def load_prefecture_cards(prefecture: str) -> list[dict[str, Any]]:
+    """県内の機種カード。台明細の全件は読まず、無ければその店舗の台帳だけ補う。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return []
+    cached = _CARD_CACHE.get(wanted)
+    if cached is not None and time.monotonic() - cached[0] < _CARD_TTL_SECONDS:
+        return cached[1]
+    try:
+        if not _ensure():
+            return []
+        from sqlalchemy import bindparam, text
+
+        engine = _engine()
+        started = time.monotonic()
+        with engine.begin() as connection:
+            connection.exec_driver_sql("SELECT set_config('statement_timeout', '20000', true)")
+            rows = connection.execute(
+                text(
+                    """
+                    SELECT hall_name, board
+                    FROM hall_judgments
+                    WHERE prefecture = :prefecture
+                    ORDER BY hall_name
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().all()
+            missing: list[str] = []
+            cards: list[dict[str, Any]] = []
+            for row in rows:
+                board = _object(row.get("board"))
+                machines = board.get("machines") if isinstance(board, dict) else None
+                if isinstance(machines, list) and machines:
+                    card = dict(board)
+                    card["hall_name"] = card.get("hall_name") or row.get("hall_name")
+                    cards.append(card)
+                    continue
+                name = str(row.get("hall_name") or "").strip()
+                if name:
+                    missing.append(name)
+            if missing:
+                payload_rows = connection.execute(
+                    text(
+                        """
+                        SELECT hall_name, payload
+                        FROM hall_judgments
+                        WHERE hall_name IN :names
+                        """
+                    ).bindparams(bindparam("names", expanding=True)),
+                    {"names": missing},
+                ).mappings().all()
+                for row in payload_rows:
+                    payload = _object(row.get("payload"))
+                    if not isinstance(payload, dict):
+                        continue
+                    slim_machines = []
+                    for machine in payload.get("machines") or []:
+                        if not isinstance(machine, dict):
+                            continue
+                        slim = dict(machine)
+                        slim.pop("units", None)
+                        slim_machines.append(slim)
+                    if not slim_machines:
+                        continue
+                    cards.append(
+                        {
+                            "hall_name": payload.get("hall_name") or row.get("hall_name"),
+                            "prefecture": wanted,
+                            "judged_at": payload.get("judged_at"),
+                            "fetched_at": payload.get("fetched_at"),
+                            "machine_count": int(payload.get("machine_count") or len(slim_machines)),
+                            "unit_count": int(payload.get("unit_count") or 0),
+                            "machines": slim_machines,
+                        }
+                    )
+        print(
+            f"県一覧を台カードから組みました {wanted} {len(cards)}店舗 {time.monotonic() - started:.2f}秒",
+            flush=True,
+        )
+    except Exception as exc:
+        print(f"県一覧の台カードを読めませんでした: {type(exc).__name__}", flush=True)
+        return []
+    _CARD_CACHE[wanted] = (time.monotonic(), cards)
+    return cards
+
+
 def load_hall_board(hall_name: str) -> dict[str, Any] | None:
     """1店舗の機種カード。台明細は含まない。"""
     return _load_column(hall_name, "board")
@@ -489,15 +580,8 @@ _BACKFILL_ORDER = (
 
 
 def schedule_summary_backfill() -> None:
-    """保存済みの台帳から、一覧用の集計を後から作る。画面の応答は待たせない。"""
-    global _BACKFILL_RUNNING
-    if os.getenv("PYTEST_CURRENT_TEST") or not _postgres_url():
-        return
-    with _BACKFILL_LOCK:
-        if _BACKFILL_RUNNING:
-            return
-        _BACKFILL_RUNNING = True
-    threading.Thread(target=_run_summary_backfill, name="summary-backfill", daemon=True).start()
+    """大きい summary 列の読み直しは、県一覧の応答を止めていたので始めない。"""
+    return
 
 
 def _run_summary_backfill() -> None:

@@ -109,9 +109,6 @@ async def _lifespan(_app):
     from src.scraper.x_monitor import ensure_background_monitor
 
     ensure_background_monitor()
-    from src.dashboard.judgment_store import schedule_summary_backfill
-
-    schedule_summary_backfill()
     threading.Thread(target=_landing_coverage, name="lp-coverage", daemon=True).start()
     yield
 
@@ -664,6 +661,7 @@ _VIEW_EMPTY_TTL_SECONDS = 3.0
 _VIEW_CACHE: dict[str, tuple[float, float, float, dict]] = {}
 _OPENING_CACHE: dict[str, tuple[str, float, dict]] = {}
 _disk_opening_cache: dict[str, tuple[float, dict]] = {}
+_BOARD_VIEW_CACHE: dict[str, tuple[float, dict]] = {}
 _VIEW_GUARD = threading.Lock()
 _VIEW_LOCKS: dict[str, threading.Lock] = {}
 _VIEW_REFRESHING: set[str] = set()
@@ -835,6 +833,7 @@ def clear_judgment_view_cache() -> None:
         _VIEW_CACHE.clear()
         _OPENING_CACHE.clear()
         _disk_opening_cache.clear()
+        _BOARD_VIEW_CACHE.clear()
 
 
 def _hall_with_units(hall: str) -> dict:
@@ -882,12 +881,34 @@ def _opening_cache_key(coverage: dict[str, int]) -> str:
     )
 
 
+def _opening_from_cards(prefecture: str, coverage: dict[str, int]) -> dict:
+    """小さい一覧列が未完成でも、保存済みの台カードから全店舗を返す。"""
+    from src.dashboard.judgment_store import load_prefecture_cards
+    from src.dashboard.judgment_sync import assemble_opening, read_reflection_status, summaries_from_hall_cards
+
+    cached = _BOARD_VIEW_CACHE.get(prefecture)
+    if cached is not None and time.monotonic() - cached[0] < 45:
+        view = dict(cached[1])
+        _attach_reflection_status(view, read_reflection_status())
+        return view
+    rows = summaries_from_hall_cards(load_prefecture_cards(prefecture))
+    body = assemble_opening(
+        rows,
+        pending=False,
+        stamp=f"cards:{int(coverage.get('halls') or 0)}:{len(rows)}",
+        hall_count=max(int(coverage.get("halls") or 0), len(rows)),
+    )
+    view = _finish_opening(body)
+    _BOARD_VIEW_CACHE[prefecture] = (time.monotonic(), view)
+    _attach_reflection_status(view, read_reflection_status())
+    return dict(view)
+
+
 def _opening_judgments(prefecture: str) -> dict | None:
     """保存済みサマリーだけで最初の画面を作る。台のJSONは読まない。"""
     from src.dashboard.judgment_store import (
         durable_enabled,
         load_opening_summaries,
-        schedule_summary_backfill,
         summary_coverage,
     )
     from src.dashboard.judgment_sync import assemble_opening, read_reflection_status
@@ -898,8 +919,8 @@ def _opening_judgments(prefecture: str) -> dict | None:
     coverage = summary_coverage(selected)
     if coverage is None:
         return None
-    if coverage["halls"] and coverage["ready"] < coverage["halls"]:
-        schedule_summary_backfill()
+    if not (coverage["halls"] and coverage["ready"] >= coverage["halls"] and coverage["ready"] > 0):
+        return _opening_from_cards(selected, coverage)
     stamp = _opening_cache_key(coverage)
     events_mtime = _events_mtime()
     with _VIEW_GUARD:
@@ -1135,12 +1156,10 @@ def get_judgment_hall(hall: str = "", prefecture: str = "") -> dict:
 @app.get("/api/judgments/machines")
 def get_judgment_machines(prefecture: str = "") -> dict:
     """機種横断を開いたときだけ、県内の機種カードを返す。台明細は含めない。"""
-    from src.dashboard.judgment_store import durable_enabled, load_prefecture_boards, schedule_summary_backfill, summary_coverage
+    from src.dashboard.judgment_store import durable_enabled, load_prefecture_boards, summary_coverage
 
     selected = (prefecture or "").strip().lower() or "fukuoka"
     coverage = summary_coverage(selected) if durable_enabled() else None
-    if coverage is not None and coverage["halls"] and coverage["ready"] < coverage["halls"]:
-        schedule_summary_backfill()
     if coverage is None:
         view = public_judgment_view(_full_judgments(selected))
         return {

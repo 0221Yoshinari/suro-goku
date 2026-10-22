@@ -198,6 +198,42 @@ def _featured_machine(machine: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def summaries_from_hall_cards(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """台明細を含まない店舗カードから、全6・全56・全456の一覧を作る。"""
+    from src.dashboard.events import dashboard_status
+
+    summaries: list[dict[str, Any]] = []
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        name = str(card.get("hall_name") or "").strip()
+        machines = [row for row in (card.get("machines") or []) if isinstance(row, dict)]
+        featured: list[dict[str, Any]] = []
+        counts = {"ALL_HIGH": 0, "HIGH_56": 0, "HIGH_BASE": 0}
+        for row in machines:
+            current = row if row.get("hall_name") or not name else dict(row, hall_name=name)
+            status = dashboard_status(current)
+            if status not in _FEATURED:
+                continue
+            counts[status] += 1
+            featured.append(_featured_machine(current))
+        summaries.append(
+            {
+                "hall_name": name,
+                "prefecture": card.get("prefecture") or "",
+                "judged_at": card.get("judged_at"),
+                "fetched_at": card.get("fetched_at"),
+                "machine_count": int(card.get("machine_count") or len(machines)),
+                "unit_count": int(card.get("unit_count") or 0),
+                "all_high_count": counts["ALL_HIGH"],
+                "high_56_count": counts["HIGH_56"],
+                "high_base_count": counts["HIGH_BASE"],
+                "featured": featured,
+            }
+        )
+    return summaries
+
+
 def build_hall_parts(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """1店舗を、開いた瞬間の集計と、店舗を開いたときの機種カードに分ける。"""
     from src.dashboard.events import dashboard_status

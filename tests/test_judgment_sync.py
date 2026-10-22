@@ -231,6 +231,33 @@ class JudgmentSyncTest(unittest.TestCase):
         self.assertEqual(view["reported_halls"], ["テスト店"])
         self.assertFalse(view["summary_pending"])
 
+    def test_hall_cards_keep_every_store_in_the_list(self) -> None:
+        from src.dashboard.judgment_sync import summaries_from_hall_cards
+
+        rows = summaries_from_hall_cards(
+            [
+                {
+                    "hall_name": "GOGOアリーナ天神",
+                    "machine_count": 2,
+                    "unit_count": 10,
+                    "machines": [
+                        {"hall_name": "GOGOアリーナ天神", "machine_name": "化物語", "status": "ALL_HIGH", "checks": {"meets_setting_6": True}},
+                    ],
+                },
+                {
+                    "hall_name": "玉屋409雑餉隈",
+                    "machine_count": 3,
+                    "unit_count": 12,
+                    "machines": [
+                        {"hall_name": "玉屋409雑餉隈", "machine_name": "モンキーターン", "status": "HIGH_BASE", "checks": {"meets_setting_5": False}},
+                    ],
+                },
+            ]
+        )
+        self.assertEqual([row["hall_name"] for row in rows], ["GOGOアリーナ天神", "玉屋409雑餉隈"])
+        self.assertEqual(rows[0]["all_high_count"], 1)
+        self.assertEqual(rows[1]["featured"][0]["machine_name"], "モンキーターン")
+
     def test_summary_does_not_assemble_the_prefecture(self) -> None:
         from src.dashboard.app import clear_judgment_view_cache, get_judgment_summary
 
