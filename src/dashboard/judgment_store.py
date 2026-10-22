@@ -41,6 +41,11 @@ _SCHEMA_SQL = (
     ALTER TABLE hall_judgments
       ADD COLUMN IF NOT EXISTS board TEXT NOT NULL DEFAULT ''
     """,
+    # 一覧はここだけ読む。summary 全体は末尾集計を含むので、比較や全件読込をすると画面が止まる。
+    """
+    ALTER TABLE hall_judgments
+      ADD COLUMN IF NOT EXISTS opening TEXT NOT NULL DEFAULT ''
+    """,
 )
 
 
@@ -79,6 +84,7 @@ def _engine():
     _ENGINE = create_engine(
         _normalize_postgres_url(url),
         pool_pre_ping=True,
+        pool_timeout=3,
         connect_args={"connect_timeout": 5},
     )
     return _ENGINE
@@ -142,6 +148,30 @@ def _dump(body: dict[str, Any]) -> str:
     return json.dumps(body, ensure_ascii=False, separators=(",", ":"))
 
 
+def _slim_opening(summary: dict[str, Any]) -> dict[str, Any]:
+    """全6・全56・全456のチップだけ。末尾集計や台明細は含めない。"""
+    featured = [item for item in (summary.get("featured") or []) if isinstance(item, dict)]
+    return {
+        "hall_name": summary.get("hall_name") or "",
+        "prefecture": summary.get("prefecture") or "",
+        "judged_at": summary.get("judged_at"),
+        "fetched_at": summary.get("fetched_at"),
+        "machine_count": int(summary.get("machine_count") or 0),
+        "unit_count": int(summary.get("unit_count") or 0),
+        "all_high_count": int(summary.get("all_high_count") or 0),
+        "high_56_count": int(summary.get("high_56_count") or 0),
+        "high_base_count": int(summary.get("high_base_count") or 0),
+        "featured": featured,
+    }
+
+
+def _opening_text(summary_json: str) -> str:
+    loaded = _object(summary_json)
+    if not loaded:
+        return ""
+    return _dump(_slim_opening(loaded))
+
+
 def _stored_parts(payload: dict[str, Any]) -> tuple[str, str]:
     """台明細なしの一覧と、1店舗分の機種カード。失敗しても台帳本体は残す。"""
     try:
@@ -175,14 +205,15 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
                 text(
                     """
                     INSERT INTO hall_judgments
-                      (hall_name, prefecture, payload, summary, board, updated_at)
+                      (hall_name, prefecture, payload, summary, board, opening, updated_at)
                     VALUES
-                      (:hall_name, :prefecture, :payload, :summary, :board, :updated_at)
+                      (:hall_name, :prefecture, :payload, :summary, :board, :opening, :updated_at)
                     ON CONFLICT (hall_name) DO UPDATE SET
                       prefecture = EXCLUDED.prefecture,
                       payload = EXCLUDED.payload,
                       summary = EXCLUDED.summary,
                       board = EXCLUDED.board,
+                      opening = EXCLUDED.opening,
                       updated_at = EXCLUDED.updated_at
                     """
                 ),
@@ -192,6 +223,7 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
                     "payload": _dump(body),
                     "summary": summary,
                     "board": board,
+                    "opening": _opening_text(summary),
                     "updated_at": int(time.time()),
                 },
             )
@@ -284,12 +316,12 @@ def summary_coverage(prefecture: str) -> dict[str, int] | None:
 
         engine = _engine()
         with engine.begin() as connection:
-            connection.execute(text("SET LOCAL statement_timeout = '4000'"))
+            connection.exec_driver_sql("SELECT set_config('statement_timeout', '4000', true)")
             row = connection.execute(
                 text(
                     """
                     SELECT COUNT(*) AS halls,
-                           COUNT(*) FILTER (WHERE summary <> '') AS ready,
+                           COUNT(*) FILTER (WHERE opening <> '') AS ready,
                            COALESCE(MAX(updated_at), 0) AS updated_at,
                            COALESCE(SUM(updated_at), 0) AS updated_sum
                     FROM hall_judgments
@@ -320,18 +352,23 @@ def load_opening_summaries(prefecture: str) -> list[dict[str, Any]]:
         from sqlalchemy import text
 
         engine = _engine()
+        started = time.monotonic()
         with engine.begin() as connection:
-            connection.execute(text("SET LOCAL statement_timeout = '4000'"))
+            connection.exec_driver_sql("SELECT set_config('statement_timeout', '4000', true)")
             rows = connection.execute(
                 text(
                     """
-                    SELECT summary FROM hall_judgments
-                    WHERE prefecture = :prefecture AND summary <> ''
+                    SELECT opening AS summary FROM hall_judgments
+                    WHERE prefecture = :prefecture AND opening <> ''
                     ORDER BY hall_name
                     """
                 ),
                 {"prefecture": wanted},
             ).mappings().all()
+        print(
+            f"一覧サマリー {wanted} {len(rows)}店舗 {time.monotonic() - started:.2f}秒",
+            flush=True,
+        )
     except Exception as exc:
         print(f"サマリーの読み込みに失敗しました: {type(exc).__name__}", flush=True)
         return []
@@ -420,11 +457,16 @@ def write_hall_parts(hall_name: str, summary: dict[str, Any], board: dict[str, A
                 text(
                     """
                     UPDATE hall_judgments
-                    SET summary = :summary, board = :board
+                    SET summary = :summary, board = :board, opening = :opening
                     WHERE hall_name = :hall_name
                     """
                 ),
-                {"hall_name": name, "summary": _dump(summary), "board": _dump(board)},
+                {
+                    "hall_name": name,
+                    "summary": _dump(summary),
+                    "board": _dump(board),
+                    "opening": _dump(_slim_opening(summary)),
+                },
             )
     except Exception as exc:
         print(f"サマリーの書き戻しに失敗しました: {type(exc).__name__}", flush=True)
@@ -467,27 +509,24 @@ def _run_summary_backfill() -> None:
         from sqlalchemy import text
 
         engine = _engine()
-        with engine.connect() as connection:
-            rows = connection.execute(
-                text(
-                    """
-                    SELECT hall_name, prefecture FROM hall_judgments
-                    WHERE summary = '' OR board = ''
-                    """
-                )
-            ).mappings().all()
-        pending = sorted(
-            rows,
-            key=lambda row: (
-                _BACKFILL_ORDER.index(str(row.get("prefecture") or ""))
-                if str(row.get("prefecture") or "") in _BACKFILL_ORDER
-                else len(_BACKFILL_ORDER),
-                str(row.get("hall_name") or ""),
-            ),
-        )
-        for row in pending:
-            if _backfill_one(str(row.get("hall_name") or "")):
-                done += 1
+        for _ in range(8):
+            with engine.begin() as connection:
+                connection.exec_driver_sql("SELECT set_config('statement_timeout', '8000', true)")
+                rows = connection.execute(
+                    text(
+                        """
+                        SELECT hall_name FROM hall_judgments
+                        WHERE opening = ''
+                        ORDER BY CASE WHEN prefecture = 'fukuoka' THEN 0 ELSE 1 END, hall_name
+                        LIMIT 40
+                        """
+                    )
+                ).mappings().all()
+            if not rows:
+                break
+            for row in rows:
+                if _fill_opening(str(row.get("hall_name") or "")):
+                    done += 1
         if done:
             print(f"サマリーを{done}店舗分、保存しました。", flush=True)
     except Exception as exc:
@@ -495,6 +534,39 @@ def _run_summary_backfill() -> None:
     finally:
         with _BACKFILL_LOCK:
             _BACKFILL_RUNNING = False
+
+
+def _fill_opening(hall_name: str) -> bool:
+    """1店舗の大きい集計から、一覧用の小さい列だけを作る。"""
+    name = (hall_name or "").strip()
+    if not name or not _postgres_url():
+        return False
+    try:
+        if not _ensure():
+            return False
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.begin() as connection:
+            connection.exec_driver_sql("SELECT set_config('statement_timeout', '20000', true)")
+            row = connection.execute(
+                text("SELECT summary FROM hall_judgments WHERE hall_name = :hall_name"),
+                {"hall_name": name},
+            ).mappings().first()
+        loaded = _object(row.get("summary") if row else "")
+        if not loaded:
+            return _backfill_one(name)
+        opening = _dump(_slim_opening(loaded))
+        with engine.begin() as connection:
+            connection.exec_driver_sql("SELECT set_config('statement_timeout', '8000', true)")
+            connection.execute(
+                text("UPDATE hall_judgments SET opening = :opening WHERE hall_name = :hall_name"),
+                {"hall_name": name, "opening": opening},
+            )
+    except Exception as exc:
+        print(f"一覧用の集計を保存できませんでした: {type(exc).__name__}", flush=True)
+        return False
+    return True
 
 
 def _backfill_one(hall_name: str) -> bool:

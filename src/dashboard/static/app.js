@@ -3529,10 +3529,16 @@ function setJudgmentLoading(active, message) {
 }
 
 function summaryMachines() {
-  if (Array.isArray(payload.featured_machines)) {
-    return payload.featured_machines.filter((item) => item && item.status !== "EXCLUDED" && !item.judgment_excluded && inArea(item.hall_name));
+  const fromSummary = Array.isArray(payload.featured_machines)
+    ? payload.featured_machines.filter((item) => item && item.status !== "EXCLUDED" && !item.judgment_excluded && inArea(item.hall_name))
+    : [];
+  const fromLoaded = machineList().filter((item) => isFeaturedStatus(item) && inArea(item.hall_name));
+  if (!payload.opening) {
+    return fromLoaded;
   }
-  return machineList().filter((item) => isFeaturedStatus(item));
+  const seen = new Set(fromSummary.map((item) => `${item.hall_name || ""}|${item.machine_name || ""}`));
+  const extra = fromLoaded.filter((item) => !seen.has(`${item.hall_name || ""}|${item.machine_name || ""}`));
+  return fromSummary.concat(extra);
 }
 
 const hallBoards = new Set();
