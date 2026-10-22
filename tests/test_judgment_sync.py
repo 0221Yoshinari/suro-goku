@@ -262,46 +262,23 @@ class JudgmentSyncTest(unittest.TestCase):
         from src.dashboard.app import clear_judgment_view_cache, get_judgment_summary
 
         clear_judgment_view_cache()
-        coverage = {"halls": 1, "ready": 1, "updated_at": 10}
-        rows = [
-            {
-                "hall_name": "テスト店",
-                "machine_count": 4,
-                "unit_count": 12,
-                "all_high_count": 1,
-                "high_56_count": 0,
-                "high_base_count": 0,
-                "judged_at": "2026-10-22T09:00:00+09:00",
-                "featured": [
-                    {
-                        "hall_name": "テスト店",
-                        "machine_name": "全台機",
-                        "status": "ALL_HIGH",
-                        "checks": {"meets_setting_6": True},
-                    }
-                ],
-                "hall_digit_summaries": [],
-                "juggler_islands": [],
-            }
-        ]
         try:
             with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
-                with unittest.mock.patch("src.dashboard.judgment_store.summary_coverage", return_value=coverage):
-                    with unittest.mock.patch("src.dashboard.judgment_store.load_opening_summaries", return_value=rows) as loaded:
+                with unittest.mock.patch("src.dashboard.judgment_store.load_prefecture_opening", return_value=None):
+                    with unittest.mock.patch(
+                        "src.dashboard.judgment_store.summary_coverage",
+                        side_effect=AssertionError("scanned"),
+                    ):
                         with unittest.mock.patch(
                             "src.dashboard.judgment_sync.assemble_prefecture",
                             side_effect=AssertionError("assembled"),
                         ):
                             with unittest.mock.patch("src.dashboard.judgment_sync.read_reflection_status", return_value={}):
-                                first = get_judgment_summary("fukuoka")
-                                second = get_judgment_summary("fukuoka")
-            self.assertEqual(loaded.call_count, 1)
-            self.assertTrue(first["opening"])
-            self.assertEqual(first["machines"], [])
-            self.assertEqual(first["featured_machines"][0]["machine_name"], "全台機")
-            self.assertEqual(first["machine_count"], 4)
-            self.assertEqual(second["summary_stamp"], first["summary_stamp"])
-            self.assertEqual(first["summary_stamp"], "10:0:1:1")
+                                body = get_judgment_summary("fukuoka")
+            self.assertTrue(body["opening"])
+            self.assertTrue(body["summary_pending"])
+            self.assertEqual(body["machines"], [])
+            self.assertEqual(body["featured_machines"], [])
         finally:
             clear_judgment_view_cache()
 
@@ -386,19 +363,19 @@ class JudgmentSyncTest(unittest.TestCase):
         ]
         try:
             with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
-                with unittest.mock.patch("src.dashboard.judgment_store.summary_coverage", return_value=coverage):
-                    with unittest.mock.patch("src.dashboard.judgment_store.load_opening_summaries", return_value=rows) as loaded:
-                        with unittest.mock.patch("src.dashboard.judgment_store.schedule_summary_backfill") as fill:
-                            with unittest.mock.patch(
-                                "src.dashboard.judgment_sync.assemble_prefecture",
-                                side_effect=AssertionError("assembled"),
-                            ):
-                                with unittest.mock.patch("src.dashboard.judgment_sync.read_reflection_status", return_value={}):
-                                    body = get_judgment_summary("fukuoka")
-            self.assertEqual(loaded.call_count, 1)
-            self.assertEqual(fill.call_count, 1)
+                with unittest.mock.patch("src.dashboard.judgment_store.load_prefecture_opening", return_value=None):
+                    with unittest.mock.patch(
+                        "src.dashboard.judgment_store.summary_coverage",
+                        side_effect=AssertionError("scanned"),
+                    ):
+                        with unittest.mock.patch(
+                            "src.dashboard.judgment_sync.assemble_prefecture",
+                            side_effect=AssertionError("assembled"),
+                        ):
+                            with unittest.mock.patch("src.dashboard.judgment_sync.read_reflection_status", return_value={}):
+                                body = get_judgment_summary("fukuoka")
             self.assertTrue(body["summary_pending"])
-            self.assertEqual(body["featured_machines"][0]["machine_name"], "化物語")
+            self.assertEqual(body["featured_machines"], [])
             self.assertEqual(body["machines"], [])
         finally:
             clear_judgment_view_cache()

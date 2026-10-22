@@ -147,8 +147,16 @@ async def masked_unexpected_error(_request: Request, exc: Exception) -> JSONResp
     )
 
 
+_HALLS_REFRESHED = 0.0
+
+
 def _fresh_halls() -> list[str]:
-    load_halls_config.cache_clear()
+    """店舗名の再読込は60秒に1回。一覧のたびに設定を読み直すと、県一覧が時間切れになる。"""
+    global _HALLS_REFRESHED
+    now = time.monotonic()
+    if now - _HALLS_REFRESHED >= 60:
+        load_halls_config.cache_clear()
+        _HALLS_REFRESHED = now
     return configured_halls()
 
 
@@ -1086,6 +1094,22 @@ def get_judgment_revision(prefecture: str = "") -> dict:
             }
             _attach_reflection_status(body, read_reflection_status())
             return body
+        try:
+            events_at = events_updated_at()
+        except EventError:
+            events_at = None
+        body = {
+            "prefecture": selected,
+            "opening": True,
+            "summary_stamp": "row:0",
+            "summary_pending": True,
+            "events_updated_at": events_at,
+            "machine_count": 0,
+            "unit_count": 0,
+            "lineup_ready": True,
+        }
+        _attach_reflection_status(body, read_reflection_status())
+        return body
     coverage = summary_coverage(selected) if durable_enabled() else None
     if coverage is not None:
         try:
@@ -1146,12 +1170,10 @@ def get_judgment_summary(prefecture: str = "") -> dict:
     stored = _stored_prefecture_opening(selected)
     if stored is not None:
         return stored
-    opening = _opening_judgments(selected)
-    if opening is not None:
-        return opening
     from src.dashboard.judgment_store import durable_enabled, schedule_summary_backfill
 
     if durable_enabled():
+        # 県1行が無いときに店舗台帳を走査すると、一覧リクエストが戻らなくなる。
         schedule_summary_backfill()
     else:
         cached = _disk_opening_cache.get(selected)
