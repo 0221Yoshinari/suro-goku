@@ -110,6 +110,9 @@ async def _lifespan(_app):
 
     ensure_background_monitor()
     threading.Thread(target=_landing_coverage, name="lp-coverage", daemon=True).start()
+    from src.dashboard.judgment_store import schedule_summary_backfill
+
+    schedule_summary_backfill()
     yield
 
 
@@ -661,7 +664,6 @@ _VIEW_EMPTY_TTL_SECONDS = 3.0
 _VIEW_CACHE: dict[str, tuple[float, float, float, dict]] = {}
 _OPENING_CACHE: dict[str, tuple[str, float, dict]] = {}
 _disk_opening_cache: dict[str, tuple[float, dict]] = {}
-_BOARD_VIEW_CACHE: dict[str, tuple[float, dict]] = {}
 _VIEW_GUARD = threading.Lock()
 _VIEW_LOCKS: dict[str, threading.Lock] = {}
 _VIEW_REFRESHING: set[str] = set()
@@ -833,7 +835,6 @@ def clear_judgment_view_cache() -> None:
         _VIEW_CACHE.clear()
         _OPENING_CACHE.clear()
         _disk_opening_cache.clear()
-        _BOARD_VIEW_CACHE.clear()
 
 
 def _hall_with_units(hall: str) -> dict:
@@ -881,34 +882,12 @@ def _opening_cache_key(coverage: dict[str, int]) -> str:
     )
 
 
-def _opening_from_cards(prefecture: str, coverage: dict[str, int]) -> dict:
-    """小さい一覧列が未完成でも、保存済みの台カードから全店舗を返す。"""
-    from src.dashboard.judgment_store import load_prefecture_cards
-    from src.dashboard.judgment_sync import assemble_opening, read_reflection_status, summaries_from_hall_cards
-
-    cached = _BOARD_VIEW_CACHE.get(prefecture)
-    if cached is not None and time.monotonic() - cached[0] < 45:
-        view = dict(cached[1])
-        _attach_reflection_status(view, read_reflection_status())
-        return view
-    rows = summaries_from_hall_cards(load_prefecture_cards(prefecture))
-    body = assemble_opening(
-        rows,
-        pending=False,
-        stamp=f"cards:{int(coverage.get('halls') or 0)}:{len(rows)}",
-        hall_count=max(int(coverage.get("halls") or 0), len(rows)),
-    )
-    view = _finish_opening(body)
-    _BOARD_VIEW_CACHE[prefecture] = (time.monotonic(), view)
-    _attach_reflection_status(view, read_reflection_status())
-    return dict(view)
-
-
 def _opening_judgments(prefecture: str) -> dict | None:
-    """保存済みサマリーだけで最初の画面を作る。台のJSONは読まない。"""
+    """保存済みの小さい一覧列だけで最初の画面を作る。台のJSONは読まない。"""
     from src.dashboard.judgment_store import (
         durable_enabled,
         load_opening_summaries,
+        schedule_summary_backfill,
         summary_coverage,
     )
     from src.dashboard.judgment_sync import assemble_opening, read_reflection_status
@@ -919,8 +898,8 @@ def _opening_judgments(prefecture: str) -> dict | None:
     coverage = summary_coverage(selected)
     if coverage is None:
         return None
-    if not (coverage["halls"] and coverage["ready"] >= coverage["halls"] and coverage["ready"] > 0):
-        return _opening_from_cards(selected, coverage)
+    if coverage["ready"] < coverage["halls"]:
+        schedule_summary_backfill()
     stamp = _opening_cache_key(coverage)
     events_mtime = _events_mtime()
     with _VIEW_GUARD:

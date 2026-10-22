@@ -305,6 +305,48 @@ class JudgmentSyncTest(unittest.TestCase):
         finally:
             clear_judgment_view_cache()
 
+    def test_incomplete_opening_does_not_read_hall_cards(self) -> None:
+        from src.dashboard.app import clear_judgment_view_cache, get_judgment_summary
+
+        clear_judgment_view_cache()
+        coverage = {"halls": 22, "ready": 1, "updated_at": 10, "updated_sum": 10}
+        rows = [
+            {
+                "hall_name": "GOGOアリーナ天神",
+                "machine_count": 4,
+                "unit_count": 12,
+                "all_high_count": 1,
+                "high_56_count": 0,
+                "high_base_count": 0,
+                "featured": [
+                    {
+                        "hall_name": "GOGOアリーナ天神",
+                        "machine_name": "化物語",
+                        "status": "ALL_HIGH",
+                        "checks": {"meets_setting_6": True},
+                    }
+                ],
+            }
+        ]
+        try:
+            with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
+                with unittest.mock.patch("src.dashboard.judgment_store.summary_coverage", return_value=coverage):
+                    with unittest.mock.patch("src.dashboard.judgment_store.load_opening_summaries", return_value=rows) as loaded:
+                        with unittest.mock.patch("src.dashboard.judgment_store.schedule_summary_backfill") as fill:
+                            with unittest.mock.patch(
+                                "src.dashboard.judgment_sync.assemble_prefecture",
+                                side_effect=AssertionError("assembled"),
+                            ):
+                                with unittest.mock.patch("src.dashboard.judgment_sync.read_reflection_status", return_value={}):
+                                    body = get_judgment_summary("fukuoka")
+            self.assertEqual(loaded.call_count, 1)
+            self.assertEqual(fill.call_count, 1)
+            self.assertTrue(body["summary_pending"])
+            self.assertEqual(body["featured_machines"][0]["machine_name"], "化物語")
+            self.assertEqual(body["machines"], [])
+        finally:
+            clear_judgment_view_cache()
+
     def test_same_second_hall_update_changes_the_opening_stamp(self) -> None:
         from src.dashboard.app import _opening_cache_key
 

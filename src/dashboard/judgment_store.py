@@ -375,97 +375,6 @@ def load_opening_summaries(prefecture: str) -> list[dict[str, Any]]:
     return [item for item in (_object(row.get("summary")) for row in rows) if item is not None]
 
 
-_CARD_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
-_CARD_TTL_SECONDS = 45.0
-
-
-def load_prefecture_cards(prefecture: str) -> list[dict[str, Any]]:
-    """県内の機種カード。台明細の全件は読まず、無ければその店舗の台帳だけ補う。"""
-    wanted = (prefecture or "").strip().lower()
-    if not wanted or not _postgres_url():
-        return []
-    cached = _CARD_CACHE.get(wanted)
-    if cached is not None and time.monotonic() - cached[0] < _CARD_TTL_SECONDS:
-        return cached[1]
-    try:
-        if not _ensure():
-            return []
-        from sqlalchemy import bindparam, text
-
-        engine = _engine()
-        started = time.monotonic()
-        with engine.begin() as connection:
-            connection.exec_driver_sql("SELECT set_config('statement_timeout', '20000', true)")
-            rows = connection.execute(
-                text(
-                    """
-                    SELECT hall_name, board
-                    FROM hall_judgments
-                    WHERE prefecture = :prefecture
-                    ORDER BY hall_name
-                    """
-                ),
-                {"prefecture": wanted},
-            ).mappings().all()
-            missing: list[str] = []
-            cards: list[dict[str, Any]] = []
-            for row in rows:
-                board = _object(row.get("board"))
-                machines = board.get("machines") if isinstance(board, dict) else None
-                if isinstance(machines, list) and machines:
-                    card = dict(board)
-                    card["hall_name"] = card.get("hall_name") or row.get("hall_name")
-                    cards.append(card)
-                    continue
-                name = str(row.get("hall_name") or "").strip()
-                if name:
-                    missing.append(name)
-            if missing:
-                payload_rows = connection.execute(
-                    text(
-                        """
-                        SELECT hall_name, payload
-                        FROM hall_judgments
-                        WHERE hall_name IN :names
-                        """
-                    ).bindparams(bindparam("names", expanding=True)),
-                    {"names": missing},
-                ).mappings().all()
-                for row in payload_rows:
-                    payload = _object(row.get("payload"))
-                    if not isinstance(payload, dict):
-                        continue
-                    slim_machines = []
-                    for machine in payload.get("machines") or []:
-                        if not isinstance(machine, dict):
-                            continue
-                        slim = dict(machine)
-                        slim.pop("units", None)
-                        slim_machines.append(slim)
-                    if not slim_machines:
-                        continue
-                    cards.append(
-                        {
-                            "hall_name": payload.get("hall_name") or row.get("hall_name"),
-                            "prefecture": wanted,
-                            "judged_at": payload.get("judged_at"),
-                            "fetched_at": payload.get("fetched_at"),
-                            "machine_count": int(payload.get("machine_count") or len(slim_machines)),
-                            "unit_count": int(payload.get("unit_count") or 0),
-                            "machines": slim_machines,
-                        }
-                    )
-        print(
-            f"県一覧を台カードから組みました {wanted} {len(cards)}店舗 {time.monotonic() - started:.2f}秒",
-            flush=True,
-        )
-    except Exception as exc:
-        print(f"県一覧の台カードを読めませんでした: {type(exc).__name__}", flush=True)
-        return []
-    _CARD_CACHE[wanted] = (time.monotonic(), cards)
-    return cards
-
-
 def load_hall_board(hall_name: str) -> dict[str, Any] | None:
     """1店舗の機種カード。台明細は含まない。"""
     return _load_column(hall_name, "board")
@@ -579,9 +488,19 @@ _BACKFILL_ORDER = (
 )
 
 
+_OPENING_SKIP: dict[str, float] = {}
+
+
 def schedule_summary_backfill() -> None:
-    """大きい summary 列の読み直しは、県一覧の応答を止めていたので始めない。"""
-    return
+    """一覧用の小さい列が空の店舗を、1店舗ずつ裏で埋める。大きい summary 列は読まない。"""
+    global _BACKFILL_RUNNING
+    if not _postgres_url():
+        return
+    with _BACKFILL_LOCK:
+        if _BACKFILL_RUNNING:
+            return
+        _BACKFILL_RUNNING = True
+    threading.Thread(target=_run_summary_backfill, name="opening-fill", daemon=True).start()
 
 
 def _run_summary_backfill() -> None:
@@ -590,38 +509,50 @@ def _run_summary_backfill() -> None:
     try:
         if not _ensure():
             return
-        from sqlalchemy import text
-
-        engine = _engine()
-        for _ in range(8):
-            with engine.begin() as connection:
-                connection.exec_driver_sql("SELECT set_config('statement_timeout', '8000', true)")
-                rows = connection.execute(
-                    text(
-                        """
-                        SELECT hall_name FROM hall_judgments
-                        WHERE opening = ''
-                        ORDER BY CASE WHEN prefecture = 'fukuoka' THEN 0 ELSE 1 END, hall_name
-                        LIMIT 40
-                        """
-                    )
-                ).mappings().all()
-            if not rows:
+        for _ in range(800):
+            name = _next_opening_gap()
+            if not name:
                 break
-            for row in rows:
-                if _fill_opening(str(row.get("hall_name") or "")):
-                    done += 1
+            if _fill_opening(name):
+                done += 1
+            else:
+                _OPENING_SKIP[name] = time.monotonic() + 600
         if done:
-            print(f"サマリーを{done}店舗分、保存しました。", flush=True)
+            print(f"一覧用の集計を{done}店舗分、保存しました。", flush=True)
     except Exception as exc:
-        print(f"サマリーの作成を中断しました: {type(exc).__name__}", flush=True)
+        print(f"一覧用の集計を中断しました: {type(exc).__name__}", flush=True)
     finally:
         with _BACKFILL_LOCK:
             _BACKFILL_RUNNING = False
 
 
+def _next_opening_gap() -> str:
+    """一覧列が空の店舗名だけ返す。台のJSONは読まない。"""
+    from sqlalchemy import text
+
+    now = time.monotonic()
+    engine = _engine()
+    with engine.begin() as connection:
+        connection.exec_driver_sql("SELECT set_config('statement_timeout', '4000', true)")
+        rows = connection.execute(
+            text(
+                """
+                SELECT hall_name FROM hall_judgments
+                WHERE opening = ''
+                ORDER BY CASE WHEN prefecture = 'fukuoka' THEN 0 ELSE 1 END, hall_name
+                LIMIT 80
+                """
+            )
+        ).mappings().all()
+    for row in rows:
+        name = str(row.get("hall_name") or "").strip()
+        if name and _OPENING_SKIP.get(name, 0) <= now:
+            return name
+    return ""
+
+
 def _fill_opening(hall_name: str) -> bool:
-    """1店舗の大きい集計から、一覧用の小さい列だけを作る。"""
+    """1店舗の機種カードから、一覧用の小さい列だけを作る。"""
     name = (hall_name or "").strip()
     if not name or not _postgres_url():
         return False
@@ -632,25 +563,38 @@ def _fill_opening(hall_name: str) -> bool:
 
         engine = _engine()
         with engine.begin() as connection:
-            connection.exec_driver_sql("SELECT set_config('statement_timeout', '20000', true)")
+            connection.exec_driver_sql("SELECT set_config('statement_timeout', '4000', true)")
             row = connection.execute(
-                text("SELECT summary FROM hall_judgments WHERE hall_name = :hall_name"),
+                text("SELECT board FROM hall_judgments WHERE hall_name = :hall_name"),
                 {"hall_name": name},
             ).mappings().first()
-        loaded = _object(row.get("summary") if row else "")
-        if not loaded:
-            return _backfill_one(name)
-        opening = _dump(_slim_opening(loaded))
-        with engine.begin() as connection:
-            connection.exec_driver_sql("SELECT set_config('statement_timeout', '8000', true)")
-            connection.execute(
-                text("UPDATE hall_judgments SET opening = :opening WHERE hall_name = :hall_name"),
-                {"hall_name": name, "opening": opening},
-            )
+        board = _object(row.get("board") if row else "")
+        machines = board.get("machines") if isinstance(board, dict) else None
+        if isinstance(machines, list) and machines:
+            from src.dashboard.judgment_sync import summaries_from_hall_cards
+
+            card = dict(board)
+            card["hall_name"] = card.get("hall_name") or name
+            rows = summaries_from_hall_cards([card])
+            if not rows:
+                return False
+            with engine.begin() as connection:
+                connection.exec_driver_sql("SELECT set_config('statement_timeout', '4000', true)")
+                connection.execute(
+                    text(
+                        """
+                        UPDATE hall_judgments
+                        SET opening = :opening
+                        WHERE hall_name = :hall_name AND opening = ''
+                        """
+                    ),
+                    {"hall_name": name, "opening": _dump(rows[0])},
+                )
+            return True
+        return _backfill_one(name)
     except Exception as exc:
         print(f"一覧用の集計を保存できませんでした: {type(exc).__name__}", flush=True)
         return False
-    return True
 
 
 def _backfill_one(hall_name: str) -> bool:
