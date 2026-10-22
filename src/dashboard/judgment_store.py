@@ -32,6 +32,23 @@ _SCHEMA_SQL = (
     CREATE INDEX IF NOT EXISTS hall_judgments_prefecture_hall_idx
       ON hall_judgments (prefecture, hall_name)
     """,
+    """
+    CREATE TABLE IF NOT EXISTS prefecture_snapshots (
+      prefecture TEXT PRIMARY KEY,
+      source_stamp TEXT NOT NULL DEFAULT '',
+      events_mtime DOUBLE PRECISION NOT NULL DEFAULT 0,
+      judged_at TEXT NOT NULL DEFAULT '',
+      fetched_at TEXT NOT NULL DEFAULT '',
+      events_updated_at TEXT NOT NULL DEFAULT '',
+      machine_count INTEGER NOT NULL DEFAULT 0,
+      unit_count INTEGER NOT NULL DEFAULT 0,
+      lineup_ready BOOLEAN NOT NULL DEFAULT FALSE,
+      payload_bytes INTEGER NOT NULL DEFAULT 0,
+      build_ms INTEGER NOT NULL DEFAULT 0,
+      generated_at BIGINT NOT NULL DEFAULT 0,
+      payload TEXT NOT NULL
+    )
+    """,
 )
 
 
@@ -94,6 +111,12 @@ def _ensure() -> bool:
 def clear_durable_cache() -> None:
     with _CACHE_LOCK:
         _DURABLE_CACHE.clear()
+
+
+def drop_durable_prefecture(prefecture: str) -> None:
+    """県の完成品を書き終えたあと、台明細込みのメモリを手放す。"""
+    with _CACHE_LOCK:
+        _DURABLE_CACHE.pop((prefecture or "").strip().lower(), None)
 
 
 def _cached_prefecture(prefecture: str) -> list[dict[str, Any]] | None:
@@ -167,6 +190,14 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
         print(f"判定の永続保存に失敗しました: {type(exc).__name__}", flush=True)
         return False
     _cache_replace((prefecture or "").strip().lower(), body)
+    saved_prefecture = (prefecture or "").strip().lower()
+    if saved_prefecture:
+        try:
+            from src.dashboard.prefecture_snapshot import schedule
+
+            schedule(saved_prefecture)
+        except Exception as exc:
+            print(f"県の完成品の更新予約に失敗しました: {type(exc).__name__}", flush=True)
     return True
 
 
@@ -229,3 +260,269 @@ def load_durable(prefecture: str) -> list[dict[str, Any]]:
             payloads.append(loaded)
     _remember_prefecture(wanted, payloads)
     return payloads
+
+
+def load_hall_payload(hall_name: str) -> dict[str, Any] | None:
+    """1店舗の原本だけ読む。県全体は組み立てない。"""
+    name = (hall_name or "").strip()
+    if not name or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text("SELECT payload FROM hall_judgments WHERE hall_name = :hall_name"),
+                {"hall_name": name},
+            ).mappings().first()
+    except Exception as exc:
+        print(f"店舗判定の読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return None
+    if row is None:
+        return None
+    try:
+        loaded = json.loads(row["payload"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def hall_source_stamps() -> dict[str, str]:
+    """県ごとの原本の印。店舗数と最終保存時刻。データベースが無いときは空。"""
+    if not _postgres_url():
+        return {}
+    try:
+        if not _ensure():
+            return {}
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    SELECT prefecture, COUNT(*) AS n, COALESCE(MAX(updated_at), 0) AS updated
+                    FROM hall_judgments
+                    WHERE prefecture <> ''
+                    GROUP BY prefecture
+                    """
+                )
+            ).mappings().all()
+    except Exception as exc:
+        print(f"県の更新印を読めませんでした: {type(exc).__name__}", flush=True)
+        return {}
+    stamps: dict[str, str] = {}
+    for row in rows:
+        prefecture = str(row["prefecture"] or "").strip().lower()
+        if prefecture:
+            stamps[prefecture] = f"{int(row['n'])}:{int(row['updated'])}"
+    return stamps
+
+
+def save_prefecture_snapshot(
+    prefecture: str,
+    *,
+    source_stamp: str,
+    events_mtime: float,
+    judged_at: str,
+    fetched_at: str,
+    events_updated_at: str,
+    machine_count: int,
+    unit_count: int,
+    lineup_ready: bool,
+    payload: str,
+    build_ms: int,
+) -> bool:
+    """県の画面用JSONを1行で残す。開くリクエストはこの行だけ読む。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return False
+    try:
+        if not _ensure():
+            return False
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO prefecture_snapshots (
+                      prefecture, source_stamp, events_mtime, judged_at, fetched_at,
+                      events_updated_at, machine_count, unit_count, lineup_ready,
+                      payload_bytes, build_ms, generated_at, payload
+                    ) VALUES (
+                      :prefecture, :source_stamp, :events_mtime, :judged_at, :fetched_at,
+                      :events_updated_at, :machine_count, :unit_count, :lineup_ready,
+                      :payload_bytes, :build_ms, :generated_at, :payload
+                    )
+                    ON CONFLICT (prefecture) DO UPDATE SET
+                      source_stamp = EXCLUDED.source_stamp,
+                      events_mtime = EXCLUDED.events_mtime,
+                      judged_at = EXCLUDED.judged_at,
+                      fetched_at = EXCLUDED.fetched_at,
+                      events_updated_at = EXCLUDED.events_updated_at,
+                      machine_count = EXCLUDED.machine_count,
+                      unit_count = EXCLUDED.unit_count,
+                      lineup_ready = EXCLUDED.lineup_ready,
+                      payload_bytes = EXCLUDED.payload_bytes,
+                      build_ms = EXCLUDED.build_ms,
+                      generated_at = EXCLUDED.generated_at,
+                      payload = EXCLUDED.payload
+                    """
+                ),
+                {
+                    "prefecture": wanted,
+                    "source_stamp": source_stamp,
+                    "events_mtime": float(events_mtime),
+                    "judged_at": judged_at,
+                    "fetched_at": fetched_at,
+                    "events_updated_at": events_updated_at,
+                    "machine_count": int(machine_count),
+                    "unit_count": int(unit_count),
+                    "lineup_ready": bool(lineup_ready),
+                    "payload_bytes": len(payload.encode("utf-8")),
+                    "build_ms": int(build_ms),
+                    "generated_at": int(time.time()),
+                    "payload": payload,
+                },
+            )
+    except Exception as exc:
+        print(f"県の完成品の保存に失敗しました: {type(exc).__name__}", flush=True)
+        return False
+    return True
+
+
+def load_prefecture_snapshot(prefecture: str) -> dict[str, Any] | None:
+    """保存済みの画面用JSON。未作成のときは None。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    SELECT source_stamp, events_mtime, payload
+                    FROM prefecture_snapshots
+                    WHERE prefecture = :prefecture
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().first()
+    except Exception as exc:
+        print(f"県の完成品の読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return None
+    if row is None:
+        return None
+    payload = row["payload"]
+    if not isinstance(payload, str) or not payload:
+        return None
+    return {
+        "source_stamp": str(row["source_stamp"] or ""),
+        "events_mtime": float(row["events_mtime"] or 0),
+        "payload": payload,
+    }
+
+
+def load_prefecture_snapshot_meta(prefecture: str) -> dict[str, Any] | None:
+    """更新確認用。完成品の本文は読まない。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    SELECT judged_at, fetched_at, events_updated_at, machine_count, unit_count, lineup_ready, events_mtime
+                    FROM prefecture_snapshots
+                    WHERE prefecture = :prefecture
+                    """
+                ),
+                {"prefecture": wanted},
+            ).mappings().first()
+    except Exception:
+        return None
+    if row is None:
+        return None
+    return {
+        "judged_at": str(row["judged_at"] or "") or None,
+        "fetched_at": str(row["fetched_at"] or "") or None,
+        "events_updated_at": str(row["events_updated_at"] or "") or None,
+        "machine_count": int(row["machine_count"] or 0),
+        "unit_count": int(row["unit_count"] or 0),
+        "lineup_ready": bool(row["lineup_ready"]),
+        "events_mtime": float(row["events_mtime"] or 0),
+    }
+
+
+def snapshot_source_stamps() -> dict[str, str]:
+    """保存済み完成品が、どの原本の印で作られたか。"""
+    if not _postgres_url():
+        return {}
+    try:
+        if not _ensure():
+            return {}
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT prefecture, source_stamp FROM prefecture_snapshots")
+            ).mappings().all()
+    except Exception:
+        return {}
+    return {
+        str(row["prefecture"] or ""): str(row["source_stamp"] or "")
+        for row in rows
+        if str(row["prefecture"] or "")
+    }
+
+
+def list_prefecture_snapshot_meta() -> list[dict[str, Any]]:
+    """ヘルスチェック用。本文は返さない。"""
+    if not _postgres_url():
+        return []
+    try:
+        if not _ensure():
+            return []
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    SELECT prefecture, machine_count, unit_count, payload_bytes, build_ms, generated_at
+                    FROM prefecture_snapshots
+                    ORDER BY prefecture
+                    """
+                )
+            ).mappings().all()
+    except Exception:
+        return []
+    return [
+        {
+            "prefecture": str(row["prefecture"] or ""),
+            "machine_count": int(row["machine_count"] or 0),
+            "unit_count": int(row["unit_count"] or 0),
+            "payload_bytes": int(row["payload_bytes"] or 0),
+            "build_ms": int(row["build_ms"] or 0),
+            "generated_at": int(row["generated_at"] or 0),
+        }
+        for row in rows
+    ]

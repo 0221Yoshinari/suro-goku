@@ -11,7 +11,7 @@ from collections import Counter
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 from fastapi import FastAPI
 from fastapi import HTTPException
@@ -110,6 +110,9 @@ async def _lifespan(_app):
 
     ensure_background_monitor()
     threading.Thread(target=_landing_coverage, name="lp-coverage", daemon=True).start()
+    from src.dashboard.prefecture_snapshot import warm
+
+    warm()
     yield
 
 
@@ -508,7 +511,14 @@ def _build_landing_coverage() -> dict[str, str]:
 
 @app.get("/health")
 def health() -> JSONResponse:
-    return JSONResponse({"ok": True})
+    body: dict[str, Any] = {"ok": True, "snapshot_reader": True}
+    try:
+        from src.dashboard.prefecture_snapshot import health_snapshot
+
+        body["snapshots"] = health_snapshot()
+    except Exception:
+        body["snapshots"] = {"enabled": False, "building": [], "ready": []}
+    return JSONResponse(body)
 
 
 def _lp_template() -> str:
@@ -774,7 +784,7 @@ def get_digit_units(hall: str = "", digit: int = 0, prefecture: str = "") -> dic
         raise HTTPException(status_code=400, detail="digit は 0 から 9 です")
     from src.analyzer.extras import digit_unit_rows
 
-    payload = _full_judgments(prefecture)
+    payload = _hall_or_full(name, prefecture)
     units = digit_unit_rows(payload.get("machines") or [], name, digit)
     return {
         "hall_name": name,
@@ -792,7 +802,7 @@ def get_machine_units(hall: str = "", machine: str = "", prefecture: str = "") -
     machine_name = (machine or "").strip()
     if not name or not machine_name:
         raise HTTPException(status_code=400, detail="hall と machine が必要です")
-    payload = _full_judgments(prefecture)
+    payload = _hall_or_full(name, prefecture)
     units = machine_units_from(payload, name, machine_name)
     return {
         "hall_name": name,
@@ -810,7 +820,11 @@ def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "") ->
     family_id = (family or "").strip()
     if not name or not family_id:
         raise HTTPException(status_code=400, detail="hall と family が必要です")
-    payload = _full_judgments(prefecture)
+    payload = _hall_or_full(name, prefecture)
+    if "juggler" not in payload:
+        from src.analyzer.juggler import build_juggler_islands
+
+        payload = {"juggler": {"islands": build_juggler_islands(payload.get("machines") or [])}}
     units = juggler_units_from(payload, name, family_id)
     return {
         "hall_name": name,
@@ -933,12 +947,41 @@ def _revision_body(prefecture: str, payload: dict) -> dict:
     }
 
 
+def _hall_or_full(hall: str, prefecture: str) -> dict:
+    """台明細は、その店舗の原本だけ読む。原本が無いときだけ県の組み立てに戻る。"""
+    from src.dashboard.judgment_store import load_hall_payload
+
+    one = load_hall_payload(hall)
+    if isinstance(one, dict) and one.get("machines"):
+        return one
+    return _full_judgments(prefecture)
+
+
+def _building_payload(prefecture: str) -> dict:
+    """完成品ができるまで、県の集計は始めない。"""
+    payload = _empty_payload()
+    payload["snapshot_status"] = "building"
+    payload["prefecture"] = prefecture
+    payload["machines"] = []
+    payload["machine_count"] = 0
+    payload["unit_count"] = 0
+    payload["count"] = 0
+    return payload
+
+
 @app.get("/api/judgments/revision")
 def get_judgment_revision(prefecture: str = "") -> dict:
     """更新の有無だけ返す。15秒ごとの確認で全台JSONを組み直さない。"""
     from src.dashboard.judgment_sync import read_reflection_status
+    from src.dashboard.judgment_store import load_prefecture_snapshot_meta
 
     selected = (prefecture or "").strip().lower() or "fukuoka"
+    meta = load_prefecture_snapshot_meta(selected)
+    if meta is not None:
+        body = _revision_body(selected, meta)
+        body["snapshot_status"] = "ready"
+        _attach_reflection_status(body, read_reflection_status())
+        return body
     events_mtime = _events_mtime()
     with _VIEW_GUARD:
         entry = _VIEW_CACHE.get(selected)
@@ -950,10 +993,24 @@ def get_judgment_revision(prefecture: str = "") -> dict:
     return body
 
 
-@app.get("/api/judgments")
-def get_judgments(prefecture: str = "") -> dict:
-    """県を指定しない呼び出しは福岡だけ返す。全国分を一度に返すと画面が空になる。"""
-    return public_judgment_view(_full_judgments(prefecture))
+@app.get("/api/judgments", response_model=None)
+def get_judgments(prefecture: str = "") -> Union[dict, Response]:
+    """県を指定しない呼び出しは福岡だけ返す。完成品があるときはそれを返す。"""
+    from src.dashboard.judgment_store import durable_enabled
+    from src.dashboard.prefecture_snapshot import schedule, served_snapshot
+
+    selected = (prefecture or "").strip().lower() or "fukuoka"
+    raw = served_snapshot(selected)
+    if raw:
+        return Response(
+            content=raw,
+            media_type="application/json",
+            headers={"X-Snapshot": "hit"},
+        )
+    if durable_enabled():
+        schedule(selected, delay=0)
+        return _building_payload(selected)
+    return public_judgment_view(_full_judgments(selected))
 
 
 def _attach_reflection_status(payload: dict, status: dict) -> None:
@@ -968,7 +1025,7 @@ def _attach_reflection_status(payload: dict, status: dict) -> None:
         payload["failed_hall_count"] = int(status.get("failed_count") or 0)
 
 
-def _finish_synced(payload: dict) -> dict:
+def _finish_synced(payload: dict, *, lineup: str = "background") -> dict:
     payload.setdefault("machines", [])
     payload.setdefault("results", [])
     machines = payload["machines"]
@@ -981,7 +1038,7 @@ def _finish_synced(payload: dict) -> dict:
     payload.setdefault("early_alert_count", sum(1 for row in machines if row.get("is_early_alert") or row.get("status") == "EARLY_ALERT"))
     payload.setdefault("halls", [])
     _apply_hall_catalog(payload)
-    return _with_events(payload)
+    return _with_events(payload, lineup=lineup)
 
 
 def _build_judgments(latest) -> dict:
@@ -1062,11 +1119,20 @@ def _schedule_lineup(payload: dict) -> None:
     threading.Thread(target=run, name="lineup-blocks", daemon=True).start()
 
 
-def _with_events(payload: dict) -> dict:
+def _with_events(payload: dict, *, lineup: str = "background") -> dict:
     """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
     # 県別の画面はここを通る。島を付けないとジャグラーモードの全6・全56・全456が空になる。
     attach_juggler_view(payload)
-    _schedule_lineup(payload)
+    if lineup == "now":
+        try:
+            from src.analyzer.lineup import attach_lineup_blocks
+
+            attach_lineup_blocks(payload.get("machines") or [])
+        except Exception as exc:
+            print(f"並び分析をスキップ: {type(exc).__name__}", flush=True)
+        payload["lineup_ready"] = True
+    else:
+        _schedule_lineup(payload)
     today = today_jst()
     tomorrow = (datetime.now(JST).date() + timedelta(days=1)).isoformat()
     try:

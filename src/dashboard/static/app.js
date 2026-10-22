@@ -3437,12 +3437,26 @@ async function loadHallCatalog() {
 
 let judgmentsInFlight = null;
 let judgmentsLoaded = false;
+let snapshotTimer = 0;
+let waitingForSnapshot = false;
 
-function setJudgmentLoading(active) {
+function scheduleSnapshotRetry() {
+  window.clearTimeout(snapshotTimer);
+  snapshotTimer = window.setTimeout(() => {
+    snapshotTimer = 0;
+    loadJudgments(true).catch((err) => showError(err.message));
+  }, 2000);
+}
+
+function setJudgmentLoading(active, message) {
   document.body.classList.toggle("is-loading-judgments", active);
   const banner = document.getElementById("judgment-loading");
   if (!banner) {
     return;
+  }
+  const label = banner.querySelector("p");
+  if (label) {
+    label.textContent = message || "更新中のためお待ちください";
   }
   banner.classList.toggle("hidden", !active);
   banner.setAttribute("aria-busy", active ? "true" : "false");
@@ -3645,6 +3659,14 @@ async function loadJudgmentsNow(force) {
     if (!next) {
       return;
     }
+    if (next.snapshot_status === "building") {
+      waitingForSnapshot = true;
+      setJudgmentLoading(true, "県の完成データを準備しています");
+      scheduleSnapshotRetry();
+      return;
+    }
+    waitingForSnapshot = false;
+    window.clearTimeout(snapshotTimer);
     const incoming = Array.isArray(next.machines) ? next.machines : [];
     const current = Array.isArray(payload.machines) ? payload.machines : [];
     judgmentsLoaded = true;
@@ -3668,7 +3690,7 @@ async function loadJudgmentsNow(force) {
       revealed = true;
     }
   } finally {
-    if (showLoading && !revealed) {
+    if (showLoading && !revealed && !waitingForSnapshot) {
       setJudgmentLoading(false);
     }
   }
