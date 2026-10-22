@@ -284,6 +284,7 @@ def summary_coverage(prefecture: str) -> dict[str, int] | None:
 
         engine = _engine()
         with engine.connect() as connection:
+            connection.execute(text("SET LOCAL statement_timeout = '8000'"))
             row = connection.execute(
                 text(
                     """
@@ -320,6 +321,7 @@ def load_opening_summaries(prefecture: str) -> list[dict[str, Any]]:
 
         engine = _engine()
         with engine.connect() as connection:
+            connection.execute(text("SET LOCAL statement_timeout = '8000'"))
             rows = connection.execute(
                 text(
                     """

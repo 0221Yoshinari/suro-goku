@@ -209,12 +209,6 @@ def build_hall_parts(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
         if isinstance(row, dict)
     ]
     working = [dict(row) for row in machines]
-    try:
-        from src.analyzer.lineup import attach_lineup_blocks
-
-        attach_lineup_blocks(working)
-    except Exception as exc:
-        _note(f"並び分析を飛ばします: {type(exc).__name__}")
     islands: list[dict[str, Any]] = []
     try:
         from src.analyzer.juggler import attach_juggler_view

@@ -1086,7 +1086,23 @@ def get_judgment_summary(prefecture: str = "") -> dict:
     opening = _opening_judgments(selected)
     if opening is not None:
         return opening
-    return public_judgment_view(_full_judgments(selected))
+    # 台明細の全件組み立てはここでやらない。開いた画面が数分止まって見える。
+    return _finish_opening(
+        {
+            "opening": True,
+            "summary_pending": True,
+            "featured_machines": [],
+            "reported_halls": [],
+            "halls": [],
+            "machines": [],
+            "machine_count": 0,
+            "unit_count": 0,
+            "count": 0,
+            "all_high_count": 0,
+            "high_56_count": 0,
+            "high_base_count": 0,
+        }
+    )
 
 
 @app.get("/api/judgments/hall")

@@ -2979,13 +2979,16 @@ function renderStore() {
   if (boardPending) {
     ensureHallBoard(hallFilter);
   }
-  const scoped = boardPending ? [] : hallItems(machineList());
+  const preview = boardPending
+    ? summaryMachines().filter((item) => item.hall_name === hallFilter)
+    : [];
+  const scoped = boardPending ? preview : hallItems(machineList());
   const results = searched(scoped);
   const summary = counts(scoped);
   const judged = scoped.filter((item) => listBucket(item));
   const judgedUnits = judged.reduce((sum, item) => sum + (item.unit_count || 0), 0);
-  if (boardPending) {
-    statCountEl.textContent = "機種を読み込んでいます…";
+  if (boardPending && !scoped.length) {
+    statCountEl.textContent = "この店舗の判定を読み込んでいます…";
     statAllHighEl.textContent = "…";
     if (statHigh56El) {
       statHigh56El.textContent = "…";
@@ -3821,14 +3824,15 @@ async function loadJudgmentsNow(force) {
     resetDetailCaches();
     payload = next;
     lastJudgedAt = stamp;
+    render();
     if (summaryUsable(next)) {
       setJudgmentLoading(false);
       revealed = true;
     } else {
-      setJudgmentLoading(true, "全6・全56・全456を準備しています");
+      setJudgmentLoading(true, "届いた店舗から表示しています。残りの集計が続いています");
+      revealed = true;
       holdLoading = true;
     }
-    render();
     if (next.opening) {
       ensureHallBoard(hallFilter);
       if (mainView === "machines") {
