@@ -85,7 +85,7 @@ def _engine():
         _normalize_postgres_url(url),
         pool_pre_ping=True,
         pool_timeout=3,
-        connect_args={"connect_timeout": 5},
+        connect_args={"connect_timeout": 5, "options": "-c statement_timeout=12000"},
     )
     return _ENGINE
 
@@ -150,7 +150,13 @@ def _dump(body: dict[str, Any]) -> str:
 
 def _slim_opening(summary: dict[str, Any]) -> dict[str, Any]:
     """全6・全56・全456のチップだけ。末尾集計や台明細は含めない。"""
-    featured = [item for item in (summary.get("featured") or []) if isinstance(item, dict)]
+    featured = []
+    for item in summary.get("featured") or []:
+        if not isinstance(item, dict):
+            continue
+        slim = dict(item)
+        slim.pop("units", None)
+        featured.append(slim)
     return {
         "hall_name": summary.get("hall_name") or "",
         "prefecture": summary.get("prefecture") or "",
@@ -232,6 +238,41 @@ def save_durable(payload: dict[str, Any], prefecture: str) -> bool:
         return False
     _cache_replace((prefecture or "").strip().lower(), body)
     return True
+
+
+def save_openings(rows: list[dict[str, Any]]) -> int:
+    """一覧用の小さい列だけを書き換える。台帳の大きい列は読まない。"""
+    if not rows or not _postgres_url():
+        return 0
+    try:
+        if not _ensure():
+            return 0
+        from sqlalchemy import text
+
+        engine = _engine()
+        saved = 0
+        with engine.begin() as connection:
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                name = str(row.get("hall_name") or "").strip()
+                if not name:
+                    continue
+                result = connection.execute(
+                    text(
+                        """
+                        UPDATE hall_judgments
+                        SET opening = :opening
+                        WHERE hall_name = :hall_name
+                        """
+                    ),
+                    {"hall_name": name, "opening": _dump(_slim_opening(row))},
+                )
+                saved += int(result.rowcount or 0)
+    except Exception as exc:
+        print(f"一覧用の集計を保存できませんでした: {type(exc).__name__}", flush=True)
+        return 0
+    return saved
 
 
 def durable_hall_count(prefecture: str) -> int | None:
@@ -492,15 +533,8 @@ _OPENING_SKIP: dict[str, float] = {}
 
 
 def schedule_summary_backfill() -> None:
-    """一覧用の小さい列が空の店舗を、1店舗ずつ裏で埋める。大きい summary 列は読まない。"""
-    global _BACKFILL_RUNNING
-    if not _postgres_url():
-        return
-    with _BACKFILL_LOCK:
-        if _BACKFILL_RUNNING:
-            return
-        _BACKFILL_RUNNING = True
-    threading.Thread(target=_run_summary_backfill, name="opening-fill", daemon=True).start()
+    """本番の一覧リクエストでは大きい列を読み直さない。一覧列は巡回側が小さいJSONで埋める。"""
+    return
 
 
 def _run_summary_backfill() -> None:

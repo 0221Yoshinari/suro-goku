@@ -110,9 +110,6 @@ async def _lifespan(_app):
 
     ensure_background_monitor()
     threading.Thread(target=_landing_coverage, name="lp-coverage", daemon=True).start()
-    from src.dashboard.judgment_store import schedule_summary_backfill
-
-    schedule_summary_backfill()
     yield
 
 
@@ -708,6 +705,14 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
 
         store_reflection_status(body)
         return JSONResponse({"ok": True, "note": body.get("note")})
+    if body.get("kind") == "opening":
+        rows = body.get("halls")
+        if not isinstance(rows, list):
+            return JSONResponse({"detail": "halls がありません"}, status_code=400)
+        from src.dashboard.judgment_store import save_openings
+
+        saved = save_openings([row for row in rows[:40] if isinstance(row, dict)])
+        return JSONResponse({"ok": True, "saved": saved})
     try:
         store_hall_payload(body)
     except ValueError as exc:
