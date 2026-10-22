@@ -283,8 +283,8 @@ def summary_coverage(prefecture: str) -> dict[str, int] | None:
         from sqlalchemy import text
 
         engine = _engine()
-        with engine.connect() as connection:
-            connection.execute(text("SET LOCAL statement_timeout = '8000'"))
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL statement_timeout = '4000'"))
             row = connection.execute(
                 text(
                     """
@@ -320,8 +320,8 @@ def load_opening_summaries(prefecture: str) -> list[dict[str, Any]]:
         from sqlalchemy import text
 
         engine = _engine()
-        with engine.connect() as connection:
-            connection.execute(text("SET LOCAL statement_timeout = '8000'"))
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL statement_timeout = '4000'"))
             rows = connection.execute(
                 text(
                     """

@@ -3474,18 +3474,58 @@ async function loadHallCatalog() {
 let judgmentsInFlight = null;
 let judgmentsLoaded = false;
 
+let loadingTicker = 0;
+let loadingStarted = 0;
+
+function loadingClock(elapsed) {
+  const remain = 15 - elapsed;
+  if (remain > 0) {
+    return `あと${remain}秒`;
+  }
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = String(elapsed % 60).padStart(2, "0");
+  return minutes > 0 ? `経過 ${minutes}:${seconds}` : `経過 ${elapsed}秒`;
+}
+
+function paintLoadingClock() {
+  const label = document.getElementById("judgment-loading-text");
+  if (!label || !loadingStarted) {
+    return;
+  }
+  const elapsed = Math.max(0, Math.floor((Date.now() - loadingStarted) / 1000));
+  const base = label.dataset.base || "判定を反映しています。届いた店舗から順に表示します";
+  label.textContent = `${base}（${loadingClock(elapsed)}）`;
+}
+
 function setJudgmentLoading(active, message) {
   document.body.classList.toggle("is-loading-judgments", active);
   const banner = document.getElementById("judgment-loading");
   const label = document.getElementById("judgment-loading-text");
   if (label && message) {
-    label.textContent = message;
+    label.dataset.base = message;
   }
   if (!banner) {
     return;
   }
-  banner.classList.toggle("hidden", !active);
-  banner.setAttribute("aria-busy", active ? "true" : "false");
+  if (!active) {
+    loadingStarted = 0;
+    if (loadingTicker) {
+      window.clearInterval(loadingTicker);
+      loadingTicker = 0;
+    }
+    banner.classList.add("hidden");
+    banner.setAttribute("aria-busy", "false");
+    return;
+  }
+  if (!loadingStarted) {
+    loadingStarted = Date.now();
+  }
+  if (!loadingTicker) {
+    loadingTicker = window.setInterval(paintLoadingClock, 1000);
+  }
+  paintLoadingClock();
+  banner.classList.remove("hidden");
+  banner.setAttribute("aria-busy", "true");
 }
 
 function summaryMachines() {
@@ -3516,8 +3556,24 @@ function mergeHallMachines(hall, machines) {
   hallBoards.add(hall);
 }
 
+function snapshotHallBoards() {
+  return [...hallBoards].map((hall) => [
+    hall,
+    (payload.machines || []).filter((item) => item?.hall_name === hall),
+  ]);
+}
+
+function restoreHallBoards(kept) {
+  kept.forEach(([hall, machines]) => mergeHallMachines(hall, machines));
+}
+
 function ensureHallBoard(hall) {
-  if (!payload.opening || !hall || hall === "all" || hallBoards.has(hall)) {
+  if (!hall || hall === "all" || hallBoards.has(hall)) {
+    return Promise.resolve();
+  }
+  const loaded = !payload.opening && (payload.machines || []).some((item) => item?.hall_name === hall && item?.machine_name);
+  if (loaded) {
+    hallBoards.add(hall);
     return Promise.resolve();
   }
   if (hallBoardFlight.has(hall)) {
@@ -3536,7 +3592,11 @@ function ensureHallBoard(hall) {
         hallBoards.add(hall);
         return;
       }
-      mergeHallMachines(hall, Array.isArray(body.machines) ? body.machines : []);
+      const machines = Array.isArray(body.machines) ? body.machines : [];
+      mergeHallMachines(hall, machines);
+      if (machines.some((item) => listBucket(item))) {
+        setJudgmentLoading(false);
+      }
       render();
     })
     .catch((err) => {
@@ -3777,6 +3837,10 @@ async function loadJudgmentsNow(force) {
   }
   let revealed = false;
   let holdLoading = false;
+  const selectedHall = hallFilter && hallFilter !== "all" ? hallFilter : "";
+  if (selectedHall) {
+    ensureHallBoard(selectedHall);
+  }
   try {
     const pref = prefectureFilter || DEFAULT_PREF;
     if (!force && judgmentsLoaded) {
@@ -3795,7 +3859,16 @@ async function loadJudgmentsNow(force) {
         return;
       }
     }
-    const response = await fetch(`/api/judgments/summary?prefecture=${encodeURIComponent(pref)}`);
+    const summaryAbort = new AbortController();
+    const summaryTimer = window.setTimeout(() => summaryAbort.abort(), 15000);
+    let response;
+    try {
+      response = await fetch(`/api/judgments/summary?prefecture=${encodeURIComponent(pref)}`, {
+        signal: summaryAbort.signal,
+      });
+    } finally {
+      window.clearTimeout(summaryTimer);
+    }
     const next = await readJudgmentJson(response, "判定結果の取得に失敗しました");
     if (!next) {
       return;
@@ -3821,8 +3894,10 @@ async function loadJudgmentsNow(force) {
     }
     machineUnitCache.clear();
     jugglerUnitCache.clear();
+    const keptHalls = snapshotHallBoards();
     resetDetailCaches();
     payload = next;
+    restoreHallBoards(keptHalls);
     lastJudgedAt = stamp;
     render();
     if (summaryUsable(next)) {
@@ -3840,6 +3915,15 @@ async function loadJudgmentsNow(force) {
       }
     }
     scheduleSummaryRetry(Boolean(next.summary_pending));
+  } catch (err) {
+    const timedOut = err?.name === "AbortError";
+    showError(timedOut ? "一覧の集計が遅れています。開いている店舗から表示します" : err.message);
+    if (selectedHall && !hallBoards.has(selectedHall)) {
+      setJudgmentLoading(true, "開いている店舗の判定を読み込んでいます");
+      revealed = true;
+      holdLoading = true;
+      ensureHallBoard(selectedHall);
+    }
   } finally {
     if (showLoading && !revealed && !holdLoading) {
       setJudgmentLoading(false);

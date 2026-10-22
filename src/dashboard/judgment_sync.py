@@ -336,6 +336,59 @@ def assemble_opening(
     }
 
 
+def opening_from_files(prefecture: str, output_dir: Path | None = None) -> dict[str, Any]:
+    """Postgres が無いとき、県内の保存済み判定から一覧を作る。台明細は読まない。"""
+    from src.dashboard.events import dashboard_status
+    from src.scraper.halls import load_halls
+
+    wanted = (prefecture or "").strip().lower() or "fukuoka"
+    root = (output_dir or DEFAULT_OUTPUT_DIR) / "halls"
+    summaries: list[dict[str, Any]] = []
+    for hall in load_halls():
+        if str(getattr(hall, "prefecture", "") or "").strip().lower() != wanted:
+            continue
+        path = root / hall_dir_slug(hall.name) / "latest.json"
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        name = str(payload.get("hall_name") or hall.name).strip()
+        featured: list[dict[str, Any]] = []
+        counts = {"ALL_HIGH": 0, "HIGH_56": 0, "HIGH_BASE": 0}
+        for row in payload.get("machines") or []:
+            if not isinstance(row, dict):
+                continue
+            status = dashboard_status(row)
+            if status not in _FEATURED:
+                continue
+            counts[status] += 1
+            featured.append(_featured_machine(dict(row, hall_name=row.get("hall_name") or name)))
+        summaries.append(
+            {
+                "hall_name": name,
+                "prefecture": wanted,
+                "judged_at": payload.get("judged_at"),
+                "fetched_at": payload.get("fetched_at"),
+                "machine_count": int(payload.get("machine_count") or 0),
+                "unit_count": int(payload.get("unit_count") or 0),
+                "all_high_count": counts["ALL_HIGH"],
+                "high_56_count": counts["HIGH_56"],
+                "high_base_count": counts["HIGH_BASE"],
+                "featured": featured,
+            }
+        )
+    return assemble_opening(
+        summaries,
+        pending=False,
+        stamp="disk",
+        hall_count=len(summaries),
+    )
+
+
 def read_hall_payload(hall_name: str) -> dict[str, Any]:
     """台明細が要るとき、その店舗の1件だけ読む。"""
     name = (hall_name or "").strip()

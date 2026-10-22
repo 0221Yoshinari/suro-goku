@@ -663,6 +663,7 @@ _VIEW_TTL_SECONDS = 120.0
 _VIEW_EMPTY_TTL_SECONDS = 3.0
 _VIEW_CACHE: dict[str, tuple[float, float, float, dict]] = {}
 _OPENING_CACHE: dict[str, tuple[str, float, dict]] = {}
+_disk_opening_cache: dict[str, tuple[float, dict]] = {}
 _VIEW_GUARD = threading.Lock()
 _VIEW_LOCKS: dict[str, threading.Lock] = {}
 _VIEW_REFRESHING: set[str] = set()
@@ -833,6 +834,7 @@ def clear_judgment_view_cache() -> None:
     with _VIEW_GUARD:
         _VIEW_CACHE.clear()
         _OPENING_CACHE.clear()
+        _disk_opening_cache.clear()
 
 
 def _hall_with_units(hall: str) -> dict:
@@ -1086,6 +1088,19 @@ def get_judgment_summary(prefecture: str = "") -> dict:
     opening = _opening_judgments(selected)
     if opening is not None:
         return opening
+    from src.dashboard.judgment_store import durable_enabled, schedule_summary_backfill
+
+    if durable_enabled():
+        schedule_summary_backfill()
+    else:
+        cached = _disk_opening_cache.get(selected)
+        if cached is not None and time.monotonic() - cached[0] < 20:
+            return cached[1]
+        from src.dashboard.judgment_sync import opening_from_files
+
+        built = _finish_opening(opening_from_files(selected))
+        _disk_opening_cache[selected] = (time.monotonic(), built)
+        return built
     # 台明細の全件組み立てはここでやらない。開いた画面が数分止まって見える。
     return _finish_opening(
         {
