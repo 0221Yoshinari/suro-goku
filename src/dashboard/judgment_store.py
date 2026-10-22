@@ -281,14 +281,34 @@ def save_prefecture_opening(prefecture: str, rows: list[dict[str, Any]]) -> bool
     except Exception as exc:
         print(f"県一覧の保存に失敗しました: {type(exc).__name__}", flush=True)
         return False
+    _OPENING_ROW_CACHE.pop(wanted, None)
     return True
 
 
+_OPENING_ROW_CACHE: dict[str, tuple[float, tuple[list[dict[str, Any]], int]]] = {}
+_OPENING_ROW_LOCK = threading.Lock()
+_OPENING_ROW_TTL = 45.0
+
+
 def load_prefecture_opening(prefecture: str) -> tuple[list[dict[str, Any]], int] | None:
-    """県一覧の1行。店舗台帳は読まない。"""
+    """県一覧の1行。店舗台帳は読まない。同じ一覧の再読込はメモリから返す。"""
     wanted = (prefecture or "").strip().lower()
     if not wanted or not _postgres_url():
         return None
+    cached = _OPENING_ROW_CACHE.get(wanted)
+    if cached is not None and time.monotonic() - cached[0] < _OPENING_ROW_TTL:
+        return cached[1]
+    with _OPENING_ROW_LOCK:
+        cached = _OPENING_ROW_CACHE.get(wanted)
+        if cached is not None and time.monotonic() - cached[0] < _OPENING_ROW_TTL:
+            return cached[1]
+        loaded = _read_prefecture_opening(wanted)
+        if loaded is not None:
+            _OPENING_ROW_CACHE[wanted] = (time.monotonic(), loaded)
+        return loaded
+
+
+def _read_prefecture_opening(wanted: str) -> tuple[list[dict[str, Any]], int] | None:
     try:
         if not _ensure():
             return None

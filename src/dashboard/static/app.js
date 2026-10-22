@@ -3478,7 +3478,7 @@ let loadingTicker = 0;
 let loadingStarted = 0;
 
 function loadingClock(elapsed) {
-  const remain = 20 - elapsed;
+  const remain = 30 - elapsed;
   if (remain > 0) {
     return `あと${remain}秒`;
   }
@@ -3866,7 +3866,7 @@ async function loadJudgmentsNow(force) {
       }
     }
     const summaryAbort = new AbortController();
-    const summaryTimer = window.setTimeout(() => summaryAbort.abort(), 20000);
+    const summaryTimer = window.setTimeout(() => summaryAbort.abort(), 30000);
     let response;
     try {
       response = await fetch(`/api/judgments/summary?prefecture=${encodeURIComponent(pref)}`, {
