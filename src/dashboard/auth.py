@@ -315,9 +315,6 @@ def public_demo_mode() -> bool:
 _OPEN_TOOL_PATHS = {
     "/",
     "/api/judgments",
-    "/api/judgments/summary",
-    "/api/judgments/hall",
-    "/api/judgments/machines",
     "/api/judgments/revision",
     "/api/judgments/digit-units",
     "/api/judgments/machine-units",

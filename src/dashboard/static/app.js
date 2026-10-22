@@ -1793,9 +1793,6 @@ function areaMenuLabel(item) {
 }
 
 function hallHasMachines(name) {
-  if ((payload.reported_halls || []).includes(name)) {
-    return true;
-  }
   return (payload.machines || []).some((item) => item && item.hall_name === name);
 }
 
@@ -2287,10 +2284,6 @@ function appendCrossGroup(card, machineKey, bucket, index) {
 }
 
 function renderCross() {
-  const machinesPending = Boolean(payload.opening && !allMachinesLoaded);
-  if (machinesPending) {
-    ensureAllMachines();
-  }
   const groups = crossGroups();
   renderCategoryFilters(groups);
   renderCrossGroupFilters();
@@ -2326,9 +2319,7 @@ function renderCross() {
     })
     .filter((group) => group.halls.length > 0)
     .sort((a, b) => (STATUS_RANK[a.best] ?? 9) - (STATUS_RANK[b.best] ?? 9) || b.highCount - a.highCount || a.name.localeCompare(b.name, "ja"));
-  if (crossSummaryEl && machinesPending) {
-    crossSummaryEl.textContent = "機種一覧を読み込んでいます…";
-  } else if (crossSummaryEl) {
+  if (crossSummaryEl) {
     const hallCount = new Set(machineList().map((item) => item.hall_name).filter(Boolean)).size;
     const notes = ["系列ごとに折りたためます"];
     if (crossDataOnly) {
@@ -2347,7 +2338,7 @@ function renderCross() {
     return;
   }
   crossCardsEl.replaceChildren();
-  crossEmptyEl?.classList.toggle("hidden", machinesPending || visible.length > 0);
+  crossEmptyEl?.classList.toggle("hidden", visible.length > 0);
   visible.forEach((group, cardIndex) => {
     const card = document.createElement("article");
     card.className = `cross-card card-${group.best || "UNMATCHED"}`;
@@ -2405,7 +2396,6 @@ function focusHall(hall) {
   alignLocaleToHall(hall);
   hallFilter = hall;
   syncGroupToHall(hall);
-  ensureHallBoard(hall);
   if (mainView !== "stores") {
     setMainView("stores");
   } else {
@@ -2524,15 +2514,15 @@ function renderTodaySummary() {
   if (!root) {
     return;
   }
-  if (document.body.classList.contains("is-loading-judgments") && !payload.opening && machineList().length === 0) {
+  if (document.body.classList.contains("is-loading-judgments") && machineList().length === 0) {
     if (meta) {
-      meta.textContent = "全6・全56・全456を読み込んでいます…";
+      meta.textContent = "全台データを読み込んでいます…";
     }
     root.replaceChildren();
     empty?.classList.add("hidden");
     return;
   }
-  const featured = summaryMachines();
+  const featured = machineList().filter((item) => isFeaturedStatus(item));
   const byHall = new Map();
   featured.forEach((item) => {
     const hall = item.hall_name || "(店舗不明)";
@@ -2975,40 +2965,18 @@ function renderJuggler() {
 }
 
 function renderStore() {
-  const boardPending = Boolean(payload.opening && hallFilter && hallFilter !== "all" && !hallBoards.has(hallFilter));
-  if (boardPending) {
-    ensureHallBoard(hallFilter);
-  }
-  const preview = boardPending
-    ? summaryMachines().filter((item) => item.hall_name === hallFilter)
-    : [];
-  const scoped = boardPending ? preview : hallItems(machineList());
+  const scoped = hallItems(machineList());
   const results = searched(scoped);
   const summary = counts(scoped);
   const judged = scoped.filter((item) => listBucket(item));
   const judgedUnits = judged.reduce((sum, item) => sum + (item.unit_count || 0), 0);
-  if (boardPending && !scoped.length) {
-    statCountEl.textContent = "この店舗の判定を読み込んでいます…";
-    statAllHighEl.textContent = "…";
-    if (statHigh56El) {
-      statHigh56El.textContent = "…";
-    }
-    statHighBaseEl.textContent = "…";
-  } else {
-    statCountEl.textContent = `全${judged.length}機種 / 全${judgedUnits}台`;
-    statAllHighEl.textContent = `${summary.high}機種`;
-    if (statHigh56El) {
-      statHigh56El.textContent = `${summary.high56}機種`;
-    }
-    statHighBaseEl.textContent = `${summary.highBase}機種`;
+  statCountEl.textContent = `全${judged.length}機種 / 全${judgedUnits}台`;
+  statAllHighEl.textContent = `${summary.high}機種`;
+  if (statHigh56El) {
+    statHigh56El.textContent = `${summary.high56}機種`;
   }
+  statHighBaseEl.textContent = `${summary.highBase}機種`;
   renderCards(results);
-  if (boardPending) {
-    cardsEmptyHighEl?.classList.add("hidden");
-    cardsEmptyMidEl?.classList.add("hidden");
-    cardsEmptyBaseEl?.classList.add("hidden");
-    document.getElementById("cards-empty-other")?.classList.add("hidden");
-  }
   renderHallDigitBoards(storeDigitBoardEl, hallBoardsForView(hallFilter));
   renderTable(results);
   if (jugglerMode) {
@@ -3262,7 +3230,6 @@ function renderHereLineup() {
     lineupHall = names.includes(hallFilter) ? hallFilter : (names[0] || "");
     lineupMachine = "";
   }
-  ensureHallBoard(lineupHall);
   fillHallSelect(hallSelect, { includeAll: false, value: lineupHall });
   document.getElementById("here-mode-machine")?.classList.toggle("is-active", lineupMode === "machine");
   document.getElementById("here-mode-machine")?.setAttribute("aria-pressed", lineupMode === "machine" ? "true" : "false");
@@ -3329,9 +3296,6 @@ function renderDigitsView() {
 
 function setMainView(view) {
   mainView = view;
-  if (view === "machines") {
-    ensureAllMachines();
-  }
   document.querySelectorAll(".main-tab").forEach((button) => {
     const active = button.dataset.view === view;
     button.classList.toggle("is-active", active);
@@ -3474,216 +3438,22 @@ async function loadHallCatalog() {
 let judgmentsInFlight = null;
 let judgmentsLoaded = false;
 
-let loadingTicker = 0;
-let loadingStarted = 0;
-
-function loadingClock(elapsed) {
-  const remain = 30 - elapsed;
-  if (remain > 0) {
-    return `あと${remain}秒`;
-  }
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = String(elapsed % 60).padStart(2, "0");
-  return minutes > 0 ? `経過 ${minutes}:${seconds}` : `経過 ${elapsed}秒`;
-}
-
-function paintLoadingClock() {
-  const label = document.getElementById("judgment-loading-text");
-  if (!label || !loadingStarted) {
-    return;
-  }
-  const elapsed = Math.max(0, Math.floor((Date.now() - loadingStarted) / 1000));
-  const base = label.dataset.base || "判定を反映しています。届いた店舗から順に表示します";
-  label.textContent = `${base}（${loadingClock(elapsed)}）`;
-}
-
-function setJudgmentLoading(active, message) {
+function setJudgmentLoading(active) {
   document.body.classList.toggle("is-loading-judgments", active);
   const banner = document.getElementById("judgment-loading");
-  const label = document.getElementById("judgment-loading-text");
-  if (label && message) {
-    label.dataset.base = message;
-  }
   if (!banner) {
     return;
   }
-  if (!active) {
-    loadingStarted = 0;
-    if (loadingTicker) {
-      window.clearInterval(loadingTicker);
-      loadingTicker = 0;
-    }
-    banner.classList.add("hidden");
-    banner.setAttribute("aria-busy", "false");
-    return;
-  }
-  if (!loadingStarted) {
-    loadingStarted = Date.now();
-  }
-  if (!loadingTicker) {
-    loadingTicker = window.setInterval(paintLoadingClock, 1000);
-  }
-  paintLoadingClock();
-  banner.classList.remove("hidden");
-  banner.setAttribute("aria-busy", "true");
-}
-
-function summaryMachines() {
-  const fromSummary = Array.isArray(payload.featured_machines)
-    ? payload.featured_machines.filter((item) => item && item.status !== "EXCLUDED" && !item.judgment_excluded && inArea(item.hall_name))
-    : [];
-  const fromLoaded = machineList().filter((item) => isFeaturedStatus(item) && inArea(item.hall_name));
-  if (!payload.opening) {
-    return fromLoaded;
-  }
-  const seen = new Set(fromSummary.map((item) => `${item.hall_name || ""}|${item.machine_name || ""}`));
-  const extra = fromLoaded.filter((item) => !seen.has(`${item.hall_name || ""}|${item.machine_name || ""}`));
-  return fromSummary.concat(extra);
-}
-
-const hallBoards = new Set();
-const hallBoardFlight = new Map();
-let allMachinesLoaded = false;
-let allMachinesFlight = null;
-let detailGeneration = 0;
-let summaryRetry = 0;
-
-function resetDetailCaches() {
-  detailGeneration += 1;
-  hallBoards.clear();
-  hallBoardFlight.clear();
-  allMachinesLoaded = false;
-  allMachinesFlight = null;
-}
-
-function mergeHallMachines(hall, machines) {
-  const rest = (payload.machines || []).filter((item) => (item?.hall_name || "") !== hall);
-  payload.machines = rest.concat(machines || []);
-  hallBoards.add(hall);
-}
-
-function snapshotHallBoards() {
-  return [...hallBoards].map((hall) => [
-    hall,
-    (payload.machines || []).filter((item) => item?.hall_name === hall),
-  ]);
-}
-
-function restoreHallBoards(kept) {
-  kept.forEach(([hall, machines]) => mergeHallMachines(hall, machines));
-}
-
-function ensureHallBoard(hall) {
-  if (!hall || hall === "all" || hallBoards.has(hall)) {
-    return Promise.resolve();
-  }
-  const loaded = !payload.opening && (payload.machines || []).some((item) => item?.hall_name === hall && item?.machine_name);
-  if (loaded) {
-    hallBoards.add(hall);
-    return Promise.resolve();
-  }
-  if (hallBoardFlight.has(hall)) {
-    return hallBoardFlight.get(hall);
-  }
-  const generation = detailGeneration;
-  const pref = prefectureFilter || DEFAULT_PREF;
-  const params = new URLSearchParams({ hall, prefecture: pref });
-  const task = fetch(`/api/judgments/hall?${params}`)
-    .then((response) => readJudgmentJson(response, "店舗の機種を取得できません"))
-    .then((body) => {
-      if (generation !== detailGeneration) {
-        return;
-      }
-      if (!body) {
-        hallBoards.add(hall);
-        return;
-      }
-      const machines = Array.isArray(body.machines) ? body.machines : [];
-      mergeHallMachines(hall, machines);
-      if (machines.some((item) => listBucket(item))) {
-        setJudgmentLoading(false);
-      }
-      render();
-    })
-    .catch((err) => {
-      if (generation === detailGeneration) {
-        hallBoards.add(hall);
-        showError(err.message);
-      }
-    })
-    .finally(() => {
-      hallBoardFlight.delete(hall);
-    });
-  hallBoardFlight.set(hall, task);
-  return task;
-}
-
-function ensureAllMachines() {
-  if (!payload.opening || allMachinesLoaded) {
-    return Promise.resolve();
-  }
-  if (allMachinesFlight) {
-    return allMachinesFlight;
-  }
-  const generation = detailGeneration;
-  const pref = prefectureFilter || DEFAULT_PREF;
-  allMachinesFlight = fetch(`/api/judgments/machines?prefecture=${encodeURIComponent(pref)}`)
-    .then((response) => readJudgmentJson(response, "機種一覧を取得できません"))
-    .then((body) => {
-      if (!body || generation !== detailGeneration) {
-        return;
-      }
-      payload.machines = Array.isArray(body.machines) ? body.machines : [];
-      payload.machines.forEach((item) => {
-        if (item?.hall_name) {
-          hallBoards.add(item.hall_name);
-        }
-      });
-      (body.halls || []).forEach((hall) => {
-        if (hall) {
-          hallBoards.add(hall);
-        }
-      });
-      allMachinesLoaded = true;
-      render();
-    })
-    .catch((err) => {
-      showError(err.message);
-    })
-    .finally(() => {
-      allMachinesFlight = null;
-    });
-  return allMachinesFlight;
-}
-
-function scheduleSummaryRetry(pending) {
-  if (!pending || summaryRetry) {
-    return;
-  }
-  summaryRetry = window.setTimeout(() => {
-    summaryRetry = 0;
-    loadJudgments(false).catch((err) => showError(err.message));
-  }, 3000);
-}
-
-function summaryUsable(next) {
-  if (!next?.opening) {
-    return true;
-  }
-  if (!next.summary_pending) {
-    return true;
-  }
-  return (next.featured_machines || []).length > 0 || (next.reported_halls || []).length > 0;
+  banner.classList.toggle("hidden", !active);
+  banner.setAttribute("aria-busy", active ? "true" : "false");
 }
 
 const machineUnitCache = new Map();
 const jugglerUnitCache = new Map();
 
-function judgmentStamp(next) {
-  if (next?.opening) {
-    return `open|${next.summary_stamp || ""}|${next.events_updated_at || ""}|${next.reflection_status || ""}|${next.summary_pending ? 1 : 0}`;
-  }
-  return `${next?.judged_at || ""}|${next?.events_updated_at || ""}|${next?.machine_count || 0}|${next?.reflection_status || ""}|${next?.lineup_ready ? 1 : 0}`;
+function judgmentStamp(next, machineCount) {
+  const count = machineCount == null ? (next.machine_count || 0) : machineCount;
+  return `${next.judged_at || ""}|${next.events_updated_at || ""}|${count}|${next.reflection_status || ""}|${next.lineup_ready ? 1 : 0}`;
 }
 
 function applyReflection(next) {
@@ -3832,21 +3602,13 @@ async function loadJudgments(force) {
 async function loadJudgmentsNow(force) {
   showError("");
   const firstPaint = !judgmentsLoaded;
-  const hasSummary = payload.opening
-    ? Boolean((payload.featured_machines || []).length || (payload.reported_halls || []).length || payload.judged_at)
-    : Boolean((payload.machines || []).length);
-  const showLoading = firstPaint || !hasSummary;
+  const showLoading = firstPaint || !(payload.machines || []).length;
   if (showLoading) {
     setJudgmentLoading(true);
   } else if (force && judgedAtEl) {
     judgedAtEl.textContent = "読み込み中…";
   }
   let revealed = false;
-  let holdLoading = false;
-  const selectedHall = hallFilter && hallFilter !== "all" ? hallFilter : "";
-  if (selectedHall) {
-    ensureHallBoard(selectedHall);
-  }
   try {
     const pref = prefectureFilter || DEFAULT_PREF;
     if (!force && judgmentsLoaded) {
@@ -3859,79 +3621,54 @@ async function loadJudgmentsNow(force) {
       }
       const stamp = judgmentStamp(revision);
       if (stamp === lastJudgedAt) {
-        applyReflection(revision);
         updateFreshness();
-        scheduleSummaryRetry(Boolean(revision.summary_pending));
+        return;
+      }
+      const currentCount = Array.isArray(payload.machines) ? payload.machines.length : 0;
+      const sameData = judgmentStamp(
+        {
+          judged_at: payload.judged_at,
+          events_updated_at: payload.events_updated_at,
+          reflection_status: revision.reflection_status,
+        },
+        currentCount,
+      ) === stamp;
+      if (sameData) {
+        applyReflection(revision);
+        lastJudgedAt = stamp;
+        updateFreshness();
         return;
       }
     }
-    const summaryAbort = new AbortController();
-    const summaryTimer = window.setTimeout(() => summaryAbort.abort(), 30000);
-    let response;
-    try {
-      response = await fetch(`/api/judgments/summary?prefecture=${encodeURIComponent(pref)}`, {
-        signal: summaryAbort.signal,
-      });
-    } finally {
-      window.clearTimeout(summaryTimer);
-    }
+    const response = await fetch(`/api/judgments?prefecture=${encodeURIComponent(pref)}`);
     const next = await readJudgmentJson(response, "判定結果の取得に失敗しました");
     if (!next) {
       return;
     }
-    const incoming = next.opening
-      ? (Array.isArray(next.featured_machines) ? next.featured_machines : [])
-      : (Array.isArray(next.machines) ? next.machines : []);
-    const current = next.opening
-      ? (Array.isArray(payload.featured_machines) ? payload.featured_machines : [])
-      : (Array.isArray(payload.machines) ? payload.machines : []);
+    const incoming = Array.isArray(next.machines) ? next.machines : [];
+    const current = Array.isArray(payload.machines) ? payload.machines : [];
     judgmentsLoaded = true;
-    if (!force && next.summary_pending && incoming.length === 0 && current.length > 0) {
+    if (!force && incoming.length === 0 && current.length > 0) {
       applyReflection(next);
       updateFreshness();
-      scheduleSummaryRetry(true);
       return;
     }
     const stamp = judgmentStamp(next);
     if (!force && stamp === lastJudgedAt) {
       updateFreshness();
-      scheduleSummaryRetry(Boolean(next.summary_pending));
       return;
     }
     machineUnitCache.clear();
     jugglerUnitCache.clear();
-    const keptHalls = snapshotHallBoards();
-    resetDetailCaches();
     payload = next;
-    restoreHallBoards(keptHalls);
     lastJudgedAt = stamp;
     render();
-    if (summaryUsable(next)) {
+    if (showLoading) {
       setJudgmentLoading(false);
       revealed = true;
-    } else {
-      setJudgmentLoading(true, "届いた店舗から表示しています。残りの集計が続いています");
-      revealed = true;
-      holdLoading = true;
-    }
-    if (next.opening) {
-      ensureHallBoard(hallFilter);
-      if (mainView === "machines") {
-        ensureAllMachines();
-      }
-    }
-    scheduleSummaryRetry(Boolean(next.summary_pending));
-  } catch (err) {
-    const timedOut = err?.name === "AbortError";
-    showError(timedOut ? "一覧の集計が遅れています。開いている店舗から表示します" : err.message);
-    if (selectedHall && !hallBoards.has(selectedHall)) {
-      setJudgmentLoading(true, "開いている店舗の判定を読み込んでいます");
-      revealed = true;
-      holdLoading = true;
-      ensureHallBoard(selectedHall);
     }
   } finally {
-    if (showLoading && !revealed && !holdLoading) {
+    if (showLoading && !revealed) {
       setJudgmentLoading(false);
     }
   }
@@ -4025,7 +3762,6 @@ hallSelectEl?.addEventListener("change", () => {
   lineupHall = hallFilter;
   lineupMachine = "";
   syncGroupToHall(hallFilter);
-  ensureHallBoard(hallFilter);
   render();
 });
 document.getElementById("here-hall")?.addEventListener("change", (event) => {
@@ -4034,7 +3770,6 @@ document.getElementById("here-hall")?.addEventListener("change", (event) => {
   if (lineupHall && lineupHall !== "all") {
     hallFilter = lineupHall;
     syncGroupToHall(lineupHall);
-    ensureHallBoard(lineupHall);
   }
   render();
   document.getElementById("here-lineup")?.scrollIntoView({ behavior: "smooth", block: "start" });

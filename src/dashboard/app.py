@@ -147,16 +147,8 @@ async def masked_unexpected_error(_request: Request, exc: Exception) -> JSONResp
     )
 
 
-_HALLS_REFRESHED = 0.0
-
-
 def _fresh_halls() -> list[str]:
-    """店舗名の再読込は60秒に1回。一覧のたびに設定を読み直すと、県一覧が時間切れになる。"""
-    global _HALLS_REFRESHED
-    now = time.monotonic()
-    if now - _HALLS_REFRESHED >= 60:
-        load_halls_config.cache_clear()
-        _HALLS_REFRESHED = now
+    load_halls_config.cache_clear()
     return configured_halls()
 
 
@@ -667,8 +659,6 @@ def hall_catalog() -> dict:
 _VIEW_TTL_SECONDS = 120.0
 _VIEW_EMPTY_TTL_SECONDS = 3.0
 _VIEW_CACHE: dict[str, tuple[float, float, float, dict]] = {}
-_OPENING_CACHE: dict[str, tuple[str, float, dict]] = {}
-_disk_opening_cache: dict[str, tuple[float, dict]] = {}
 _VIEW_GUARD = threading.Lock()
 _VIEW_LOCKS: dict[str, threading.Lock] = {}
 _VIEW_REFRESHING: set[str] = set()
@@ -713,23 +703,6 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
 
         store_reflection_status(body)
         return JSONResponse({"ok": True, "note": body.get("note")})
-    if body.get("kind") == "opening":
-        rows = body.get("halls")
-        if not isinstance(rows, list):
-            return JSONResponse({"detail": "halls がありません"}, status_code=400)
-        from src.dashboard.judgment_store import save_openings
-
-        saved = save_openings([row for row in rows[:40] if isinstance(row, dict)])
-        return JSONResponse({"ok": True, "saved": saved})
-    if body.get("kind") == "prefecture_opening":
-        rows = body.get("halls")
-        prefecture = str(body.get("prefecture") or "").strip().lower()
-        if not prefecture or not isinstance(rows, list):
-            return JSONResponse({"detail": "県一覧ではありません"}, status_code=400)
-        from src.dashboard.judgment_store import save_prefecture_opening
-
-        saved = save_prefecture_opening(prefecture, [row for row in rows if isinstance(row, dict)][:800])
-        return JSONResponse({"ok": saved, "prefecture": prefecture, "halls": len(rows)})
     try:
         store_hall_payload(body)
     except ValueError as exc:
@@ -801,7 +774,7 @@ def get_digit_units(hall: str = "", digit: int = 0, prefecture: str = "") -> dic
         raise HTTPException(status_code=400, detail="digit は 0 から 9 です")
     from src.analyzer.extras import digit_unit_rows
 
-    payload = _hall_with_units(name)
+    payload = _full_judgments(prefecture)
     units = digit_unit_rows(payload.get("machines") or [], name, digit)
     return {
         "hall_name": name,
@@ -819,7 +792,7 @@ def get_machine_units(hall: str = "", machine: str = "", prefecture: str = "") -
     machine_name = (machine or "").strip()
     if not name or not machine_name:
         raise HTTPException(status_code=400, detail="hall と machine が必要です")
-    payload = _hall_with_units(name)
+    payload = _full_judgments(prefecture)
     units = machine_units_from(payload, name, machine_name)
     return {
         "hall_name": name,
@@ -837,11 +810,7 @@ def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "") ->
     family_id = (family or "").strip()
     if not name or not family_id:
         raise HTTPException(status_code=400, detail="hall と family が必要です")
-    payload = _hall_with_units(name)
-    islands = ((payload.get("juggler") or {}).get("islands") or [])
-    has_units = any(isinstance(row, dict) and row.get("units") for row in islands)
-    if not has_units and payload.get("machines"):
-        attach_juggler_view(payload)
+    payload = _full_judgments(prefecture)
     units = juggler_units_from(payload, name, family_id)
     return {
         "hall_name": name,
@@ -855,109 +824,6 @@ def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "") ->
 def clear_judgment_view_cache() -> None:
     with _VIEW_GUARD:
         _VIEW_CACHE.clear()
-        _OPENING_CACHE.clear()
-        _disk_opening_cache.clear()
-
-
-def _hall_with_units(hall: str) -> dict:
-    """台明細は、その店舗の1件だけ読む。県の全台は組み立てない。"""
-    from src.dashboard.judgment_sync import read_hall_payload
-
-    payload = read_hall_payload(hall)
-    return payload if isinstance(payload, dict) else {}
-
-
-def _finish_opening(payload: dict) -> dict:
-    """一覧用の件数を保ったまま、イベントと店舗一覧を足す。"""
-    kept = {
-        key: payload.get(key)
-        for key in (
-            "machine_count",
-            "unit_count",
-            "count",
-            "all_high_count",
-            "high_56_count",
-            "high_base_count",
-        )
-    }
-    featured = [row for row in (payload.get("featured_machines") or []) if isinstance(row, dict)]
-    payload["machines"] = featured
-    _apply_hall_catalog(payload)
-    featured = [row for row in (payload.get("machines") or []) if isinstance(row, dict)]
-    finished = _with_events(payload, prepare=False)
-    finished["featured_machines"] = featured
-    finished["machines"] = []
-    finished["opening"] = True
-    for key, value in kept.items():
-        if value is not None:
-            finished[key] = value
-    return finished
-
-
-def _opening_cache_key(coverage: dict[str, int]) -> str:
-    # 同じ秒に別店舗が届いても、合計が変わるので一覧キャッシュを作り直す。
-    return (
-        f"{int(coverage.get('updated_at') or 0)}:"
-        f"{int(coverage.get('updated_sum') or 0)}:"
-        f"{int(coverage.get('ready') or 0)}:"
-        f"{int(coverage.get('halls') or 0)}"
-    )
-
-
-def _opening_judgments(prefecture: str) -> dict | None:
-    """保存済みの小さい一覧列だけで最初の画面を作る。台のJSONは読まない。"""
-    from src.dashboard.judgment_store import (
-        durable_enabled,
-        load_opening_summaries,
-        schedule_summary_backfill,
-        summary_coverage,
-    )
-    from src.dashboard.judgment_sync import assemble_opening, read_reflection_status
-
-    if not durable_enabled():
-        return None
-    selected = (prefecture or "").strip().lower() or "fukuoka"
-    coverage = summary_coverage(selected)
-    if coverage is None:
-        return None
-    if coverage["ready"] < coverage["halls"]:
-        schedule_summary_backfill()
-    stamp = _opening_cache_key(coverage)
-    events_mtime = _events_mtime()
-    with _VIEW_GUARD:
-        cached = _OPENING_CACHE.get(selected)
-    if cached is not None and cached[0] == stamp and cached[1] == events_mtime:
-        view = dict(cached[2])
-    else:
-        pending = coverage["ready"] < coverage["halls"]
-        body = assemble_opening(
-            load_opening_summaries(selected),
-            pending=pending,
-            stamp=stamp,
-            hall_count=int(coverage["halls"]),
-        )
-        view = _finish_opening(body)
-        with _VIEW_GUARD:
-            _OPENING_CACHE[selected] = (stamp, events_mtime, view)
-        view = dict(view)
-    _attach_reflection_status(view, read_reflection_status())
-    return view
-
-
-def _hall_board(hall: str) -> dict:
-    from src.dashboard.judgment_store import load_hall_board, write_hall_parts
-    from src.dashboard.judgment_sync import build_hall_parts
-
-    name = (hall or "").strip()
-    stored = load_hall_board(name)
-    if isinstance(stored, dict) and stored.get("machines") is not None and stored.get("hall_name"):
-        return stored
-    payload = _hall_with_units(name)
-    if not payload.get("machines"):
-        return {"hall_name": name, "machines": [], "machine_count": 0, "unit_count": 0}
-    summary, board = build_hall_parts(payload)
-    write_hall_parts(name, summary, board)
-    return board
 
 
 def _view_lock(prefecture: str) -> threading.Lock:
@@ -1070,64 +936,9 @@ def _revision_body(prefecture: str, payload: dict) -> dict:
 @app.get("/api/judgments/revision")
 def get_judgment_revision(prefecture: str = "") -> dict:
     """更新の有無だけ返す。15秒ごとの確認で全台JSONを組み直さない。"""
-    from src.dashboard.judgment_store import durable_enabled, load_prefecture_opening, summary_coverage
     from src.dashboard.judgment_sync import read_reflection_status
 
     selected = (prefecture or "").strip().lower() or "fukuoka"
-    if durable_enabled():
-        packed = load_prefecture_opening(selected)
-        if packed is not None:
-            rows, updated_at = packed
-            try:
-                events_at = events_updated_at()
-            except EventError:
-                events_at = None
-            body = {
-                "prefecture": selected,
-                "opening": True,
-                "summary_stamp": f"row:{updated_at}:{len(rows)}",
-                "summary_pending": False,
-                "events_updated_at": events_at,
-                "machine_count": 0,
-                "unit_count": 0,
-                "lineup_ready": True,
-            }
-            _attach_reflection_status(body, read_reflection_status())
-            return body
-        try:
-            events_at = events_updated_at()
-        except EventError:
-            events_at = None
-        body = {
-            "prefecture": selected,
-            "opening": True,
-            "summary_stamp": "row:0",
-            "summary_pending": True,
-            "events_updated_at": events_at,
-            "machine_count": 0,
-            "unit_count": 0,
-            "lineup_ready": True,
-        }
-        _attach_reflection_status(body, read_reflection_status())
-        return body
-    coverage = summary_coverage(selected) if durable_enabled() else None
-    if coverage is not None:
-        try:
-            updated_at = events_updated_at()
-        except EventError:
-            updated_at = None
-        body = {
-            "prefecture": selected,
-            "opening": True,
-            "summary_stamp": _opening_cache_key(coverage),
-            "summary_pending": coverage["ready"] < coverage["halls"],
-            "events_updated_at": updated_at,
-            "machine_count": 0,
-            "unit_count": 0,
-            "lineup_ready": True,
-        }
-        _attach_reflection_status(body, read_reflection_status())
-        return body
     events_mtime = _events_mtime()
     with _VIEW_GUARD:
         entry = _VIEW_CACHE.get(selected)
@@ -1137,115 +948,6 @@ def get_judgment_revision(prefecture: str = "") -> dict:
     body = _revision_body(selected, payload)
     _attach_reflection_status(body, read_reflection_status())
     return body
-
-
-def _stored_prefecture_opening(prefecture: str) -> dict | None:
-    """県1行の一覧。店舗台帳の走査はしない。"""
-    from src.dashboard.judgment_store import load_prefecture_opening
-    from src.dashboard.judgment_sync import assemble_opening, read_reflection_status
-
-    packed = load_prefecture_opening(prefecture)
-    if packed is None:
-        return None
-    rows, updated_at = packed
-    stamp = f"row:{updated_at}:{len(rows)}"
-    with _VIEW_GUARD:
-        cached = _OPENING_CACHE.get(prefecture)
-    if cached is not None and cached[0] == stamp:
-        view = dict(cached[2])
-    else:
-        body = assemble_opening(rows, pending=False, stamp=stamp, hall_count=len(rows))
-        view = _finish_opening(body)
-        with _VIEW_GUARD:
-            _OPENING_CACHE[prefecture] = (stamp, _events_mtime(), view)
-        view = dict(view)
-    _attach_reflection_status(view, read_reflection_status())
-    return view
-
-
-@app.get("/api/judgments/summary")
-def get_judgment_summary(prefecture: str = "") -> dict:
-    """開いた瞬間の全6・全56・全456。台明細と全機種カードは含めない。"""
-    selected = (prefecture or "").strip().lower() or "fukuoka"
-    stored = _stored_prefecture_opening(selected)
-    if stored is not None:
-        return stored
-    from src.dashboard.judgment_store import durable_enabled, schedule_summary_backfill
-
-    if durable_enabled():
-        # 県1行が無いときに店舗台帳を走査すると、一覧リクエストが戻らなくなる。
-        schedule_summary_backfill()
-    else:
-        cached = _disk_opening_cache.get(selected)
-        if cached is not None and time.monotonic() - cached[0] < 20:
-            return cached[1]
-        from src.dashboard.judgment_sync import opening_from_files
-
-        built = _finish_opening(opening_from_files(selected))
-        _disk_opening_cache[selected] = (time.monotonic(), built)
-        return built
-    # 台明細の全件組み立てはここでやらない。開いた画面が数分止まって見える。
-    return _finish_opening(
-        {
-            "opening": True,
-            "summary_pending": True,
-            "featured_machines": [],
-            "reported_halls": [],
-            "halls": [],
-            "machines": [],
-            "machine_count": 0,
-            "unit_count": 0,
-            "count": 0,
-            "all_high_count": 0,
-            "high_56_count": 0,
-            "high_base_count": 0,
-        }
-    )
-
-
-@app.get("/api/judgments/hall")
-def get_judgment_hall(hall: str = "", prefecture: str = "") -> dict:
-    """1店舗の機種カード。台明細は開いたとき別APIで返す。"""
-    name = (hall or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="hall がありません")
-    board = _hall_board(name)
-    board = dict(board)
-    board["prefecture"] = (prefecture or "").strip().lower() or "fukuoka"
-    return board
-
-
-@app.get("/api/judgments/machines")
-def get_judgment_machines(prefecture: str = "") -> dict:
-    """機種横断を開いたときだけ、県内の機種カードを返す。台明細は含めない。"""
-    from src.dashboard.judgment_store import durable_enabled, load_prefecture_boards, summary_coverage
-
-    selected = (prefecture or "").strip().lower() or "fukuoka"
-    coverage = summary_coverage(selected) if durable_enabled() else None
-    if coverage is None:
-        view = public_judgment_view(_full_judgments(selected))
-        return {
-            "prefecture": selected,
-            "machines": view.get("machines") or [],
-            "machine_count": view.get("machine_count") or 0,
-            "summary_pending": False,
-        }
-    machines: list[dict] = []
-    halls: list[str] = []
-    for board in load_prefecture_boards(selected):
-        name = str(board.get("hall_name") or "").strip()
-        if name:
-            halls.append(name)
-        for row in board.get("machines") or []:
-            if isinstance(row, dict):
-                machines.append(row)
-    return {
-        "prefecture": selected,
-        "halls": halls,
-        "machines": machines,
-        "machine_count": len(machines),
-        "summary_pending": bool(coverage["ready"] < coverage["halls"]),
-    }
 
 
 @app.get("/api/judgments")
@@ -1360,13 +1062,11 @@ def _schedule_lineup(payload: dict) -> None:
     threading.Thread(target=run, name="lineup-blocks", daemon=True).start()
 
 
-def _with_events(payload: dict, *, prepare: bool = True) -> dict:
+def _with_events(payload: dict) -> dict:
     """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
     # 県別の画面はここを通る。島を付けないとジャグラーモードの全6・全56・全456が空になる。
-    # 最初の一覧は保存済みの島を使う。台明細から作り直すと、開いた瞬間が遅くなる。
-    if prepare:
-        attach_juggler_view(payload)
-        _schedule_lineup(payload)
+    attach_juggler_view(payload)
+    _schedule_lineup(payload)
     today = today_jst()
     tomorrow = (datetime.now(JST).date() + timedelta(days=1)).isoformat()
     try:

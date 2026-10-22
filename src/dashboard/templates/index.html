@@ -7,29 +7,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Roboto+Mono:wght@600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=79" />
+    <link rel="stylesheet" href="/static/styles.css?v=77" />
     <style>
       .judgment-loading {
-        position: static;
-        z-index: 1;
+        position: fixed;
+        inset: 0;
+        z-index: 80;
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin: 12px 32px 0;
-        padding: 10px 14px;
-        background: transparent;
+        justify-content: center;
+        margin: 0;
+        padding: 24px;
+        background: rgba(7, 11, 18, 0.78);
       }
       .judgment-loading.hidden { display: none; }
       .judgment-loading-card {
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         align-items: center;
-        gap: 10px;
-        min-width: 0;
-        padding: 0;
-        text-align: left;
+        gap: 14px;
+        min-width: min(280px, 100%);
+        padding: 28px 32px;
+        text-align: center;
       }
-      .judgment-loading-card p { margin: 0; font-size: 14px; font-weight: 700; }
+      .judgment-loading-card p { margin: 0; font-size: 18px; font-weight: 700; }
       .judgment-spinner {
         width: 28px;
         height: 28px;
@@ -145,7 +146,7 @@
     <div id="judgment-loading" class="judgment-loading" role="status" aria-live="polite" aria-busy="true">
       <div class="judgment-loading-card">
         <span class="judgment-spinner" aria-hidden="true"></span>
-        <p id="judgment-loading-text">判定を反映しています。届いた店舗から順に表示します</p>
+        <p>更新中のためお待ちください</p>
       </div>
     </div>
     <section id="section-today" class="panel panel-today">
@@ -419,6 +420,6 @@
     </div>
     <p id="signal-toast" class="signal-toast" role="status" aria-live="polite"></p>
     <button type="button" id="to-top" class="to-top" aria-label="ページトップに戻る">▲ TOP</button>
-    <script src="/static/app.js?v=83"></script>
+    <script src="/static/app.js?v=77"></script>
   </body>
 </html>
