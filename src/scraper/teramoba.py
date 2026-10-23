@@ -91,6 +91,7 @@ class TeramobaTarget:
     hall_id: int | None
     list_url: str
     kind_codes: tuple[str, ...] = ()
+    kind_note: str = ""
 
     @property
     def origin(self) -> str:
@@ -139,6 +140,7 @@ def target_from_hall(hall: Hall) -> TeramobaTarget:
         hall_id=hall_id,
         list_url=list_url,
         kind_codes=tuple(kind_codes),
+        kind_note=str(cfg.get("kind_note") or ""),
     )
 
 
@@ -626,12 +628,19 @@ class TeramobaClient:
         return codes[0] if codes else self.kind_code
 
     def resolve_slot_kinds(self) -> list[str]:
-        """設定に複数 kind_code がある店舗は、そのスロット種別をすべて取る。"""
+        """複数レートの店は、20円、無ければ一番高いレートだけを取る。"""
         configured = [code for code in self.target.kind_codes if code]
         if len(configured) > 1:
-            self.kind_code = configured[0]
-            emit(f"  スロット種別: kind_code={','.join(configured)}", flush=True)
-            return configured
+            labels = kind_labels_from_note(self.target.kind_note)
+            chosen = choose_rate_kind(configured, labels)
+            self.kind_code = chosen
+            skipped = [code for code in configured if code != chosen]
+            emit(
+                f"  採用レート: {labels.get(chosen) or chosen} kind_code={chosen}"
+                f"（取得しない: {','.join(skipped)}）",
+                flush=True,
+            )
+            return [chosen]
         if not self.hall_id:
             return configured or [self.kind_code]
         payload = self.get_json(f"/n-api/rack_info/kashidama_kind_list?hall_id={self.hall_id}")
@@ -816,11 +825,15 @@ def _normalize_unit(unit: dict[str, Any], hall_name: str, history: dict[str, Any
     return row
 
 
-def kind_labels(hall: Hall) -> dict[str, str]:
+_YEN_RE = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)\s*円")
+_MAI_RE = re.compile(r"(?<!\d)(\d+)\s*枚")
+_TWENTY_SLO_RE = re.compile(r"(?<!\d)20(?:\.0+)?\s*スロ")
+
+
+def kind_labels_from_note(note: str) -> dict[str, str]:
     """設定の kind_note（例: 46枚=V / 184枚=X）を種別コードから表示名へ返す。"""
-    note = str((hall.source_config or {}).get("kind_note") or "")
     labels: dict[str, str] = {}
-    for part in re.split(r"[／/]", note):
+    for part in re.split(r"[／/]", note or ""):
         if "=" not in part:
             continue
         label, code = part.rsplit("=", 1)
@@ -829,6 +842,37 @@ def kind_labels(hall: Hall) -> dict[str, str]:
         if code and label:
             labels[code] = label
     return labels
+
+
+def rate_yen(label: str) -> float | None:
+    """表示名を1枚あたりの円に換算する。枚数は1000円あたりの枚数。"""
+    text = str(label or "")
+    mai = _MAI_RE.search(text)
+    yen = _YEN_RE.search(text)
+    if mai and not yen:
+        count = int(mai.group(1))
+        return 1000.0 / count if count else None
+    if yen:
+        return float(yen.group(1))
+    if _TWENTY_SLO_RE.search(text):
+        return 20.0
+    return None
+
+
+def choose_rate_kind(kinds: list[str], labels: dict[str, str]) -> str:
+    """20円があればその種別だけ。無ければ円換算で一番高い種別。読めなければ先頭。"""
+    ordered = [code for code in kinds if code]
+    if not ordered:
+        return ""
+    scored = [(code, rate_yen(labels.get(code, ""))) for code in ordered]
+    twenties = [code for code, yen in scored if yen is not None and abs(yen - 20.0) < 0.051]
+    if twenties:
+        return twenties[0]
+    known = [(code, yen) for code, yen in scored if yen is not None]
+    if not known:
+        return ordered[0]
+    known.sort(key=lambda item: (-item[1], ordered.index(item[0])))
+    return known[0][0]
 
 
 def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
@@ -840,7 +884,6 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
     machines: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     kinds = client.resolve_slot_kinds()
-    rate_labels = kind_labels(hall) if len(kinds) > 1 else {}
     for kind_index, kind in enumerate(kinds, start=1):
         client.kind_code = kind
         if len(kinds) > 1:
@@ -862,10 +905,7 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
         emit(f"  対象日: {client.latest_date}", flush=True)
         for index, model in enumerate(watched, start=1):
             label = str(model.get("machine_name") or "")
-            rate = rate_labels.get(kind, "")
-            if rate:
-                label = f"{label}〔{rate}〕"
-            enc = str(model.get("machine_name_enc") or urllib.parse.quote(str(model.get("machine_name") or "")))
+            enc = str(model.get("machine_name_enc") or urllib.parse.quote(label))
             emit(f"  [{index}/{len(watched)}] {label}", flush=True)
             try:
                 payload = client.machine_units(enc)
@@ -883,8 +923,6 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
                 row = _normalize_unit(unit, hall.name, history)
                 if not row:
                     continue
-                if rate:
-                    row["machine_name"] = label
                 key = (row["machine_name"], row["dai_no"])
                 if key in seen:
                     continue
