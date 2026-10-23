@@ -1915,6 +1915,11 @@ function renderHallRoster(names) {
     const updated = rows.filter((row) => row.state === "updated").length;
     meta.textContent = `${rows.length}店舗対応。データ更新済み ${updated}店舗。取得元が違っても、同じ画面で全台系・末尾・台データを見られます。`;
   }
+  const toggle = document.getElementById("roster-toggle");
+  if (toggle) {
+    const open = toggle.getAttribute("aria-expanded") === "true";
+    toggle.textContent = open ? "対応ホールを閉じる" : `対応ホールを確認する（${rows.length}店舗）`;
+  }
   root.replaceChildren();
   rows.forEach((row) => {
     const button = document.createElement("button");
@@ -3832,15 +3837,39 @@ document.querySelectorAll("#category-filters .filter").forEach((button) => {
     render();
   });
 });
+document.getElementById("roster-toggle")?.addEventListener("click", () => {
+  const toggle = document.getElementById("roster-toggle");
+  const body = document.getElementById("roster-body");
+  if (!toggle || !body) {
+    return;
+  }
+  const open = toggle.getAttribute("aria-expanded") !== "true";
+  toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  body.hidden = !open;
+  renderHallFilters();
+});
 document.getElementById("juggler-mode")?.addEventListener("click", () => {
   jugglerMode = !jugglerMode;
   writeStored(JUGGLER_STORAGE_KEY, jugglerMode ? "1" : "0");
   if (jugglerMode && mainView !== "stores" && mainView !== "machines") {
     setMainView("stores");
+  } else {
+    render();
+  }
+  if (jugglerMode) {
+    scrollBelowDock(document.getElementById("section-roster"));
+  }
+});
+
+function scrollBelowDock(element) {
+  if (!element) {
     return;
   }
-  render();
-});
+  const dock = document.querySelector(".nav-dock");
+  const clearance = (dock ? dock.getBoundingClientRect().bottom : 0) + 12;
+  const top = element.getBoundingClientRect().top + window.scrollY - clearance;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
 document.getElementById("cross-data-only")?.addEventListener("click", () => {
   crossDataOnly = !crossDataOnly;
   render();
