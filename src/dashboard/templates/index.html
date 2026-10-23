@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Roboto+Mono:wght@600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=77" />
+    <link rel="stylesheet" href="/static/styles.css?v=80" />
     <style>
       .judgment-loading {
         position: fixed;
@@ -158,11 +158,16 @@
       <p id="today-empty" class="empty hidden">全6 / 全56 / 全456の反応がある店舗はありません。</p>
     </section>
     <section id="section-roster" class="panel panel-roster">
-      <div class="panel-head">
-        <h2 id="roster-title">このエリアの対応ホール</h2>
-        <p id="roster-meta" class="hint">店舗の取得状況を読み込み中…</p>
+      <button type="button" id="roster-toggle" class="roster-toggle" aria-expanded="false" aria-controls="roster-body">
+        対応ホールを確認する
+      </button>
+      <div id="roster-body" class="roster-body" hidden>
+        <div class="panel-head">
+          <h2 id="roster-title">このエリアの対応ホール</h2>
+          <p id="roster-meta" class="hint">店舗の取得状況を読み込み中…</p>
+        </div>
+        <div id="hall-roster" class="hall-roster"></div>
       </div>
-      <div id="hall-roster" class="hall-roster"></div>
     </section>
     <div class="toolbar">
       <div id="group-filters" class="filters group-filters" role="tablist" aria-label="系列"></div>
@@ -420,6 +425,6 @@
     </div>
     <p id="signal-toast" class="signal-toast" role="status" aria-live="polite"></p>
     <button type="button" id="to-top" class="to-top" aria-label="ページトップに戻る">▲ TOP</button>
-    <script src="/static/app.js?v=77"></script>
+    <script src="/static/app.js?v=80"></script>
   </body>
 </html>
