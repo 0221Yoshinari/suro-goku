@@ -3555,7 +3555,7 @@ async function ensureJugglerUnits(island) {
   if (Array.isArray(island.units)) {
     return island.units;
   }
-  const key = `${island.hall_name || ""}|${island.family_id || ""}`;
+  const key = `${island.hall_name || ""}|${island.family_id || ""}|${island.rate || ""}`;
   if (jugglerUnitCache.has(key)) {
     island.units = jugglerUnitCache.get(key);
     return island.units;
@@ -3563,6 +3563,7 @@ async function ensureJugglerUnits(island) {
   const params = new URLSearchParams({
     hall: island.hall_name || "",
     family: island.family_id || "",
+    rate: island.rate || "",
     prefecture: prefectureFilter || DEFAULT_PREF,
   });
   const body = await readJudgmentJson(

@@ -759,9 +759,10 @@ def machine_units_from(payload: dict, hall: str, machine: str) -> list[dict]:
     return []
 
 
-def juggler_units_from(payload: dict, hall: str, family: str) -> list[dict]:
+def juggler_units_from(payload: dict, hall: str, family: str, rate: str = "") -> list[dict]:
     wanted_hall = (hall or "").strip()
     wanted_family = (family or "").strip()
+    wanted_rate = (rate or "").strip()
     islands = ((payload.get("juggler") or {}).get("islands") or [])
     for island in islands:
         if not isinstance(island, dict):
@@ -769,6 +770,8 @@ def juggler_units_from(payload: dict, hall: str, family: str) -> list[dict]:
         if str(island.get("hall_name") or "").strip() != wanted_hall:
             continue
         if str(island.get("family_id") or "").strip() != wanted_family:
+            continue
+        if str(island.get("rate") or "").strip() != wanted_rate:
             continue
         return [unit for unit in (island.get("units") or []) if isinstance(unit, dict)]
     return []
@@ -814,7 +817,7 @@ def get_machine_units(hall: str = "", machine: str = "", prefecture: str = "") -
 
 
 @app.get("/api/judgments/juggler-units")
-def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "") -> dict:
+def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "", rate: str = "") -> dict:
     """ジャグラー島の台明細。島の集計とは別に、開いたときだけ返す。"""
     name = (hall or "").strip()
     family_id = (family or "").strip()
@@ -825,7 +828,7 @@ def get_juggler_units(hall: str = "", family: str = "", prefecture: str = "") ->
         from src.analyzer.juggler import build_juggler_islands
 
         payload = {"juggler": {"islands": build_juggler_islands(payload.get("machines") or [])}}
-    units = juggler_units_from(payload, name, family_id)
+    units = juggler_units_from(payload, name, family_id, rate)
     return {
         "hall_name": name,
         "family_id": family_id,

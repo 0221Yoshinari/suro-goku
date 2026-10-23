@@ -4,18 +4,32 @@
   "exclude_patterns": ["ヴァルヴレイヴ", "ヴヴヴ", "valvrave", "いざ番長"],
   "machines": [
     {
+      "id": "neo-aim-ex",
+      "display_name": "ネオアイムジャグラーEX",
+      "type": "A",
+      "master_ids": ["neo-aim-ex"],
+      "patterns": ["ネオアイムジャグラー", "ネオアイム", "ネオAIM"]
+    },
+    {
       "id": "im-juggler",
       "display_name": "アイムジャグラーEX",
       "type": "A",
-      "master_ids": ["im-juggler-ex", "neo-aim-ex"],
-      "patterns": ["アイムジャグラー", "ネオアイム", "ネオAIM"]
+      "master_ids": ["im-juggler-ex"],
+      "patterns": ["アイムジャグラー"]
+    },
+    {
+      "id": "my-juggler-vi",
+      "display_name": "マイジャグラーVI",
+      "type": "A",
+      "master_ids": ["my-juggler-vi"],
+      "patterns": ["マイジャグラーVI", "マイジャグラーⅥ", "マイジャグラー6"]
     },
     {
       "id": "my-juggler-v",
       "display_name": "マイジャグラーV",
       "type": "A",
       "master_ids": ["my-juggler-v"],
-      "patterns": ["マイジャグラーV", "マイジャグラー5", "マイジャグラー"]
+      "patterns": ["マイジャグラーV", "マイジャグラー5", "マイジャグラーⅤ", "マイジャグラー"]
     },
     {
       "id": "million-god",

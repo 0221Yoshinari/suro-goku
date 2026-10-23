@@ -18,6 +18,12 @@ _ERRORS: dict[str, str] = {}
 _RETRY_AFTER: dict[str, float] = {}
 _SERVED: dict[str, tuple[str, float, str]] = {}
 _STARTED = False
+# 判定の読み方を変えたら上げる。起動時に県の完成品を作り直す。
+_READER = "20261024-rate"
+
+
+def _reader_stamp(raw: str) -> str:
+    return f"{raw}|{_READER}"
 _EVENT = threading.Event()
 _PRIORITY = ("fukuoka", "tokyo", "osaka", "aichi", "kanagawa", "saitama", "chiba", "hyogo")
 
@@ -52,7 +58,7 @@ def warm() -> None:
     current = hall_source_stamps()
     saved = snapshot_source_stamps()
     for prefecture in _ordered(list(current)):
-        if saved.get(prefecture) != current[prefecture]:
+        if saved.get(prefecture) != _reader_stamp(current[prefecture]):
             schedule(prefecture, delay=0)
 
 
@@ -198,7 +204,7 @@ def _build(prefecture: str) -> None:
     build_ms = int((time.perf_counter() - started) * 1000)
     saved = save_prefecture_snapshot(
         prefecture,
-        source_stamp=stamp,
+        source_stamp=_reader_stamp(stamp),
         events_mtime=_events_mtime(),
         judged_at=str(view.get("judged_at") or ""),
         fetched_at=str(view.get("fetched_at") or ""),

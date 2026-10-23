@@ -19,6 +19,7 @@ _NOISE_RE = re.compile(r"パチスロ|スマスロ")
 _TYPE_SUFFIX_RE = re.compile(r"(?:[a-z]{2}\d{0,2}|(?<=\d)[a-z]|[a-z]\d{1,2})$")
 _SERIES_V_RE = re.compile(r"(?<=[\u3040-\u30ff\u4e00-\u9fff])v$")
 _NON_NAME_RE = re.compile(r"[!！?？'’\"“”\[\]【】]")
+_RATE_RE = re.compile(r"〔[^〕]*〕")
 
 
 def normalize_machine_name(value: str | None) -> str:
@@ -30,6 +31,7 @@ def normalize_machine_name(value: str | None) -> str:
     if not value:
         return ""
     text = str(value).replace("ＶⅢ", "V3").replace("VⅢ", "V3")
+    text = _RATE_RE.sub("", text)
     text = unicodedata.normalize("NFKC", text)
     text = text.translate(_WIDTH_TABLE)
     text = (
@@ -60,6 +62,8 @@ def normalize_machine_name(value: str | None) -> str:
     prev = None
     while prev != text:
         prev = text
+        if text.endswith("vi") and "ジャグラー" in text:
+            break
         nxt = _TYPE_SUFFIX_RE.sub("", text)
         if len(nxt) < 3:
             break

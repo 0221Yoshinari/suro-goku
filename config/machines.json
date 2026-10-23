@@ -118,19 +118,62 @@
             "rb": 229.1
           },
           "5": {
-            "synthetic": 119.0,
-            "rb": 238.3
+            "synthetic": 126.8,
+            "rb": 268.6
           },
           "4": {
-            "synthetic": 124.2,
-            "rb": 248.5
+            "synthetic": 135.4,
+            "rb": 290.0
           }
         }
       },
       "type": "A",
       "setting_6": 114.6,
-      "setting_5": 119.0,
-      "setting_4": 124.2
+      "setting_5": 126.8,
+      "setting_4": 135.4
+    },
+    {
+      "id": "my-juggler-vi",
+      "name": "マイジャグラーVI",
+      "series": "ジャグラー",
+      "maker": "北電子",
+      "aliases": [
+        "マイジャグラー6",
+        "マイジャグラーⅥ",
+        "マイジャグラーVI",
+        "SマイジャグラーVI"
+      ],
+      "published": {
+        "bb_probability": 229.1,
+        "rb_probability": 229.1,
+        "first_hit_denominator": 114.6,
+        "payout_percent": 109.4,
+        "comment": "設定6 メーカー公表値（合算 1/114.6）。設定差はマイジャグラーVと同じ。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "synthetic_probability_threshold": 114.6,
+        "rb_probability_threshold": 229.1,
+        "early_min_games": 300,
+        "settings": {
+          "6": {
+            "synthetic": 114.6,
+            "rb": 229.1
+          },
+          "5": {
+            "synthetic": 126.8,
+            "rb": 268.6
+          },
+          "4": {
+            "synthetic": 135.4,
+            "rb": 290.0
+          }
+        }
+      },
+      "type": "A",
+      "setting_6": 114.6,
+      "setting_5": 126.8,
+      "setting_4": 135.4
     },
     {
       "id": "gogo-juggler-3",

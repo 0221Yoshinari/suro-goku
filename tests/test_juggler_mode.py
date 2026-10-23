@@ -36,6 +36,8 @@ def _machine(hall: str, name: str, units: list[dict], *, series: str = "ジャ�
 class JugglerFamilyTest(unittest.TestCase):
     def test_known_series_map_to_separate_islands(self) -> None:
         self.assertEqual(classify_juggler_family("SマイジャグラーⅤ")["id"], "my-juggler-v")
+        self.assertEqual(classify_juggler_family("ﾏｲｼﾞｬｸﾞﾗｰVI")["id"], "my-juggler-vi")
+        self.assertEqual(classify_juggler_family("マイジャグラーVI〔20円〕")["id"], "my-juggler-vi")
         self.assertEqual(classify_juggler_family("ファンキージャグラー2KT")["id"], "funky-juggler-2")
         self.assertEqual(classify_juggler_family("ゴージャグ3")["id"], "gogo-juggler-3")
         self.assertEqual(classify_juggler_family("SアイムジャグラーEX-TP")["id"], "im-juggler")
@@ -56,6 +58,19 @@ class JugglerFamilyTest(unittest.TestCase):
         self.assertEqual(set(by_family), {"gogo-juggler-3", "im-juggler", "neo-im-juggler"})
         self.assertEqual(by_family["gogo-juggler-3"]["unit_count"], 2)
         self.assertEqual(by_family["gogo-juggler-3"]["total_games"], 2000)
+
+    def test_different_rates_stay_separate_islands(self) -> None:
+        islands = build_juggler_islands(
+            [
+                _machine("博多", "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS〔46枚〕", [_unit(str(n), 1000, 4, 4) for n in range(701, 705)]),
+                _machine("博多", "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS〔184枚〕", [_unit("936", 1000, 4, 4)]),
+            ]
+        )
+        self.assertEqual(len(islands), 2)
+        counts = sorted(item["unit_count"] for item in islands)
+        self.assertEqual(counts, [1, 4])
+        self.assertTrue(all(item["family_id"] == "juggler-girls" for item in islands))
+        self.assertEqual({item["rate"] for item in islands}, {"46枚", "184枚"})
 
 
 class JugglerIslandScoreTest(unittest.TestCase):

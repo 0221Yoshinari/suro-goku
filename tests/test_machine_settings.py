@@ -326,14 +326,14 @@ class MachineSettingsTest(unittest.TestCase):
                 "fields": {
                     "machine_name": "マイジャグラーV",
                     "dai_no": "3",
-                    "total_games": 5950,
+                    "total_games": 6340,
                     "bb_count": 23,
                     "rb_count": 27,
                 },
             },
             self.masters,
         )
-        self.assertAlmostEqual(setting5["synthetic_probability"], 119.0)
+        self.assertAlmostEqual(setting5["synthetic_probability"], 126.8)
         self.assertEqual(setting5["status"], "HIGH_56")
         self.assertEqual(setting5["status_label"], "全56数値")
         self.assertFalse(setting5["checks"]["meets_setting_6"])

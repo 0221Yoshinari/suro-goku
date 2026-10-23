@@ -1,7 +1,8 @@
 id,name,type,target_count,setting_4,setting_5,setting_6,min_games,early_min_games,aliases,enabled,probability_source,setting_1,setting_2,setting_3
 neo-aim-ex,ネオアイムジャグラーEX,A,bonus,147.6,136.5,127.5,3000,300,ネオアイム|ネオAIM|NEO AIM|SネオアイムジャグラーEX
 im-juggler-ex,アイムジャグラーEX,A,bonus,147.6,136.5,127.5,3000,300,SアイムジャグラーEX|アイムジャグラー
-my-juggler-v,マイジャグラーV,A,bonus,124.2,119.0,114.6,3000,300,マイジャグラー5|マイジャグラーⅤ|SマイジャグラーV
+my-juggler-v,マイジャグラーV,A,bonus,135.4,126.8,114.6,3000,300,マイジャグラー5|マイジャグラーⅤ|SマイジャグラーV
+my-juggler-vi,マイジャグラーVI,A,bonus,135.4,126.8,114.6,3000,300,マイジャグラー6|マイジャグラーⅥ|マイジャグラーVI|SマイジャグラーVI
 gogo-juggler-3,ゴーゴージャグラー3,A,bonus,128.5,122.3,117.4,3000,300,ゴーゴージャグラーⅢ|Sゴーゴージャグラー3|ゴーゴー3|ゴーゴージャグラー３
 funky-juggler-2,ファンキージャグラー2,A,bonus,129.8,124.2,119.6,3000,300,ファンキージャグラーⅡ|Sファンキージャグラー2|ファンキージャグラー２ＫＴ|ファンキージャグラー2KT|ファンキージャグラー２
 happy-juggler-v3,ハッピージャグラーV3,A,bonus,129.6,124.0,119.2,3000,300,ハッピージャグラーVⅢ|ハッピージャグラーⅢ|SハッピージャグラーV3

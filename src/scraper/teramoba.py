@@ -816,6 +816,21 @@ def _normalize_unit(unit: dict[str, Any], hall_name: str, history: dict[str, Any
     return row
 
 
+def kind_labels(hall: Hall) -> dict[str, str]:
+    """設定の kind_note（例: 46枚=V / 184枚=X）を種別コードから表示名へ返す。"""
+    note = str((hall.source_config or {}).get("kind_note") or "")
+    labels: dict[str, str] = {}
+    for part in re.split(r"[／/]", note):
+        if "=" not in part:
+            continue
+        label, code = part.rsplit("=", 1)
+        code = code.strip()
+        label = label.replace("スロット", "").strip()
+        if code and label:
+            labels[code] = label
+    return labels
+
+
 def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
     target = target_from_hall(hall)
     client = TeramobaClient(target)
@@ -825,6 +840,7 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
     machines: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     kinds = client.resolve_slot_kinds()
+    rate_labels = kind_labels(hall) if len(kinds) > 1 else {}
     for kind_index, kind in enumerate(kinds, start=1):
         client.kind_code = kind
         if len(kinds) > 1:
@@ -846,7 +862,10 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
         emit(f"  対象日: {client.latest_date}", flush=True)
         for index, model in enumerate(watched, start=1):
             label = str(model.get("machine_name") or "")
-            enc = str(model.get("machine_name_enc") or urllib.parse.quote(label))
+            rate = rate_labels.get(kind, "")
+            if rate:
+                label = f"{label}〔{rate}〕"
+            enc = str(model.get("machine_name_enc") or urllib.parse.quote(str(model.get("machine_name") or "")))
             emit(f"  [{index}/{len(watched)}] {label}", flush=True)
             try:
                 payload = client.machine_units(enc)
@@ -864,6 +883,8 @@ def fetch_teramoba_hall(hall: Hall) -> list[dict[str, Any]]:
                 row = _normalize_unit(unit, hall.name, history)
                 if not row:
                     continue
+                if rate:
+                    row["machine_name"] = label
                 key = (row["machine_name"], row["dai_no"])
                 if key in seen:
                     continue

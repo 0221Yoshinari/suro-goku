@@ -28,8 +28,14 @@ _FAMILY_BARS: dict[str, dict[str, Any]] = {
     "my-juggler-v": {
         "min_games": 3000,
         "6": {"synthetic": 114.6, "rb": 229.1},
-        "5": {"synthetic": 119.0, "rb": 238.3},
-        "4": {"synthetic": 124.2, "rb": 248.5},
+        "5": {"synthetic": 126.8, "rb": 268.6},
+        "4": {"synthetic": 135.4, "rb": 290.0},
+    },
+    "my-juggler-vi": {
+        "min_games": 3000,
+        "6": {"synthetic": 114.6, "rb": 229.1},
+        "5": {"synthetic": 126.8, "rb": 268.6},
+        "4": {"synthetic": 135.4, "rb": 290.0},
     },
     "gogo-juggler-3": {
         "min_games": 3000,
@@ -71,6 +77,7 @@ _FAMILY_BARS: dict[str, dict[str, Any]] = {
 
 # 長い・固有の名前を先に照合する。ネオアイムはアイムより前。
 _FAMILIES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("my-juggler-vi", "マイジャグラーVI", ("マイジャグラーvi", "マイジャグラー6")),
     ("my-juggler-v", "マイジャグラーV", ("マイジャグラー",)),
     ("funky-juggler-2", "ファンキージャグラー2", ("ファンキージャグラー", "ファンキー2", "ファンキー２")),
     ("gogo-juggler-3", "ゴーゴージャグラー3", ("ゴーゴージャグラー", "ゴージャグ")),
@@ -105,6 +112,16 @@ SCORE_GAMES_FULL = 5000
 SCORE_GAMES_FULL_RATIO = 1.6
 SCORE_GAMES_FORMING = _FORMING_MIN_GAMES
 SCORE_GAMES_EARLY = 300
+
+
+def _rate_marker(name: str | None) -> str:
+    """貸玉種別。20円と5円のように別フロアの台を、同じ島に足さない。"""
+    text = str(name or "")
+    start = text.rfind("〔")
+    end = text.rfind("〕")
+    if start >= 0 and end > start:
+        return text[start + 1:end].strip()
+    return ""
 
 
 def classify_juggler_family(name: str | None, *, series: str | None = None) -> dict[str, str] | None:
@@ -441,11 +458,13 @@ def _island_from_members(hall: str, family: dict[str, str], members: list[dict[s
         rb_probability=rb_probability,
         bars=bars,
     )
+    rate = str(family.get("rate") or "")
     return {
-        "id": f"{hall}|{family['id']}",
+        "id": f"{hall}|{family['id']}|{rate}",
         "hall_name": hall,
         "family_id": family["id"],
         "family_label": family["label"],
+        "rate": rate,
         "machine_names": names,
         "unit_count": unit_count,
         "total_games": total_games,
@@ -520,8 +539,8 @@ def build_juggler_islands(
 ) -> list[dict[str, Any]]:
     """ジャグラー島の一覧。スコアの高い全台系候補が先。"""
     source = _overlay_results(list(machines or []), results)
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    families: dict[str, dict[str, str]] = {}
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    families: dict[tuple[str, str], dict[str, str]] = {}
     for machine in source:
         if machine.get("judgment_excluded") or machine.get("status") == "EXCLUDED":
             continue
@@ -529,11 +548,16 @@ def build_juggler_islands(
         if family is None:
             continue
         hall = str(machine.get("hall_name") or "")
-        grouped.setdefault((hall, family["id"]), []).append(machine)
-        families[family["id"]] = family
+        rate = _rate_marker(machine.get("machine_name"))
+        labeled = dict(family)
+        labeled["rate"] = rate
+        if rate:
+            labeled["label"] = f"{family['label']}〔{rate}〕"
+        grouped.setdefault((hall, family["id"], rate), []).append(machine)
+        families[(family["id"], rate)] = labeled
     islands = [
-        _island_from_members(hall, families[family_id], members)
-        for (hall, family_id), members in grouped.items()
+        _island_from_members(hall, families[(family_id, rate)], members)
+        for (hall, family_id, rate), members in grouped.items()
     ]
     islands.sort(
         key=lambda item: (
