@@ -19,7 +19,7 @@ _RETRY_AFTER: dict[str, float] = {}
 _SERVED: dict[str, tuple[str, float, str]] = {}
 _STARTED = False
 # 判定の読み方を変えたら上げる。起動時に県の完成品を作り直す。
-_READER = "20261024-rate"
+_READER = "20261026-digit"
 
 
 def _reader_stamp(raw: str) -> str:

@@ -202,11 +202,15 @@ def aggregate_units(
 
 
 def _shown_setting(level: int) -> int:
-    """平均に使う設定値。基準未満は設定2として数える。"""
+    """平均に使う設定値。基準未満は設定1として数える。
+
+    推測が 0 の台は、設定4以上の基準に届いていない。
+    これを設定2にすると、末尾の平均が 2.0 より下にならない。
+    """
     if level >= 6:
         return 6
-    if level <= 0:
-        return 2
+    if level <= 1:
+        return 1
     return level
 
 

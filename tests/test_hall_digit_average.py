@@ -51,8 +51,8 @@ class HallDigitAverageTest(unittest.TestCase):
                 }
             )
         row = summarize_digit_units(units, 3)
-        self.assertEqual(row["avg_setting"], 3.2)
-        self.assertEqual(f"{row['avg_setting']:.2f}", "3.20")
+        self.assertEqual(row["avg_setting"], 2.8)
+        self.assertEqual(f"{row['avg_setting']:.2f}", "2.80")
         self.assertNotEqual(row["status_label"], "データ不足")
         self.assertEqual(row["rated_count"], 5)
 
@@ -93,6 +93,13 @@ class HallDigitAverageTest(unittest.TestCase):
         units = [_unit(f"20{index}", 6 if index < 8 else 0, 1000) for index in range(10)]
         row = summarize_digit_units(units, 0)
         self.assertEqual(row["rated_count"], 10)
-        self.assertEqual(row["avg_setting"], 5.2)
+        self.assertEqual(row["avg_setting"], 5.0)
         self.assertTrue(row["is_hit"])
         self.assertEqual(row["status_label"], "全56数値")
+
+    def test_below_threshold_counts_as_setting_one(self) -> None:
+        units = [_unit(f"40{index}", 0, 1000) for index in range(10)]
+        row = summarize_digit_units(units, 4)
+        self.assertEqual(row["avg_setting"], 1.0)
+        self.assertEqual(row["status_label"], "通常")
+        self.assertFalse(row["is_hit"])

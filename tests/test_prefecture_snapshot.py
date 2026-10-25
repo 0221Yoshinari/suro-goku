@@ -102,7 +102,7 @@ class PrefectureSnapshotTest(unittest.TestCase):
                     with unittest.mock.patch("src.dashboard.judgment_store.save_prefecture_snapshot", side_effect=capture):
                         _build("fukuoka")
         self.assertEqual(saved["prefecture"], "fukuoka")
-        self.assertEqual(saved["source_stamp"], "1:10|20261024-rate")
+        self.assertEqual(saved["source_stamp"], "1:10|20261026-digit")
         self.assertGreaterEqual(saved["build_ms"], 0)
         view = json.loads(saved["payload"])
         self.assertEqual(view["snapshot_status"], "ready")
