@@ -271,8 +271,8 @@ class MachineSettingsTest(unittest.TestCase):
     def test_setting6_margin_promotes_near_miss_and_keeps_priority(self) -> None:
         from src.analyzer.judgment import SETTING6_MARGIN_MIN_GAMES, aggregate_machine_groups
 
-        # 8000/65 ≒ 1/123.08（設定6 119.2 の +3.3%）、REG 8000/33 ≒ 1/242.4（238.4 の +1.7%）。
-        # どちらも設定5（合成124.0 / REG252.1）より良く、平均8000Gなので全6。
+        # 8000/65 ≒ 1/123.08（設定6 合成119.2 の +3.3%）、REG 8000/33 ≒ 1/242.4。
+        # 合成は設定6の+4%以内、REGは設定6の252.1以内。平均8000Gなので全6。
         near = judge_record(
             {
                 "hall_name": "テスト店",
@@ -288,7 +288,7 @@ class MachineSettingsTest(unittest.TestCase):
         )
         self.assertGreaterEqual(near["total_games"], SETTING6_MARGIN_MIN_GAMES)
         self.assertGreater(near["synthetic_probability"], 119.2)
-        self.assertLess(near["synthetic_probability"], 124.0)
+        self.assertLess(near["synthetic_probability"], 128.3)
         self.assertGreater(near["rb_probability"], 238.4)
         self.assertLess(near["rb_probability"], 252.1)
         self.assertTrue(near["checks"]["meets_setting_6"])
@@ -373,8 +373,8 @@ class MachineSettingsTest(unittest.TestCase):
         machine = grouped[0]
         self.assertGreaterEqual(machine["avg_games"], SETTING6_MARGIN_MIN_GAMES)
         self.assertGreater(machine["synthetic_probability"], 119.2)
-        self.assertLess(machine["synthetic_probability"], 124.0)
-        self.assertGreater(machine["rb_probability"], 238.4)
+        self.assertLess(machine["synthetic_probability"], 128.3)
+        self.assertLess(machine["rb_probability"], 252.1)
         self.assertTrue(machine["checks"]["meets_setting_6"])
         self.assertTrue(machine["checks"]["meets_setting_4"])
         self.assertEqual(machine["status"], "ALL_HIGH")
@@ -382,8 +382,8 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertFalse(machine["is_high_base"])
 
     def test_setting5_margin_is_all56_and_does_not_override_all6(self) -> None:
-        # プラザ博多のジャグラーガールズSS相当。合成は設定6の誤差内、REGは設定5理論値の直前。
-        # 5044/42 ≒ 1/120.1、5044/20 = 1/252.2。設定6 REG 238.4 には届かず、設定5 REG 252.1 の許容内。
+        # ジャグラーガールズSS。合成は設定6の誤差内、REGは設定6の許容を超えて設定5の内側。
+        # 5044/42 ≒ 1/120.1、5044/19 ≒ 1/265.5。設定6 REG 252.1 の+4%を超え、設定5 REG 270.8 以内。
         near5 = judge_record(
             {
                 "hall_name": "プラザ 博多",
@@ -391,16 +391,16 @@ class MachineSettingsTest(unittest.TestCase):
                     "machine_name": "ジャグラーガールズSS",
                     "dai_no": "101",
                     "total_games": 5044,
-                    "bb_count": 22,
-                    "rb_count": 20,
+                    "bb_count": 23,
+                    "rb_count": 19,
                 },
             },
             self.masters,
         )
         self.assertGreater(near5["synthetic_probability"], 119.2)
-        self.assertLess(near5["synthetic_probability"], 124.0)
-        self.assertGreater(near5["rb_probability"], 252.1)
-        self.assertLess(near5["rb_probability"], 273.1)
+        self.assertLess(near5["synthetic_probability"], 128.3)
+        self.assertGreater(near5["rb_probability"], 252.1 * 1.04)
+        self.assertLess(near5["rb_probability"], 270.8)
         self.assertFalse(near5["checks"]["meets_setting_6"])
         self.assertTrue(near5["checks"]["meets_setting_5"])
         self.assertTrue(near5["checks"]["meets_setting_4"])
@@ -410,24 +410,83 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertFalse(near5["is_all_high"])
         self.assertFalse(near5["is_high_base"])
 
-        # REGが設定5の許容を超え、設定4理論値には収まる場合は全456のまま。
+        # ネオアイム。設定5の許容を超え、設定4の公表値には収まる場合は全456。
         only4 = judge_record(
             {
                 "hall_name": "プラザ 博多",
                 "fields": {
-                    "machine_name": "ジャグラーガールズSS",
+                    "machine_name": "ネオアイムジャグラーEX",
                     "dai_no": "102",
-                    "total_games": 7950,
-                    "bb_count": 33,
+                    "total_games": 8400,
+                    "bb_count": 30,
                     "rb_count": 30,
                 },
             },
             self.masters,
         )
-        self.assertGreater(only4["rb_probability"], 252.1 * 1.04)
-        self.assertLessEqual(only4["rb_probability"], 273.1)
+        self.assertGreater(only4["synthetic_probability"], 128.5 * 1.04)
+        self.assertLessEqual(only4["synthetic_probability"], 142.2)
+        self.assertGreater(only4["rb_probability"], 255.0 * 1.04)
+        self.assertLessEqual(only4["rb_probability"], 315.1)
         self.assertEqual(only4["status"], "HIGH_BASE")
         self.assertEqual(only4["status_label"], "全456数値")
+
+    def test_published_low_settings_keep_missing_levels_absent(self) -> None:
+        from src.analyzer.judgment import estimate_setting_level
+
+        my = next(item for item in self.masters if item.id == "my-juggler-v")
+        self.assertEqual(my.settings[1].synthetic, 163.8)
+        self.assertEqual(my.settings[1].rb, 409.6)
+        self.assertEqual(my.settings[2].rb, 385.5)
+        self.assertEqual(my.settings[3].synthetic, 148.6)
+        self.assertEqual(my.settings[3].rb, 336.1)
+        self.assertEqual(my.settings[6].synthetic, 114.6)
+        self.assertEqual(my.settings[6].rb, 229.1)
+        self.assertEqual(
+            estimate_setting_level("A", 148.6, 336.1, my.settings, sample_games=4000),
+            3,
+        )
+        self.assertEqual(
+            estimate_setting_level("A", 163.8, 409.6, my.settings, sample_games=4000),
+            1,
+        )
+        # 合算だけ設定3でも、REGが設定3に届かなければ設定3にしない。
+        self.assertEqual(
+            estimate_setting_level("A", 148.6, 400.0, my.settings, sample_games=4000),
+            1,
+        )
+        self.assertEqual(
+            estimate_setting_level("A", 180.0, 450.0, my.settings, sample_games=4000),
+            0,
+        )
+
+        hokuto = next(item for item in self.masters if item.id == "hokuto-no-ken")
+        self.assertNotIn(3, hokuto.settings)
+        self.assertEqual(hokuto.settings[1].synthetic, 383.4)
+        self.assertEqual(hokuto.settings[2].synthetic, 370.5)
+        self.assertEqual(hokuto.settings[4].synthetic, 297.8)
+        self.assertEqual(hokuto.settings[5].synthetic, 258.7)
+        self.assertEqual(
+            estimate_setting_level("AT", 320.0, None, hokuto.settings, sample_games=4000),
+            2,
+        )
+
+        hanabi = next(item for item in self.masters if item.id == "hanabi")
+        self.assertEqual(set(hanabi.settings), {1, 2, 5, 6})
+        self.assertEqual(hanabi.settings[1].synthetic, 169.8)
+        self.assertEqual(hanabi.settings[2].synthetic, 161.0)
+        self.assertEqual(hanabi.settings[5].synthetic, 149.3)
+        # 155 は設定5（149.3）の+4%以内。それより悪く設定2（161.0）以内を設定2にする。
+        self.assertEqual(
+            estimate_setting_level("AT", 158.0, None, hanabi.settings, sample_games=4000),
+            2,
+        )
+
+        ghoul = next(item for item in self.masters if item.id == "tokyo-ghoul")
+        self.assertEqual(ghoul.settings[1].synthetic, 262.6)
+        self.assertEqual(ghoul.settings[3].synthetic, 246.5)
+        self.assertEqual(ghoul.settings[4].synthetic, 233.1)
+        self.assertEqual(ghoul.settings[6].synthetic, 203.7)
 
     def test_bakemonogatari_uses_published_at_rates_for_kh_and_plain(self) -> None:
         from src.analyzer.judgment import aggregate_machine_groups, match_machine

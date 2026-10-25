@@ -132,11 +132,11 @@ class JugglerIslandScoreTest(unittest.TestCase):
             bars={
                 "min_games": 3000,
                 "6": {"synthetic": 127.5, "rb": 255.0},
-                "5": {"synthetic": 136.5, "rb": 273.1},
-                "4": {"synthetic": 147.6, "rb": 321.3},
+                "5": {"synthetic": 128.5, "rb": 255.0},
+                "4": {"synthetic": 142.2, "rb": 315.1},
             },
         )
-        self.assertEqual(neo["badge"], "high56")
+        self.assertEqual(neo["badge"], "high456")
         self.assertTrue(neo["low_sample"])
         gogo = score_island(
             unit_count=20,
@@ -145,26 +145,26 @@ class JugglerIslandScoreTest(unittest.TestCase):
             rb_probability=253.9,
             bars={
                 "min_games": 3000,
-                "6": {"synthetic": 117.4, "rb": 234.1},
-                "5": {"synthetic": 122.3, "rb": 248.5},
-                "4": {"synthetic": 128.5, "rb": 268.6},
+                "6": {"synthetic": 117.4, "rb": 234.9},
+                "5": {"synthetic": 123.7, "rb": 247.3},
+                "4": {"synthetic": 130.5, "rb": 268.6},
             },
         )
         self.assertEqual(gogo["badge"], "high456")
         self.assertTrue(gogo["low_sample"])
 
     def test_setting5_margin_matches_store_dashboard(self) -> None:
-        # 玉屋555大橋のネオアイム。REGは設定5理論値を少し超えるが、通常画面は全56。
+        # ネオアイムの公表設定5（合成128.5 / REG255.0）。少し悪いが+4%以内なので全56。
         judged = score_island(
             unit_count=10,
             avg_games=3140.6,
-            synthetic=134.8,
-            rb_probability=280.4,
+            synthetic=132.0,
+            rb_probability=260.0,
             bars={
                 "min_games": 3000,
                 "6": {"synthetic": 127.5, "rb": 255.0},
-                "5": {"synthetic": 136.5, "rb": 273.1},
-                "4": {"synthetic": 147.6, "rb": 321.3},
+                "5": {"synthetic": 128.5, "rb": 255.0},
+                "4": {"synthetic": 142.2, "rb": 315.1},
             },
         )
         self.assertEqual(judged["badge"], "high56")

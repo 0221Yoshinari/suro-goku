@@ -34,10 +34,13 @@ DEFAULT_CSV = PROJECT_ROOT / "config" / "machines_settings.csv"
 KNOWN_OVERRIDES = {
     "tokyo-ghoul": {
         "target_count": "cz",
+        "setting_1": 262.6,
+        "setting_2": 255.6,
+        "setting_3": 246.5,
         "setting_4": 233.1,
         "setting_5": 216.4,
         "setting_6": 203.7,
-        "comment": "サイトセブンRB列はCZ合算。設定4/5/6はCZ確率 1/233.1 / 1/216.4 / 1/203.7",
+        "comment": "サイトセブンRB列はCZ合算。設定1〜6は同じCZ確率 1/262.6 / 1/255.6 / 1/246.5 / 1/233.1 / 1/216.4 / 1/203.7。",
     },
     "kabaneri-kaimon": {
         "target_count": "bonus",

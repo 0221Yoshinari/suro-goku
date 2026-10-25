@@ -22,7 +22,7 @@
         "rb_probability": 255.0,
         "first_hit_denominator": 127.5,
         "payout_percent": 105.5,
-        "comment": "設定6 メーカー公表値（BB/RB 1/255.0、合算 1/127.5）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
@@ -35,19 +35,34 @@
             "rb": 255.0
           },
           "5": {
-            "synthetic": 136.5,
-            "rb": 273.1
+            "synthetic": 128.5,
+            "rb": 255.0
           },
           "4": {
-            "synthetic": 147.6,
-            "rb": 321.3
+            "synthetic": 142.2,
+            "rb": 315.1
+          },
+          "1": {
+            "synthetic": 168.5,
+            "rb": 439.8
+          },
+          "2": {
+            "synthetic": 161.0,
+            "rb": 399.6
+          },
+          "3": {
+            "synthetic": 148.6,
+            "rb": 331.0
           }
         }
       },
       "type": "A",
       "setting_6": 127.5,
-      "setting_5": 136.5,
-      "setting_4": 147.6
+      "setting_5": 128.5,
+      "setting_4": 142.2,
+      "setting_1": 168.5,
+      "setting_2": 161.0,
+      "setting_3": 148.6
     },
     {
       "id": "im-juggler-ex",
@@ -63,7 +78,7 @@
         "rb_probability": 255.0,
         "first_hit_denominator": 127.5,
         "payout_percent": 105.5,
-        "comment": "設定6 メーカー公表値（合算 1/127.5）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
@@ -76,19 +91,34 @@
             "rb": 255.0
           },
           "5": {
-            "synthetic": 136.5,
-            "rb": 273.1
+            "synthetic": 128.5,
+            "rb": 255.0
           },
           "4": {
-            "synthetic": 147.6,
-            "rb": 321.3
+            "synthetic": 142.2,
+            "rb": 315.1
+          },
+          "1": {
+            "synthetic": 168.5,
+            "rb": 439.8
+          },
+          "2": {
+            "synthetic": 161.0,
+            "rb": 399.6
+          },
+          "3": {
+            "synthetic": 148.6,
+            "rb": 331.0
           }
         }
       },
       "type": "A",
       "setting_6": 127.5,
-      "setting_5": 136.5,
-      "setting_4": 147.6
+      "setting_5": 128.5,
+      "setting_4": 142.2,
+      "setting_1": 168.5,
+      "setting_2": 161.0,
+      "setting_3": 148.6
     },
     {
       "id": "my-juggler-v",
@@ -105,7 +135,7 @@
         "rb_probability": 229.1,
         "first_hit_denominator": 114.6,
         "payout_percent": 109.4,
-        "comment": "設定6 メーカー公表値（合算 1/114.6）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
@@ -124,13 +154,28 @@
           "4": {
             "synthetic": 135.4,
             "rb": 290.0
+          },
+          "1": {
+            "synthetic": 163.8,
+            "rb": 409.6
+          },
+          "2": {
+            "synthetic": 159.1,
+            "rb": 385.5
+          },
+          "3": {
+            "synthetic": 148.6,
+            "rb": 336.1
           }
         }
       },
       "type": "A",
       "setting_6": 114.6,
       "setting_5": 126.8,
-      "setting_4": 135.4
+      "setting_4": 135.4,
+      "setting_1": 163.8,
+      "setting_2": 159.1,
+      "setting_3": 148.6
     },
     {
       "id": "my-juggler-vi",
@@ -148,7 +193,7 @@
         "rb_probability": 229.1,
         "first_hit_denominator": 114.6,
         "payout_percent": 109.4,
-        "comment": "設定6 メーカー公表値（合算 1/114.6）。設定差はマイジャグラーVと同じ。"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
@@ -167,13 +212,28 @@
           "4": {
             "synthetic": 135.4,
             "rb": 290.0
+          },
+          "1": {
+            "synthetic": 163.8,
+            "rb": 409.6
+          },
+          "2": {
+            "synthetic": 159.1,
+            "rb": 385.5
+          },
+          "3": {
+            "synthetic": 148.6,
+            "rb": 336.1
           }
         }
       },
       "type": "A",
       "setting_6": 114.6,
       "setting_5": 126.8,
-      "setting_4": 135.4
+      "setting_4": 135.4,
+      "setting_1": 163.8,
+      "setting_2": 159.1,
+      "setting_3": 148.6
     },
     {
       "id": "gogo-juggler-3",
@@ -195,32 +255,47 @@
         "rb_probability": 234.9,
         "first_hit_denominator": 117.4,
         "payout_percent": 106.5,
-        "comment": "設定6 メーカー公表値（合算 1/117.4）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
         "synthetic_probability_threshold": 117.4,
-        "rb_probability_threshold": 234.1,
+        "rb_probability_threshold": 234.9,
         "early_min_games": 300,
         "settings": {
           "6": {
             "synthetic": 117.4,
-            "rb": 234.1
+            "rb": 234.9
           },
           "5": {
-            "synthetic": 122.3,
-            "rb": 248.5
+            "synthetic": 123.7,
+            "rb": 247.3
           },
           "4": {
-            "synthetic": 128.5,
+            "synthetic": 130.5,
             "rb": 268.6
+          },
+          "1": {
+            "synthetic": 149.6,
+            "rb": 354.2
+          },
+          "2": {
+            "synthetic": 145.3,
+            "rb": 332.7
+          },
+          "3": {
+            "synthetic": 139.7,
+            "rb": 306.2
           }
         }
       },
       "type": "A",
       "setting_6": 117.4,
-      "setting_5": 122.3,
-      "setting_4": 128.5
+      "setting_5": 123.7,
+      "setting_4": 130.5,
+      "setting_1": 149.6,
+      "setting_2": 145.3,
+      "setting_3": 139.7
     },
     {
       "id": "funky-juggler-2",
@@ -243,32 +318,47 @@
         "rb_probability": 262.1,
         "first_hit_denominator": 119.6,
         "payout_percent": 109.0,
-        "comment": "設定6 メーカー公表値（合算 1/119.6）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
         "synthetic_probability_threshold": 119.6,
-        "rb_probability_threshold": 239.2,
+        "rb_probability_threshold": 262.1,
         "early_min_games": 300,
         "settings": {
           "6": {
             "synthetic": 119.6,
-            "rb": 239.2
+            "rb": 262.1
           },
           "5": {
-            "synthetic": 124.2,
-            "rb": 252.1
+            "synthetic": 133.2,
+            "rb": 299.3
           },
           "4": {
-            "synthetic": 129.8,
-            "rb": 273.1
+            "synthetic": 140.6,
+            "rb": 322.8
+          },
+          "1": {
+            "synthetic": 165.9,
+            "rb": 439.8
+          },
+          "2": {
+            "synthetic": 158.3,
+            "rb": 407.1
+          },
+          "3": {
+            "synthetic": 150.7,
+            "rb": 366.1
           }
         }
       },
       "type": "A",
       "setting_6": 119.6,
-      "setting_5": 124.2,
-      "setting_4": 129.8
+      "setting_5": 133.2,
+      "setting_4": 140.6,
+      "setting_1": 165.9,
+      "setting_2": 158.3,
+      "setting_3": 150.7
     },
     {
       "id": "happy-juggler-v3",
@@ -287,34 +377,49 @@
       "published": {
         "bb_probability": 226.0,
         "rb_probability": 256.0,
-        "first_hit_denominator": 119.2,
+        "first_hit_denominator": 120.0,
         "payout_percent": 108.4,
-        "comment": "設定6 メーカー公表値（合算 1/120.0）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
-        "synthetic_probability_threshold": 119.2,
-        "rb_probability_threshold": 238.4,
+        "synthetic_probability_threshold": 120.0,
+        "rb_probability_threshold": 256.0,
         "early_min_games": 300,
         "settings": {
           "6": {
-            "synthetic": 119.2,
-            "rb": 238.4
+            "synthetic": 120.0,
+            "rb": 256.0
           },
           "5": {
-            "synthetic": 124.0,
-            "rb": 252.1
+            "synthetic": 127.5,
+            "rb": 273.1
           },
           "4": {
-            "synthetic": 129.6,
-            "rb": 273.1
+            "synthetic": 137.7,
+            "rb": 300.6
+          },
+          "1": {
+            "synthetic": 161.8,
+            "rb": 397.2
+          },
+          "2": {
+            "synthetic": 154.9,
+            "rb": 362.1
+          },
+          "3": {
+            "synthetic": 146.9,
+            "rb": 332.7
           }
         }
       },
       "type": "A",
-      "setting_6": 119.2,
-      "setting_5": 124.0,
-      "setting_4": 129.6
+      "setting_6": 120.0,
+      "setting_5": 127.5,
+      "setting_4": 137.7,
+      "setting_1": 161.8,
+      "setting_2": 154.9,
+      "setting_3": 146.9
     },
     {
       "id": "ultra-miracle-juggler",
@@ -335,32 +440,47 @@
         "rb_probability": 277.7,
         "first_hit_denominator": 121.6,
         "payout_percent": 108.1,
-        "comment": "設定6 メーカー公表値（合算 1/121.6）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
         "synthetic_probability_threshold": 121.6,
-        "rb_probability_threshold": 243.2,
+        "rb_probability_threshold": 277.7,
         "early_min_games": 300,
         "settings": {
           "6": {
             "synthetic": 121.6,
-            "rb": 243.2
+            "rb": 277.7
           },
           "5": {
-            "synthetic": 126.5,
-            "rb": 256.0
+            "synthetic": 130.8,
+            "rb": 297.9
           },
           "4": {
-            "synthetic": 132.2,
-            "rb": 277.7
+            "synthetic": 138.6,
+            "rb": 322.8
+          },
+          "1": {
+            "synthetic": 164.3,
+            "rb": 425.6
+          },
+          "2": {
+            "synthetic": 158.3,
+            "rb": 402.1
+          },
+          "3": {
+            "synthetic": 147.9,
+            "rb": 350.5
           }
         }
       },
       "type": "A",
       "setting_6": 121.6,
-      "setting_5": 126.5,
-      "setting_4": 132.2
+      "setting_5": 130.8,
+      "setting_4": 138.6,
+      "setting_1": 164.3,
+      "setting_2": 158.3,
+      "setting_3": 147.9
     },
     {
       "id": "mister-juggler",
@@ -375,7 +495,7 @@
         "rb_probability": 237.4,
         "first_hit_denominator": 118.7,
         "payout_percent": 107.3,
-        "comment": "設定6 メーカー公表値（合算 1/118.7）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
@@ -388,19 +508,34 @@
             "rb": 237.4
           },
           "5": {
-            "synthetic": 123.4,
-            "rb": 250.3
+            "synthetic": 124.4,
+            "rb": 257.0
           },
           "4": {
-            "synthetic": 129.0,
-            "rb": 270.8
+            "synthetic": 134.3,
+            "rb": 291.3
+          },
+          "1": {
+            "synthetic": 156.4,
+            "rb": 374.5
+          },
+          "2": {
+            "synthetic": 152.4,
+            "rb": 354.2
+          },
+          "3": {
+            "synthetic": 145.6,
+            "rb": 331.0
           }
         }
       },
       "type": "A",
       "setting_6": 118.7,
-      "setting_5": 123.4,
-      "setting_4": 129.0
+      "setting_5": 124.4,
+      "setting_4": 134.3,
+      "setting_1": 156.4,
+      "setting_2": 152.4,
+      "setting_3": 145.6
     },
     {
       "id": "juggler-girls-ss",
@@ -416,32 +551,47 @@
         "rb_probability": 252.1,
         "first_hit_denominator": 119.2,
         "payout_percent": 107.5,
-        "comment": "設定6 メーカー公表値（合算 1/119.2）"
+        "comment": "設定1〜6は北電子の公表値。合成確率とRB確率。"
       },
       "criteria": {
         "min_games": 3000,
         "synthetic_probability_threshold": 119.2,
-        "rb_probability_threshold": 238.4,
+        "rb_probability_threshold": 252.1,
         "early_min_games": 300,
         "settings": {
           "6": {
             "synthetic": 119.2,
-            "rb": 238.4
-          },
-          "5": {
-            "synthetic": 124.0,
             "rb": 252.1
           },
+          "5": {
+            "synthetic": 128.3,
+            "rb": 270.8
+          },
           "4": {
-            "synthetic": 129.6,
-            "rb": 273.1
+            "synthetic": 132.4,
+            "rb": 281.3
+          },
+          "1": {
+            "synthetic": 159.1,
+            "rb": 381.0
+          },
+          "2": {
+            "synthetic": 152.8,
+            "rb": 350.5
+          },
+          "3": {
+            "synthetic": 142.8,
+            "rb": 316.6
           }
         }
       },
       "type": "A",
       "setting_6": 119.2,
-      "setting_5": 124.0,
-      "setting_4": 129.6
+      "setting_5": 128.3,
+      "setting_4": 132.4,
+      "setting_1": 159.1,
+      "setting_2": 152.8,
+      "setting_3": 142.8
     },
     {
       "id": "prism-nana",
@@ -547,7 +697,7 @@
       "published": {
         "first_hit_denominator": 235.1,
         "payout_percent": 113.0,
-        "comment": "設定6 AT初当たり（バトルボーナス）1/235.1"
+        "comment": "AT初当たりの公表値。設定3は非搭載。設定1・2・4・5・6は 1/383.4 / 1/370.5 / 1/297.8 / 1/258.7 / 1/235.1。"
       },
       "criteria": {
         "min_games": 3000,
@@ -559,12 +709,20 @@
             "first_hit": 235.1
           },
           "5": {
-            "synthetic": 251.6,
-            "first_hit": 251.6
+            "synthetic": 258.7,
+            "first_hit": 258.7
           },
           "4": {
-            "synthetic": 272.7,
-            "first_hit": 272.7
+            "synthetic": 297.8,
+            "first_hit": 297.8
+          },
+          "1": {
+            "synthetic": 383.4,
+            "first_hit": 383.4
+          },
+          "2": {
+            "synthetic": 370.5,
+            "first_hit": 370.5
           }
         }
       },
@@ -572,8 +730,10 @@
       "hit_source": "rb",
       "target_count": "cz",
       "setting_6": 235.1,
-      "setting_5": 251.6,
-      "setting_4": 272.7
+      "setting_5": 258.7,
+      "setting_4": 297.8,
+      "setting_1": 383.4,
+      "setting_2": 370.5
     },
     {
       "id": "hanabi",
@@ -591,7 +751,7 @@
         "rb_probability": 282.5,
         "first_hit_denominator": 138.8,
         "payout_percent": 106.4,
-        "comment": "設定6 ボーナス合算 1/138.8"
+        "comment": "設定1・2・5・6のボーナス合算。設定3・4は非搭載なので入れない。"
       },
       "criteria": {
         "min_games": 3000,
@@ -605,23 +765,35 @@
             "first_hit": 138.8
           },
           "5": {
-            "synthetic": 148.5,
-            "rb": 302.3,
-            "first_hit": 148.5
+            "synthetic": 149.3,
+            "rb": 313.6,
+            "first_hit": 149.3
           },
-          "4": {
+          "1": {
+            "synthetic": 169.8,
+            "rb": 394.8,
+            "first_hit": 169.8
+          },
+          "2": {
             "synthetic": 161.0,
-            "rb": 355.9,
+            "rb": 358.1,
             "first_hit": 161.0
           }
-        }
+        },
+        "published_levels": [
+          1,
+          2,
+          5,
+          6
+        ]
       },
       "type": "AT",
       "hit_source": "rb",
       "target_count": "cz",
       "setting_6": 138.8,
-      "setting_5": 148.5,
-      "setting_4": 161.0
+      "setting_5": 149.3,
+      "setting_1": 169.8,
+      "setting_2": 161.0
     },
     {
       "id": "disc-up-ur",
@@ -973,7 +1145,7 @@
       ],
       "published": {
         "first_hit_denominator": 203.7,
-        "comment": "サイトセブンRB列はCZ合算。設定4/5/6はCZ確率 1/233.1 / 1/216.4 / 1/203.7"
+        "comment": "サイトセブンRB列はCZ合算。設定1〜6は同じCZ確率 1/262.6 / 1/255.6 / 1/246.5 / 1/233.1 / 1/216.4 / 1/203.7。"
       },
       "criteria": {
         "min_games": 3000,
@@ -991,6 +1163,18 @@
           "4": {
             "synthetic": 233.1,
             "first_hit": 233.1
+          },
+          "1": {
+            "synthetic": 262.6,
+            "first_hit": 262.6
+          },
+          "2": {
+            "synthetic": 255.6,
+            "first_hit": 255.6
+          },
+          "3": {
+            "synthetic": 246.5,
+            "first_hit": 246.5
           }
         }
       },
@@ -999,7 +1183,10 @@
       "target_count": "cz",
       "setting_4": 233.1,
       "setting_5": 216.4,
-      "setting_6": 203.7
+      "setting_6": 203.7,
+      "setting_1": 262.6,
+      "setting_2": 255.6,
+      "setting_3": 246.5
     },
     {
       "id": "karakuri-circus-2",

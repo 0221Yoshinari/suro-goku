@@ -261,6 +261,20 @@ def _top_setting(item: dict[str, Any], level: int) -> float | None:
     return _as_float(item.get(f"setting_{level}"))
 
 
+def _published_levels(item: dict[str, Any]) -> set[int] | None:
+    """メーカーが公表している設定だけ。無い段は倍率で作らない。"""
+    raw = (item.get("criteria") or {}).get("published_levels")
+    if not isinstance(raw, list) or not raw:
+        return None
+    levels: set[int] = set()
+    for value in raw:
+        try:
+            levels.add(int(value))
+        except (TypeError, ValueError):
+            continue
+    return levels or None
+
+
 def _derive_bar(setting6: SettingBar, level: int) -> SettingBar:
     if level == 6:
         return setting6
@@ -308,6 +322,9 @@ def _load_settings(item: dict[str, Any], syn6: float, rb6: float | None) -> dict
         bars[level] = SettingBar(top, existing.rb if existing else None)
     if 6 not in bars:
         bars[6] = SettingBar(float(syn6), float(rb6) if rb6 is not None else None)
+    explicit = _published_levels(item)
+    if explicit is not None:
+        return {level: bar for level, bar in bars.items() if level in explicit}
     if 5 not in bars:
         bars[5] = _derive_bar(bars[6], 5)
     if 4 not in bars:
