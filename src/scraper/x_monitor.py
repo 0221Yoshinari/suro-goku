@@ -471,12 +471,176 @@ def match_group_banner(value: str) -> str | None:
     return None
 
 
+def _within_schedule_window(event_date: str, today: date_cls | None = None) -> bool:
+    anchor = today or datetime.now(JST).date()
+    try:
+        day = date_cls.fromisoformat(event_date)
+    except ValueError:
+        return False
+    return anchor <= day <= anchor + timedelta(days=7)
+
+
+def _pref_id_from_label(label: str) -> str | None:
+    text = html.unescape(label or "").strip()
+    found = PREFECTURE_BY_LABEL.get(text)
+    if found:
+        return found
+    if text in {"東京", "大阪", "京都", "北海道"}:
+        return PREFECTURE_BY_LABEL.get({"東京": "東京都", "大阪": "大阪府", "京都": "京都府", "北海道": "北海道"}[text])
+    if text and not text.endswith(("都", "道", "府", "県")):
+        for suffix in ("県", "府", "都"):
+            found = PREFECTURE_BY_LABEL.get(f"{text}{suffix}")
+            if found:
+                return found
+    return None
+
+
+def _split_pref_suffix(hall: str) -> tuple[str, str | None]:
+    text = re.sub(r"\s+", " ", html.unescape(hall or "")).strip()
+    matched = re.search(r"[（(]\s*([^）)]+)\s*[）)]\s*$", text)
+    pref = _pref_id_from_label(matched.group(1)) if matched else None
+    if matched and pref:
+        text = text[: matched.start()].strip()
+    return text, pref
+
+
+def _join_visit(event: str, performer: str) -> str:
+    """同じカードに書いてある来店名を、タイトルの末尾に残す。追加の取得はしない。"""
+    title = re.sub(r"\s+", " ", html.unescape(event or "")).strip()
+    who = re.sub(r"\s+", " ", html.unescape(performer or "")).strip()
+    if who and who not in title:
+        title = f"{title}（来店: {who}）"
+    return (title or "取材")[:80]
+
+
+def _schedule_post(event_date: str, hall: str, title: str, pref_id: str | None, url: str) -> dict:
+    day = date_cls.fromisoformat(event_date)
+    hall_name = re.sub(r"\s+", " ", hall).strip()
+    event_title = re.sub(r"\s+", " ", title).strip()[:80] or "取材"
+    pref_label = next((label for key, label in PREFECTURE_CATALOG if key == pref_id), "")
+    return {
+        "title": f"{day.month}/{day.day} {pref_label} {hall_name}".strip(),
+        "body": f"{hall_name}：{event_title}",
+        "url": url,
+        "published": datetime.combine(day, time_cls(12, 0), tzinfo=JST),
+        "prefectures": [pref_id] if pref_id else [],
+    }
+
+
+def parse_offme_html(page: str, today: date_cls | None = None) -> list[dict]:
+    """オフミーの1ページから、今日から7日の店名・企画・来店名を取る。"""
+    pattern = re.compile(
+        r'datetime="(?P<day>\d{4}-\d{2}-\d{2})"'
+        r'[\s\S]{0,1800}?offme-mock-event-tag[^>]*>\s*(?P<event>[^<]+?)\s*</a>'
+        r'(?:[\s\S]{0,500}?offme-mock-organizer-link[^>]*>\s*(?P<who>[^<]+?)\s*</a>)?'
+        r'[\s\S]{0,1000}?offme-mock-row-link[^>]*>\s*(?P<hall>[^<]+?)\s*</a>'
+    )
+    posts = []
+    for matched in pattern.finditer(page):
+        if not _within_schedule_window(matched.group("day"), today):
+            continue
+        hall, pref = _split_pref_suffix(matched.group("hall"))
+        if not hall:
+            continue
+        posts.append(
+            _schedule_post(
+                matched.group("day"),
+                hall,
+                _join_visit(matched.group("event"), matched.group("who") or ""),
+                pref,
+                "https://offme.jp/schedule/",
+            )
+        )
+    return posts
+
+
+def parse_hyakka_html(page: str, today: date_cls | None = None) -> list[dict]:
+    """百花繚乱の公開スケジュール。店名と企画は同じカードにある。"""
+    pattern = re.compile(
+        r"(?P<day>\d{4}-\d{2}-\d{2})[\s　]*<br>\s*(?P<hall>[^<]+?)<br>"
+        r"[\s\S]{0,500}?stags[\s\S]{0,300}?<a[^>]*>\s*(?P<event>[^<]+?)\s*</a>"
+        r"[\s\S]{0,200}?address=(?P<pref>[^\"&]+)"
+    )
+    posts = []
+    for matched in pattern.finditer(page):
+        if not _within_schedule_window(matched.group("day"), today):
+            continue
+        hall = html.unescape(matched.group("hall")).strip()
+        if not hall:
+            continue
+        posts.append(
+            _schedule_post(
+                matched.group("day"),
+                hall,
+                _join_visit(matched.group("event"), ""),
+                _pref_id_from_label(html.unescape(matched.group("pref"))),
+                "https://www.hyakka.site/",
+            )
+        )
+    return posts
+
+
+def parse_scoop_html(page: str, today: date_cls | None = None) -> list[dict]:
+    """スクープTV。企画名と来店演者は、その店のカードの直前直後だけを見る。"""
+    anchor = today or datetime.now(JST).date()
+    dates = [
+        (matched.start(), int(matched.group(1)), int(matched.group(2)))
+        for matched in re.finditer(r'class="schedule__date">\s*(\d{1,2})月(\d{1,2})日', page)
+    ]
+    posts = []
+    date_index = 0
+    month = day = None
+    for matched in re.finditer(r'class="schedule__hall-name">\s*([^<]+?)\s*</h3>', page):
+        while date_index < len(dates) and dates[date_index][0] < matched.start():
+            month, day = dates[date_index][1], dates[date_index][2]
+            date_index += 1
+        if month is None:
+            continue
+        event_date = _safe_date(anchor.year, month, day)
+        if not event_date or not _within_schedule_window(event_date, anchor):
+            continue
+        before = page[max(0, matched.start() - 1200) : matched.start()]
+        after = page[matched.end() : matched.end() + 700]
+        alts = re.findall(r'alt="([^"]*)"', before)
+        prefs = re.findall(r'schedule__prefecture">\s*([^<]+?)\s*</div>', before)
+        writer = re.search(r'schedule__writer-profile-name[^>]*>\s*([^<]+)', after)
+        hall = html.unescape(matched.group(1)).strip()
+        if not hall:
+            continue
+        posts.append(
+            _schedule_post(
+                event_date,
+                hall,
+                _join_visit(alts[-1] if alts else "", writer.group(1) if writer else ""),
+                _pref_id_from_label(prefs[-1] if prefs else ""),
+                "https://scooooooop.tv/schedule/",
+            )
+        )
+    return posts
+
+
+def _cached_page(url: str, cache: dict | None) -> str:
+    key = f"page:{url}"
+    if cache is not None and key in cache:
+        return cache[key]
+    page = _http_text(url)
+    if cache is not None:
+        cache[key] = page
+    return page
+
+
 def fetch_account_posts(account: dict, cache: dict | None = None) -> list[dict]:
     parser = str(account.get("parser") or "").strip()
     feed_url = str(account.get("feed_url") or "").strip()
     if parser == "dechau":
         prefs = account.get("prefectures") if isinstance(account.get("prefectures"), list) else []
         return fetch_dechau_posts(feed_url or "https://www.dechau.com/", prefs, cache)
+    if parser == "offme":
+        return parse_offme_html(_cached_page(feed_url or "https://offme.jp/schedule/", cache))
+    if parser == "hyakka":
+        return parse_hyakka_html(_cached_page(feed_url or "https://www.hyakka.site/", cache))
+    if parser == "scoop":
+        return parse_scoop_html(_cached_page(feed_url or "https://scooooooop.tv/schedule/", cache))
     posts = fetch_feed_posts(feed_url, cache)
     announcements = [post for post in posts if is_announcement(post["title"], post["body"])]
     if announcements:

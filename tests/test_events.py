@@ -10,6 +10,7 @@ from unittest import mock
 os.environ.setdefault("DASHBOARD_PASSWORD", "2026")
 
 from src.dashboard.events import EventError
+from src.dashboard.events import badge_kind
 from src.dashboard.events import canonical_group
 from src.dashboard.events import canonical_hall_id
 from src.dashboard.events import create_event
@@ -50,6 +51,10 @@ class EventStoreTest(unittest.TestCase):
         self.assertEqual(event_badge("合同", "ワンダーランド全店合同"), "🔥【合同】ワンダーランド全店合同")
         self.assertEqual(event_badge("取材", "スロパチ取材"), "📸 スロパチ取材")
         self.assertEqual(event_badge("特定日", "スロパチアワード景品"), "📌【特定日】スロパチアワード景品")
+        self.assertEqual(event_badge("取材", "10周年 来店: 夏生ひまり"), "🎂【周年】10周年 来店: 夏生ひまり")
+        self.assertEqual(event_badge("取材", "新装リニューアル"), "🆕【リニューアル】新装リニューアル")
+        self.assertEqual(badge_kind("取材", "10周年"), "anni")
+        self.assertEqual(badge_kind("特定日", "7のつく日"), "day")
 
     def test_create_update_delete(self) -> None:
         created = create_event(

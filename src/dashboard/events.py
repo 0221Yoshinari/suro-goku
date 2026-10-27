@@ -304,7 +304,7 @@ def public_event(raw: dict) -> dict:
         "event_type": event_type,
         "event_title": title,
         "badge": event_badge(event_type, title),
-        "badge_kind": _BADGE_KIND.get(event_type, "day"),
+        "badge_kind": badge_kind(event_type, title),
         "target_label": _target_label(group_id, hall_id),
         "hall_names": _event_hall_names(group_id, hall_id, prefectures),
         "direct_hall_names": _direct_hall_names(hall_id),
@@ -314,8 +314,22 @@ def public_event(raw: dict) -> dict:
     }
 
 
+def badge_kind(event_type: str, title: str) -> str:
+    """周年とリニューアルは種別より先に色を分ける。来店名はタイトルに残す。"""
+    label = title or ""
+    if "周年" in label:
+        return "anni"
+    if "リニューアル" in label or "新装" in label:
+        return "renew"
+    return _BADGE_KIND.get(event_type, "day")
+
+
 def event_badge(event_type: str, title: str) -> str:
     label = (title or "").strip()
+    if "周年" in label:
+        return f"🎂【周年】{label}"
+    if "リニューアル" in label or "新装" in label:
+        return f"🆕【リニューアル】{label}"
     if event_type == "合同":
         return f"🔥【合同】{label}"
     if event_type == "取材":

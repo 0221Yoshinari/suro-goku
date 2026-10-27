@@ -21,6 +21,9 @@ from src.scraper.x_monitor import is_announcement
 from src.scraper.x_monitor import match_hall_id
 from src.scraper.x_monitor import parse_announcement
 from src.scraper.x_monitor import parse_dechau_html
+from src.scraper.x_monitor import parse_hyakka_html
+from src.scraper.x_monitor import parse_offme_html
+from src.scraper.x_monitor import parse_scoop_html
 from src.scraper.x_monitor import posts_from_feed_xml
 from src.scraper.x_monitor import posts_to_events
 
@@ -429,3 +432,41 @@ class XMonitorSourceParseTest(unittest.TestCase):
         self.assertEqual(events[0]["hall_id"], halls["キクヤ一宮店"])
         self.assertEqual(events[0]["date"], "2026-10-07")
         self.assertEqual(events[0]["event_title"], "でちゃう取材")
+
+
+class ScheduleCardParserTests(unittest.TestCase):
+    def test_offme_keeps_visit_name_on_the_same_card(self) -> None:
+        page = """
+        <time datetime="2026-10-27"><strong>10/27</strong></time>
+        <a class="offme-mock-event-tag">オフミーガールS</a>
+        <a class="offme-mock-organizer-link">ぽぽちゃ</a>
+        <a class="offme-mock-row-link">メガフェイス555新市街（熊本県）</a>
+        """
+        posts = parse_offme_html(page, today=date(2026, 10, 27))
+        self.assertEqual(len(posts), 1)
+        self.assertIn("メガフェイス555新市街：オフミーガールS（来店: ぽぽちゃ）", posts[0]["body"])
+        self.assertEqual(posts[0]["prefectures"], ["kumamoto"])
+
+    def test_hyakka_reads_hall_and_plan(self) -> None:
+        page = """
+        <div class="stitle"><a>2026-10-28　<br>グランドホール長後店<br></a></div>
+        <div class="stags"><a href="#1">ジャグドキ取材</a><a href="?address=神奈川県">神奈川県</a></div>
+        """
+        posts = parse_hyakka_html(page, today=date(2026, 10, 27))
+        self.assertEqual(posts[0]["body"], "グランドホール長後店：ジャグドキ取材")
+        self.assertEqual(posts[0]["prefectures"], ["kanagawa"])
+
+    def test_scoop_reads_writer_from_the_same_card(self) -> None:
+        page = """
+        <span class="schedule__date">10月27日（火）</span>
+        <li class="schedule__list-item">
+          <img alt="スクープTV全力取材グリーン" />
+          <div class="schedule__prefecture">福岡県</div>
+          <h3 class="schedule__hall-name">Dステーション39福重店</h3>
+          <span class="schedule__writer-profile-name">加藤やさしさ</span>
+        </li>
+        """
+        posts = parse_scoop_html(page, today=date(2026, 10, 27))
+        self.assertEqual(len(posts), 1)
+        self.assertIn("来店: 加藤やさしさ", posts[0]["body"])
+        self.assertEqual(posts[0]["prefectures"], ["fukuoka"])

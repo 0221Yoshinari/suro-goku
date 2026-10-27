@@ -2654,6 +2654,18 @@ td.setting-peak {
   border: 1px solid rgba(250, 204, 21, 0.55);
 }
 
+.event-badge-anni {
+  background: rgba(244, 114, 182, 0.2);
+  color: #fce7f3;
+  border: 1px solid rgba(244, 114, 182, 0.7);
+}
+
+.event-badge-renew {
+  background: rgba(52, 211, 153, 0.18);
+  color: #d1fae5;
+  border: 1px solid rgba(52, 211, 153, 0.65);
+}
+
 .today-hall-note {
   margin: 0;
   color: var(--muted);

@@ -1932,7 +1932,7 @@ function renderHallRoster(names) {
     badge.className = `data-badge data-${row.state}`;
     badge.append(text(row.label));
     button.append(name, badge);
-    const events = eventsForHall(row.name);
+    const events = scheduleForHall(row.name);
     if (events.length) {
       button.append(renderEventBadges(events));
     }
@@ -2419,6 +2419,11 @@ function eventsForHall(hall) {
   return eventsToday().filter((event) => (event.hall_names || []).includes(hall));
 }
 
+function scheduleForHall(hall) {
+  const rows = payload.upcoming_events || eventsToday();
+  return rows.filter((event) => (event.hall_names || []).includes(hall));
+}
+
 function hallHasFeatured(machines) {
   return machines.some((item) => isFeaturedStatus(item));
 }
@@ -2429,7 +2434,8 @@ function renderEventBadges(events) {
   events.forEach((event) => {
     const badge = document.createElement("span");
     badge.className = `event-badge event-badge-${event.badge_kind || "day"}`;
-    badge.append(text(event.badge || event.event_title || ""));
+    const when = event.date && event.date === payload.tomorrow_date ? "明日 " : "";
+    badge.append(text(`${when}${event.badge || event.event_title || ""}`));
     row.append(badge);
   });
   return row;
@@ -2574,8 +2580,8 @@ function renderTodaySummary() {
   }
   empty?.classList.toggle("hidden", halls.length > 0 || Boolean(joint));
   halls.forEach(([hall, machines]) => {
-    const events = eventsForHall(hall);
-    const boosted = hallHasFeatured(machines) && events.length > 0;
+    const events = scheduleForHall(hall);
+    const boosted = hallHasFeatured(machines) && eventsForHall(hall).length > 0;
     const button = document.createElement("button");
     button.type = "button";
     button.className = boosted ? "today-hall is-boosted" : "today-hall";
@@ -2645,7 +2651,7 @@ function renderSelectedHallEvents() {
     return;
   }
   const hall = hallFilter && hallFilter !== "all" ? hallFilter : "";
-  const events = hall ? eventsForHall(hall) : [];
+  const events = hall ? scheduleForHall(hall) : [];
   root.replaceChildren();
   root.classList.toggle("hidden", events.length === 0);
   if (events.length) {

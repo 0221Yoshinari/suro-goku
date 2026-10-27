@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-18T18:35:32+09:00",
+  "updated_at": "2026-10-27T18:50:35+09:00",
   "events": [
     {
       "id": "evt-wonderland-20261001",
@@ -16,76 +16,6 @@
       "group": "",
       "event_type": "取材",
       "event_title": "スロパチ取材"
-    },
-    {
-      "date": "2026-10-18",
-      "hall_id": "daidata-100425",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "カチモリTV",
-      "source": "x:dechau-koshinetsu",
-      "source_key": "x:dechau-koshinetsu:2026-10-18:daidata-100425",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "nagano"
-      ],
-      "id": "evt-86e9048bc86e"
-    },
-    {
-      "date": "2026-10-18",
-      "hall_id": "daidata-101330",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "乱王_東海",
-      "source": "x:dechau-tokai",
-      "source_key": "x:dechau-tokai:2026-10-18:daidata-101330",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "mie"
-      ],
-      "id": "evt-1705ff6c769a"
-    },
-    {
-      "date": "2026-10-18",
-      "hall_id": "daidata-101409",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "九州・山口でちゃう!編集部取材［金］",
-      "source": "x:dechau-kyushu",
-      "source_key": "x:dechau-kyushu:2026-10-18:daidata-101409",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "saga"
-      ],
-      "id": "evt-8731c147c1a0"
-    },
-    {
-      "date": "2026-10-18",
-      "hall_id": "daidata-100160",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "九州・山口でちゃう!編集部取材［金］",
-      "source": "x:dechau-kyushu",
-      "source_key": "x:dechau-kyushu:2026-10-18:daidata-100160",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "kagoshima"
-      ],
-      "id": "evt-025c5debb02a"
-    },
-    {
-      "date": "2026-10-21",
-      "hall_id": "daidata-100894",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "共創取材_東北",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-21:daidata-100894",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "miyagi"
-      ],
-      "id": "evt-5376099fd9ff"
     },
     {
       "date": "2026-10-16",
@@ -240,34 +170,6 @@
         "fukuoka"
       ],
       "id": "evt-462aada7490b"
-    },
-    {
-      "date": "2026-10-22",
-      "hall_id": "daidata-100894",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "百輝萌子",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-22:daidata-100894",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "miyagi"
-      ],
-      "id": "evt-f24fe9228110"
-    },
-    {
-      "date": "2026-10-22",
-      "hall_id": "daidata-101396",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "ほしまみ",
-      "source": "x:dechau-tokai",
-      "source_key": "x:dechau-tokai:2026-10-22:daidata-101396",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "aichi"
-      ],
-      "id": "evt-feda6720561a"
     },
     {
       "date": "2026-10-17",
@@ -842,34 +744,6 @@
         "saitama"
       ],
       "id": "evt-e891b74b2662"
-    },
-    {
-      "date": "2026-10-23",
-      "hall_id": "daidata-100897",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "百輝萌子",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-23:daidata-100897",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "miyagi"
-      ],
-      "id": "evt-320473c65a9e"
-    },
-    {
-      "date": "2026-10-23",
-      "hall_id": "daidata-100894",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "共創取材_東北",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-23:daidata-100894",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "miyagi"
-      ],
-      "id": "evt-da1b763ae6d6"
     },
     {
       "date": "2026-10-17",
@@ -2054,62 +1928,6 @@
       "id": "evt-7535b323af0f"
     },
     {
-      "date": "2026-10-24",
-      "hall_id": "daidata-101330",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "堕ねんじぇるの天使か悪魔か",
-      "source": "x:dechau-tokai",
-      "source_key": "x:dechau-tokai:2026-10-24:daidata-101330",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "mie"
-      ],
-      "id": "evt-25b34c8ff0e0"
-    },
-    {
-      "date": "2026-10-24",
-      "hall_id": "daidata-100661",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "でちゃう!プライム",
-      "source": "x:dechau-tokai",
-      "source_key": "x:dechau-tokai:2026-10-24:daidata-100661",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "aichi"
-      ],
-      "id": "evt-4ab0498c92b0"
-    },
-    {
-      "date": "2026-10-18",
-      "hall_id": "daidata-100542",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "SLOT HUNTER",
-      "source": "x:dechau-kyushu",
-      "source_key": "x:dechau-kyushu:2026-10-18:daidata-100542",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "kagoshima"
-      ],
-      "id": "evt-eac3e53ebcd5"
-    },
-    {
-      "date": "2026-10-24",
-      "hall_id": "daidata-100542",
-      "group": "",
-      "event_type": "取材",
-      "event_title": "SLOT HUNTER",
-      "source": "x:dechau-kyushu",
-      "source_key": "x:dechau-kyushu:2026-10-24:daidata-100542",
-      "source_url": "https://www.dechau.com/",
-      "prefectures": [
-        "kagoshima"
-      ],
-      "id": "evt-8cf1aa3807f5"
-    },
-    {
       "date": "2026-10-19",
       "hall_id": "daidata-100975",
       "group": "",
@@ -2435,88 +2253,1194 @@
       "id": "evt-95a76cbab923"
     },
     {
-      "date": "2026-10-25",
-      "hall_id": "daidata-100368",
+      "date": "2026-10-28",
+      "hall_id": "daidata-100641",
       "group": "",
       "event_type": "取材",
-      "event_title": "でちゃう!取材（金）",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-25:daidata-100368",
+      "event_title": "超ハイタッチ取材",
+      "source": "x:dechau-koshinetsu",
+      "source_key": "x:dechau-koshinetsu:2026-10-28:daidata-100641",
       "source_url": "https://www.dechau.com/",
       "prefectures": [
-        "aomori"
+        "nagano"
       ],
-      "id": "evt-b7cae2d234b6"
+      "id": "evt-3f330541f376"
     },
     {
-      "date": "2026-10-25",
-      "hall_id": "daidata-100602",
+      "date": "2026-10-29",
+      "hall_id": "daidata-100430",
       "group": "",
       "event_type": "取材",
-      "event_title": "でちゃう!取材（金）",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-25:daidata-100602",
+      "event_title": "カチモリTV",
+      "source": "x:dechau-koshinetsu",
+      "source_key": "x:dechau-koshinetsu:2026-10-29:daidata-100430",
       "source_url": "https://www.dechau.com/",
       "prefectures": [
-        "iwate"
+        "nagano"
       ],
-      "id": "evt-7375fd6c13f5"
+      "id": "evt-f63dc7727ae9"
     },
     {
-      "date": "2026-10-25",
-      "hall_id": "daidata-100541",
+      "date": "2026-10-31",
+      "hall_id": "daidata-100425",
       "group": "",
       "event_type": "取材",
-      "event_title": "でちゃう!取材（金）",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-25:daidata-100541",
+      "event_title": "でちゃう!取材_北陸（鎖）",
+      "source": "x:dechau-koshinetsu",
+      "source_key": "x:dechau-koshinetsu:2026-10-31:daidata-100425",
       "source_url": "https://www.dechau.com/",
       "prefectures": [
-        "iwate"
+        "nagano"
       ],
-      "id": "evt-732fe4f02dfc"
+      "id": "evt-5143a6dc2ab4"
     },
     {
-      "date": "2026-10-25",
-      "hall_id": "daidata-101034",
+      "date": "2026-10-27",
+      "hall_id": "daidata-100411",
       "group": "",
       "event_type": "取材",
-      "event_title": "超パチンコ乱王［北海道・東北］",
-      "source": "x:dechau-tohoku",
-      "source_key": "x:dechau-tohoku:2026-10-25:daidata-101034",
+      "event_title": "しーたりか",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-27:daidata-100411",
       "source_url": "https://www.dechau.com/",
       "prefectures": [
-        "iwate"
+        "aichi"
       ],
-      "id": "evt-8139ab764fce"
+      "id": "evt-04aff8a8add0"
     },
     {
-      "date": "2026-10-24",
-      "hall_id": "daidata-101204",
+      "date": "2026-10-28",
+      "hall_id": "daidata-101330",
       "group": "",
       "event_type": "取材",
       "event_title": "乱王_東海",
       "source": "x:dechau-tokai",
-      "source_key": "x:dechau-tokai:2026-10-24:daidata-101204",
+      "source_key": "x:dechau-tokai:2026-10-28:daidata-101330",
       "source_url": "https://www.dechau.com/",
       "prefectures": [
-        "shizuoka"
+        "mie"
       ],
-      "id": "evt-bf502fa01a8c"
+      "id": "evt-361c1769d501"
     },
     {
-      "date": "2026-10-25",
+      "date": "2026-10-29",
+      "hall_id": "daidata-100641",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Dスクープ",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-29:daidata-100641",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aichi"
+      ],
+      "id": "evt-ac5f57d45208"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-100641",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Dの覚醒",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-30:daidata-100641",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aichi"
+      ],
+      "id": "evt-697ac744d8db"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101330",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "カチモリTV",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-10-31:daidata-101330",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "mie"
+      ],
+      "id": "evt-3aa0e1ee3fc4"
+    },
+    {
+      "date": "2026-11-01",
+      "hall_id": "daidata-100661",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "堕ねんじぇるの天使か悪魔か",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-11-01:daidata-100661",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aichi"
+      ],
+      "id": "evt-b543a6df82b9"
+    },
+    {
+      "date": "2026-11-02",
+      "hall_id": "daidata-100641",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう!プライム",
+      "source": "x:dechau-tokai",
+      "source_key": "x:dechau-tokai:2026-11-02:daidata-100641",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "aichi"
+      ],
+      "id": "evt-ae248494c95d"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-101042",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "でちゃう！景品入荷_ラライキング",
+      "source": "x:dechau-chugoku",
+      "source_key": "x:dechau-chugoku:2026-10-28:daidata-101042",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "hiroshima"
+      ],
+      "id": "evt-cee716b25890"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101331",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ゴッドアームほくと",
+      "source": "x:dechau-chugoku",
+      "source_key": "x:dechau-chugoku:2026-10-31:daidata-101331",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "tottori"
+      ],
+      "id": "evt-9fea189719aa"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-101380",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ゴッドアームほくと",
+      "source": "x:dechau-shikoku",
+      "source_key": "x:dechau-shikoku:2026-10-27:daidata-101380",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kochi"
+      ],
+      "id": "evt-daefa8272611"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "wl-odo-honkan",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "WANTED WONDER LAND",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-27:wl-odo-honkan",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-38fb0871c72c"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-100542",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "トレハン",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-27:daidata-100542",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-63941b005257"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "tamaya-honten",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "メガンダイ",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:tamaya-honten",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-b8a507d5179e"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "tamaya-shingu",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［虹］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:tamaya-shingu",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-3f97bc589c2d"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "wl-fukuoka-higashi",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［虹］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:wl-fukuoka-higashi",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-8140841d0063"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "super-dstation-39-fukuoka",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百獣撮ゾウ-改-［九州・山口］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:super-dstation-39-fukuoka",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-df195e18b969"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "plaza-nagahama",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百獣撮ゾウ［九州・山口］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:plaza-nagahama",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-9d7f9def54f7"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "plaza-honten2",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百獣撮ゴリラ［九州・山口］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:plaza-honten2",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-79904abf5433"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-100542",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "SLOT HUNTER",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:daidata-100542",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-6b7d5bf5f943"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-100160",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［金］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-28:daidata-100160",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-f885ceae3e57"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "tamaya-ohashi",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［金］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-29:tamaya-ohashi",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-07453ca1b3b0"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "plaza-tenjin",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［虹］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-29:plaza-tenjin",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-879aa7f8e7fe"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "dstation-39-moji",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Dステジャグラー研究所取材",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-30:dstation-39-moji",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-6dcc65098703"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "dstation-39-nakama",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Dステジャグラー研究所取材",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-30:dstation-39-nakama",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-5c486e4836ec"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "plaza-3",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "百獣撮ゴリラ［九州・山口］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-30:plaza-3",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-e182378c556c"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "gogo-arena-tenjin",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "かなでかな",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-31:gogo-arena-tenjin",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-59f1470e00b1"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "plaza-arae",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［ダイヤ］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-31:plaza-arae",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-e2227976c9d3"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "plaza-honten",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "九州・山口でちゃう!編集部取材［ダイヤ］",
+      "source": "x:dechau-kyushu",
+      "source_key": "x:dechau-kyushu:2026-10-31:plaza-honten",
+      "source_url": "https://www.dechau.com/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-831925fa0aa9"
+    },
+    {
+      "date": "2026-10-31",
       "hall_id": "daidata-101409",
       "group": "",
       "event_type": "取材",
-      "event_title": "ひまりンピック",
+      "event_title": "九州・山口でちゃう!編集部取材［スロット］",
       "source": "x:dechau-kyushu",
-      "source_key": "x:dechau-kyushu:2026-10-25:daidata-101409",
+      "source_key": "x:dechau-kyushu:2026-10-31:daidata-101409",
       "source_url": "https://www.dechau.com/",
       "prefectures": [
         "saga"
       ],
-      "id": "evt-44c0567660fd"
+      "id": "evt-a796e62eed7f"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-100669",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ジャグドキ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-27:daidata-100669",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-33ea400156ac"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-101369",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超リプレイ赤稲妻背景",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-27:daidata-101369",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-a5ca155cdb94"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-100270",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ジャグラー唯一無二",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-27:daidata-100270",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "miyazaki"
+      ],
+      "id": "evt-4df8bde4f42b"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-100180",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "HEROES取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-27:daidata-100180",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-a5f42b8eaa61"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-101355",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ドリーム取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-27:daidata-101355",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-22e0a3752ddf"
+    },
+    {
+      "date": "2026-10-27",
+      "hall_id": "daidata-100986",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "セブンズゲート取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-27:daidata-100986",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-61c70a2302ac"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-100180",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "インフィニティ",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-28:daidata-100180",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-b0eaf503628a"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-100490",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "トレジャー取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-28:daidata-100490",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-7c835d464ef0"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-101355",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "インフィニティ",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-28:daidata-101355",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "tokyo"
+      ],
+      "id": "evt-f7b60c7535c0"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-100958",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超HUNGRY取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-28:daidata-100958",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagasaki"
+      ],
+      "id": "evt-b5393fc32402"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-101028",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "無限",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-28:daidata-101028",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-fe2d0d16d349"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100676",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "PREMIUM取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-29:daidata-100676",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-13fcb452da12"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100490",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "連撃取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-29:daidata-100490",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-2020dbfe65d9"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100985",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "プロローグ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-29:daidata-100985",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-cff20fdbaf07"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100958",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超VICTORY取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-29:daidata-100958",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagasaki"
+      ],
+      "id": "evt-d2208c9c0270"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100180",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スマパチ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-29:daidata-100180",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-547ca69b1a72"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-100676",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "超RePLAY取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-30:daidata-100676",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-71399e764e81"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-101395",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "喰らえ",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-30:daidata-101395",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-ca6ac3c63e92"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-100492",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "金曜は夜ふかし取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-30:daidata-100492",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-79bae94a1d3e"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-100958",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "VVV喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-30:daidata-100958",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagasaki"
+      ],
+      "id": "evt-22170fa9042f"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-100180",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "エヴァ喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-30:daidata-100180",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-e1ef256ed435"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101368",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "喰らえ",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-101368",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-f1db72a39859"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-100677",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "リゼロ喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-100677",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-b65d680371eb"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101409",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "東京喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-101409",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "saga"
+      ],
+      "id": "evt-0cbf6fed0d6e"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101369",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "萌えスロ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-101369",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-b36f119827cc"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-100678",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "エヴァ喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-100678",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-cac323b287d7"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101395",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "カスタム好きですか？取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-101395",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-8097a4177b8c"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101370",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "HEROES取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-101370",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-5c3875a808ad"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-100986",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スマパチ東京喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-100986",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-e2e88f40c623"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-100492",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "週末GO",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-100492",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kagoshima"
+      ],
+      "id": "evt-90954073417c"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101028",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "唯一無二",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-101028",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-61533dfd25a7"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-100180",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "エヴァ喰種取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-10-31:daidata-100180",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-16425c496a9d"
+    },
+    {
+      "date": "2026-11-01",
+      "hall_id": "daidata-100985",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "海取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-01:daidata-100985",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-74dd6ba6186a"
+    },
+    {
+      "date": "2026-11-01",
+      "hall_id": "daidata-100676",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ファーストデイ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-01:daidata-100676",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-3cb61cce263c"
+    },
+    {
+      "date": "2026-11-01",
+      "hall_id": "daidata-100678",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ファーストデイ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-01:daidata-100678",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "kanagawa"
+      ],
+      "id": "evt-aa60a99d4955"
+    },
+    {
+      "date": "2026-11-01",
+      "hall_id": "daidata-100986",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ファーストデイ取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-01:daidata-100986",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-6094bcd325f4"
+    },
+    {
+      "date": "2026-11-02",
+      "hall_id": "daidata-101370",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "東京喰種gogo取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-02:daidata-101370",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-16d116b82da7"
+    },
+    {
+      "date": "2026-11-03",
+      "hall_id": "daidata-101368",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "カスタム好きですか？取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-03:daidata-101368",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-ec918b4729cb"
+    },
+    {
+      "date": "2026-11-03",
+      "hall_id": "daidata-100985",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "トレジャー取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-03:daidata-100985",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-c39e36245fb1"
+    },
+    {
+      "date": "2026-11-03",
+      "hall_id": "daidata-101369",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "連撃取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-03:daidata-101369",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-1068936d10d8"
+    },
+    {
+      "date": "2026-11-03",
+      "hall_id": "daidata-100986",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "トレジャー取材",
+      "source": "x:hyakka",
+      "source_key": "x:hyakka:2026-11-03:daidata-100986",
+      "source_url": "https://www.hyakka.site/",
+      "prefectures": [
+        "nagano"
+      ],
+      "id": "evt-207bdedda289"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-100709",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スクープTV全力取材ブラック",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-28:daidata-100709",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-d938dcb75361"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-101248",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スクープTV全力取材レッド",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-28:daidata-101248",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-0ca1410b9886"
+    },
+    {
+      "date": "2026-10-28",
+      "hall_id": "daidata-101251",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スクープTV全力取材ホワイト",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-28:daidata-101251",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-c2481dc77e5f"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100646",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "Yummy（ヤミー）ステッカー入荷",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-29:daidata-100646",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-8f9d2fe026d7"
+    },
+    {
+      "date": "2026-10-29",
+      "hall_id": "daidata-100460",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "実戦取材",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-29:daidata-100460",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "hyogo"
+      ],
+      "id": "evt-46a97f022882"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "daidata-101251",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "ペカ電子ステッカー入荷",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-30:daidata-101251",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-c91a591ac4ed"
+    },
+    {
+      "date": "2026-10-30",
+      "hall_id": "123-shinshigai",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "実戦取材",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-30:123-shinshigai",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "kumamoto"
+      ],
+      "id": "evt-0415982ae9e0"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101248",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スクープTV全力取材オレンジ",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-31:daidata-101248",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-205046c381ab"
+    },
+    {
+      "date": "2026-10-31",
+      "hall_id": "daidata-101251",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "スクープTV全力取材ピンク",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-10-31:daidata-101251",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "osaka"
+      ],
+      "id": "evt-add7b131f455"
+    },
+    {
+      "date": "2026-11-01",
+      "hall_id": "super-dstation-39-chikushino",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "実戦取材",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-11-01:super-dstation-39-chikushino",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-1441fd8b1693"
+    },
+    {
+      "date": "2026-11-02",
+      "hall_id": "wl-kashii-2",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "実戦取材",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-11-02:wl-kashii-2",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-d2c2dd034b71"
+    },
+    {
+      "date": "2026-11-03",
+      "hall_id": "wl-mizuma",
+      "group": "",
+      "event_type": "取材",
+      "event_title": "実戦取材",
+      "source": "x:scoop",
+      "source_key": "x:scoop:2026-11-03:wl-mizuma",
+      "source_url": "https://scooooooop.tv/schedule/",
+      "prefectures": [
+        "fukuoka"
+      ],
+      "id": "evt-aaef6e8f75fc"
     }
   ],
   "dismissed": []

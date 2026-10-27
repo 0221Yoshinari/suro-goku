@@ -13,47 +13,103 @@
     {
       "id": "hokkaido",
       "label": "北海道",
-      "prefectures": ["hokkaido"]
+      "prefectures": [
+        "hokkaido"
+      ]
     },
     {
       "id": "tohoku",
       "label": "東北",
-      "prefectures": ["aomori", "iwate", "miyagi", "akita", "yamagata", "fukushima"]
+      "prefectures": [
+        "aomori",
+        "iwate",
+        "miyagi",
+        "akita",
+        "yamagata",
+        "fukushima"
+      ]
     },
     {
       "id": "kanto",
       "label": "関東",
-      "prefectures": ["ibaraki", "tochigi", "gunma", "saitama", "chiba", "tokyo", "kanagawa"]
+      "prefectures": [
+        "ibaraki",
+        "tochigi",
+        "gunma",
+        "saitama",
+        "chiba",
+        "tokyo",
+        "kanagawa"
+      ]
     },
     {
       "id": "koshinetsu",
       "label": "甲信越・北陸",
-      "prefectures": ["niigata", "toyama", "ishikawa", "fukui", "yamanashi", "nagano"]
+      "prefectures": [
+        "niigata",
+        "toyama",
+        "ishikawa",
+        "fukui",
+        "yamanashi",
+        "nagano"
+      ]
     },
     {
       "id": "tokai",
       "label": "東海",
-      "prefectures": ["gifu", "shizuoka", "aichi", "mie"]
+      "prefectures": [
+        "gifu",
+        "shizuoka",
+        "aichi",
+        "mie"
+      ]
     },
     {
       "id": "kansai",
       "label": "関西",
-      "prefectures": ["shiga", "kyoto", "osaka", "hyogo", "nara", "wakayama"]
+      "prefectures": [
+        "shiga",
+        "kyoto",
+        "osaka",
+        "hyogo",
+        "nara",
+        "wakayama"
+      ]
     },
     {
       "id": "chugoku",
       "label": "中国",
-      "prefectures": ["tottori", "shimane", "okayama", "hiroshima", "yamaguchi"]
+      "prefectures": [
+        "tottori",
+        "shimane",
+        "okayama",
+        "hiroshima",
+        "yamaguchi"
+      ]
     },
     {
       "id": "shikoku",
       "label": "四国",
-      "prefectures": ["tokushima", "kagawa", "ehime", "kochi"]
+      "prefectures": [
+        "tokushima",
+        "kagawa",
+        "ehime",
+        "kochi"
+      ]
     },
     {
       "id": "kyushu",
       "label": "九州・沖縄",
-      "prefectures": ["fukuoka", "saga", "nagasaki", "kumamoto", "oita", "miyazaki", "kagoshima", "okinawa"]
+      "prefectures": [
+        "fukuoka",
+        "saga",
+        "nagasaki",
+        "kumamoto",
+        "oita",
+        "miyazaki",
+        "kagoshima",
+        "okinawa"
+      ]
     }
   ],
   "accounts": [
@@ -62,7 +118,9 @@
       "handle": "PatiSlodays",
       "label": "福岡オシホール",
       "region": "kyushu",
-      "prefectures": ["fukuoka"],
+      "prefectures": [
+        "fukuoka"
+      ],
       "url": "https://x.com/PatiSlodays",
       "feed_url": "https://slotoshihall.com/feed/",
       "enabled": true,
@@ -73,7 +131,13 @@
       "handle": "touslot_777",
       "label": "東スロ（関東の取材まとめ）",
       "region": "kanto",
-      "prefectures": ["tokyo", "kanagawa", "saitama", "chiba", "tochigi"],
+      "prefectures": [
+        "tokyo",
+        "kanagawa",
+        "saitama",
+        "chiba",
+        "tochigi"
+      ],
       "url": "https://touslo777souko.blog.jp/",
       "feed_url": "https://touslo777souko.blog.jp/atom.xml",
       "enabled": true,
@@ -84,7 +148,10 @@
       "handle": "dechau-kanto",
       "label": "でちゃう！取材スケジュール（茨城・群馬）",
       "region": "kanto",
-      "prefectures": ["ibaraki", "gunma"],
+      "prefectures": [
+        "ibaraki",
+        "gunma"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -96,7 +163,14 @@
       "handle": "kansai-sloeve",
       "label": "関西すろいべ",
       "region": "kansai",
-      "prefectures": ["shiga", "kyoto", "osaka", "hyogo", "nara", "wakayama"],
+      "prefectures": [
+        "shiga",
+        "kyoto",
+        "osaka",
+        "hyogo",
+        "nara",
+        "wakayama"
+      ],
       "url": "https://kansai-sloeve.com/",
       "feed_url": "https://kansai-sloeve.com/feed/",
       "enabled": true,
@@ -107,7 +181,9 @@
       "handle": "dechau-hokkaido",
       "label": "でちゃう！取材スケジュール（北海道）",
       "region": "hokkaido",
-      "prefectures": ["hokkaido"],
+      "prefectures": [
+        "hokkaido"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -119,7 +195,14 @@
       "handle": "dechau-tohoku",
       "label": "でちゃう！取材スケジュール（東北）",
       "region": "tohoku",
-      "prefectures": ["aomori", "iwate", "miyagi", "akita", "yamagata", "fukushima"],
+      "prefectures": [
+        "aomori",
+        "iwate",
+        "miyagi",
+        "akita",
+        "yamagata",
+        "fukushima"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -131,7 +214,14 @@
       "handle": "dechau-koshinetsu",
       "label": "でちゃう！取材スケジュール（甲信越・北陸）",
       "region": "koshinetsu",
-      "prefectures": ["niigata", "toyama", "ishikawa", "fukui", "yamanashi", "nagano"],
+      "prefectures": [
+        "niigata",
+        "toyama",
+        "ishikawa",
+        "fukui",
+        "yamanashi",
+        "nagano"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -143,7 +233,12 @@
       "handle": "dechau-tokai",
       "label": "でちゃう！取材スケジュール（東海）",
       "region": "tokai",
-      "prefectures": ["gifu", "shizuoka", "aichi", "mie"],
+      "prefectures": [
+        "gifu",
+        "shizuoka",
+        "aichi",
+        "mie"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -155,7 +250,13 @@
       "handle": "dechau-chugoku",
       "label": "でちゃう！取材スケジュール（中国）",
       "region": "chugoku",
-      "prefectures": ["tottori", "shimane", "okayama", "hiroshima", "yamaguchi"],
+      "prefectures": [
+        "tottori",
+        "shimane",
+        "okayama",
+        "hiroshima",
+        "yamaguchi"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -167,7 +268,12 @@
       "handle": "dechau-shikoku",
       "label": "でちゃう！取材スケジュール（四国）",
       "region": "shikoku",
-      "prefectures": ["tokushima", "kagawa", "ehime", "kochi"],
+      "prefectures": [
+        "tokushima",
+        "kagawa",
+        "ehime",
+        "kochi"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
@@ -177,12 +283,201 @@
     {
       "id": "kyushu-other",
       "handle": "dechau-kyushu",
-      "label": "でちゃう！取材スケジュール（九州・沖縄、福岡以外）",
+      "label": "でちゃう！取材スケジュール（九州・沖縄）",
       "region": "kyushu",
-      "prefectures": ["saga", "nagasaki", "kumamoto", "oita", "miyazaki", "kagoshima", "okinawa"],
+      "prefectures": [
+        "fukuoka",
+        "saga",
+        "nagasaki",
+        "kumamoto",
+        "oita",
+        "miyazaki",
+        "kagoshima",
+        "okinawa"
+      ],
       "url": "https://www.dechau.com/",
       "feed_url": "https://www.dechau.com/",
       "parser": "dechau",
+      "enabled": true,
+      "browser": false
+    },
+    {
+      "id": "offme",
+      "handle": "offme",
+      "label": "オフミー全国スケジュール",
+      "region": "kanto",
+      "prefectures": [
+        "hokkaido",
+        "aomori",
+        "iwate",
+        "miyagi",
+        "akita",
+        "yamagata",
+        "fukushima",
+        "ibaraki",
+        "tochigi",
+        "gunma",
+        "saitama",
+        "chiba",
+        "tokyo",
+        "kanagawa",
+        "niigata",
+        "toyama",
+        "ishikawa",
+        "fukui",
+        "yamanashi",
+        "nagano",
+        "gifu",
+        "shizuoka",
+        "aichi",
+        "mie",
+        "shiga",
+        "kyoto",
+        "osaka",
+        "hyogo",
+        "nara",
+        "wakayama",
+        "tottori",
+        "shimane",
+        "okayama",
+        "hiroshima",
+        "yamaguchi",
+        "tokushima",
+        "kagawa",
+        "ehime",
+        "kochi",
+        "fukuoka",
+        "saga",
+        "nagasaki",
+        "kumamoto",
+        "oita",
+        "miyazaki",
+        "kagoshima",
+        "okinawa"
+      ],
+      "url": "https://offme.jp/schedule/",
+      "feed_url": "https://offme.jp/schedule/",
+      "parser": "offme",
+      "enabled": true,
+      "browser": false
+    },
+    {
+      "id": "hyakka",
+      "handle": "hyakka",
+      "label": "百花繚乱スケジュール",
+      "region": "kanto",
+      "prefectures": [
+        "hokkaido",
+        "aomori",
+        "iwate",
+        "miyagi",
+        "akita",
+        "yamagata",
+        "fukushima",
+        "ibaraki",
+        "tochigi",
+        "gunma",
+        "saitama",
+        "chiba",
+        "tokyo",
+        "kanagawa",
+        "niigata",
+        "toyama",
+        "ishikawa",
+        "fukui",
+        "yamanashi",
+        "nagano",
+        "gifu",
+        "shizuoka",
+        "aichi",
+        "mie",
+        "shiga",
+        "kyoto",
+        "osaka",
+        "hyogo",
+        "nara",
+        "wakayama",
+        "tottori",
+        "shimane",
+        "okayama",
+        "hiroshima",
+        "yamaguchi",
+        "tokushima",
+        "kagawa",
+        "ehime",
+        "kochi",
+        "fukuoka",
+        "saga",
+        "nagasaki",
+        "kumamoto",
+        "oita",
+        "miyazaki",
+        "kagoshima",
+        "okinawa"
+      ],
+      "url": "https://www.hyakka.site/",
+      "feed_url": "https://www.hyakka.site/",
+      "parser": "hyakka",
+      "enabled": true,
+      "browser": false
+    },
+    {
+      "id": "scoop",
+      "handle": "scoop",
+      "label": "スクープTVスケジュール",
+      "region": "kanto",
+      "prefectures": [
+        "hokkaido",
+        "aomori",
+        "iwate",
+        "miyagi",
+        "akita",
+        "yamagata",
+        "fukushima",
+        "ibaraki",
+        "tochigi",
+        "gunma",
+        "saitama",
+        "chiba",
+        "tokyo",
+        "kanagawa",
+        "niigata",
+        "toyama",
+        "ishikawa",
+        "fukui",
+        "yamanashi",
+        "nagano",
+        "gifu",
+        "shizuoka",
+        "aichi",
+        "mie",
+        "shiga",
+        "kyoto",
+        "osaka",
+        "hyogo",
+        "nara",
+        "wakayama",
+        "tottori",
+        "shimane",
+        "okayama",
+        "hiroshima",
+        "yamaguchi",
+        "tokushima",
+        "kagawa",
+        "ehime",
+        "kochi",
+        "fukuoka",
+        "saga",
+        "nagasaki",
+        "kumamoto",
+        "oita",
+        "miyazaki",
+        "kagoshima",
+        "okinawa"
+      ],
+      "url": "https://scooooooop.tv/schedule/",
+      "feed_url": "https://scooooooop.tv/schedule/",
+      "parser": "scoop",
       "enabled": true,
       "browser": false
     }
