@@ -127,6 +127,91 @@ def read_prefecture_payloads(prefecture: str, output_dir: Path | None = None) ->
     return [by_name[name] for name in sorted(by_name)]
 
 
+def iter_source_halls(prefecture: str, output_dir: Path | None = None):
+    """県の原本を1店舗ずつ返す。ディスクがある店舗は、そちらを優先する。"""
+    wanted = (prefecture or "").strip().lower()
+    root = (output_dir or DEFAULT_OUTPUT_DIR) / "halls"
+    index = _hall_index() if root.is_dir() else {}
+    seen: set[str] = set()
+    from src.dashboard.judgment_store import iter_durable_payloads
+
+    for payload in iter_durable_payloads(wanted):
+        name = str(payload.get("hall_name") or "").strip()
+        if not name:
+            continue
+        disk = _read_disk_hall(root, index, name)
+        if disk is not None:
+            payload = disk
+        seen.add(name)
+        yield payload
+    if not root.is_dir():
+        return
+    for name, (slug, prefecture_name) in sorted(index.items()):
+        if wanted and prefecture_name != wanted:
+            continue
+        if name in seen:
+            continue
+        loaded = _read_disk_hall(root, index, name, slug=slug)
+        if loaded is not None:
+            yield loaded
+
+
+def _read_disk_hall(
+    root: Path,
+    index: dict[str, tuple[str, str]],
+    name: str,
+    slug: str | None = None,
+) -> dict[str, Any] | None:
+    if not root.is_dir() or not name:
+        return None
+    folder = slug if slug is not None else (index.get(name) or ("", ""))[0]
+    if not folder:
+        return None
+    path = root / folder / "latest.json"
+    if not path.is_file():
+        return None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(loaded, dict) and str(loaded.get("hall_name") or "").strip():
+        return loaded
+    return None
+
+
+def fold_hall_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """1店舗を、台明細を外す直前の材料に畳む。失敗した店舗は飛ばす。"""
+    try:
+        name = str(payload.get("hall_name") or "")
+        hall_machines: list[dict[str, Any]] = []
+        unit_count = 0
+        for row in payload.get("machines") or []:
+            if not isinstance(row, dict):
+                continue
+            item = row if row.get("hall_name") or not name else dict(row, hall_name=name)
+            hall_machines.append(item)
+            unit_count += sum(1 for unit in (item.get("units") or []) if isinstance(unit, dict))
+        if not name:
+            for item in hall_machines:
+                name = str(item.get("hall_name") or "")
+                if name:
+                    break
+        from src.analyzer.juggler import build_juggler_islands
+
+        return {
+            "hall_name": name,
+            "machines": hall_machines,
+            "digits": _digit_boards(payload, name, hall_machines),
+            "islands": build_juggler_islands(hall_machines),
+            "unit_count": unit_count,
+            "judged_at": str(payload.get("judged_at") or ""),
+            "fetched_at": str(payload.get("fetched_at") or ""),
+        }
+    except Exception as exc:
+        _note(f"店舗判定の読み込みを飛ばしました: {type(exc).__name__}")
+        return None
+
+
 def _summary_units(machines: list[dict[str, Any]], hall_name: str) -> list[dict[str, Any]]:
     """末尾集計に必要な台だけを揃える。店舗名と判定型が既にある台はコピーしない。"""
     units: list[dict[str, Any]] = []
@@ -230,10 +315,26 @@ def assemble_prefecture(prefecture: str, output_dir: Path | None = None) -> dict
 
 
 def judgment_receipt(prefecture: str) -> dict[str, Any]:
-    """本番が今返せている店舗数。画面の /api/judgments と同じ材料。"""
-    from src.dashboard.judgment_store import durable_enabled, durable_hall_count
+    """本番が今返せている店舗数。台明細は読まない。"""
+    from src.dashboard.judgment_store import durable_enabled, durable_hall_count, receipt_counts
 
     selected = (prefecture or "").strip().lower()
+    if durable_enabled():
+        counted = receipt_counts(selected)
+        if counted is not None:
+            return counted
+        halls = durable_hall_count(selected)
+        count = int(halls or 0)
+        return {
+            "ok": True,
+            "prefecture": selected,
+            "machine_count": count,
+            "hall_count": count,
+            "halls": [],
+            "fetched_at": None,
+            "durable": True,
+            "durable_halls": halls,
+        }
     view = assemble_prefecture(selected)
     halls = [str(name) for name in (view.get("halls") or []) if str(name).strip()]
     return {
@@ -243,8 +344,8 @@ def judgment_receipt(prefecture: str) -> dict[str, Any]:
         "hall_count": len(halls),
         "halls": halls,
         "fetched_at": view.get("fetched_at"),
-        "durable": durable_enabled(),
-        "durable_halls": durable_hall_count(selected),
+        "durable": False,
+        "durable_halls": None,
     }
 
 

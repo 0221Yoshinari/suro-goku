@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections import OrderedDict
 from typing import Any
 
 _LOCK = threading.Lock()
@@ -16,7 +17,9 @@ _DIRTY: dict[str, float] = {}
 _BUILDING: set[str] = set()
 _ERRORS: dict[str, str] = {}
 _RETRY_AFTER: dict[str, float] = {}
-_SERVED: dict[str, tuple[str, float, str]] = {}
+# 完成品の文字列は県ごとに数MBある。全部抱えると無料枠の 512MB を超える。
+_SERVED_LIMIT = 2
+_SERVED: OrderedDict[str, tuple[str, float, str]] = OrderedDict()
 _STARTED = False
 _EVENT = threading.Event()
 _PRIORITY = ("fukuoka", "tokyo", "osaka", "aichi", "kanagawa", "saitama", "chiba", "hyogo")
@@ -67,6 +70,8 @@ def served_snapshot(prefecture: str) -> str | None:
         return None
     with _LOCK:
         cached = _SERVED.get(wanted)
+        if cached is not None:
+            _SERVED.move_to_end(wanted)
     if cached is not None:
         _refresh_if_events_moved(wanted, cached[1])
         return cached[2]
@@ -75,8 +80,7 @@ def served_snapshot(prefecture: str) -> str | None:
         return None
     payload = str(row["payload"])
     events_mtime = float(row["events_mtime"])
-    with _LOCK:
-        _SERVED[wanted] = (str(row["source_stamp"]), events_mtime, payload)
+    _remember_served(wanted, str(row["source_stamp"]), events_mtime, payload)
     _refresh_if_events_moved(wanted, events_mtime)
     return payload
 
@@ -176,46 +180,135 @@ def _loop() -> None:
                 _BUILDING.discard(prefecture)
 
 
+def _remember_served(prefecture: str, stamp: str, events_mtime: float, payload: str) -> None:
+    with _LOCK:
+        _SERVED[prefecture] = (stamp, events_mtime, payload)
+        _SERVED.move_to_end(prefecture)
+        while len(_SERVED) > _SERVED_LIMIT:
+            _SERVED.popitem(last=False)
+
+
+def _release_memory() -> None:
+    """県を1つ作り終えたら、台明細と並びの控えをOSへ返す。"""
+    import gc
+
+    try:
+        from src.analyzer import lineup
+
+        lineup._BLOCK_CACHE.clear()
+    except Exception:
+        pass
+    gc.collect()
+    try:
+        import ctypes
+
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
+def _compile_view(prefecture: str) -> dict:
+    """店舗を1件ずつ画面用に畳む。県の台明細を同時には持たない。"""
+    from src.analyzer.juggler import summarize_juggler_islands
+    from src.analyzer.lineup import attach_lineup_blocks
+    from src.dashboard.app import _finish_synced
+    from src.dashboard.judgment_sync import fold_hall_payload, iter_source_halls
+
+    machines: list[dict] = []
+    islands: list[dict] = []
+    digits: list[dict] = []
+    halls: list[str] = []
+    unit_count = 0
+    judged_at = ""
+    fetched_at = ""
+    found = False
+    for payload in iter_source_halls(prefecture):
+        found = True
+        folded = fold_hall_payload(payload)
+        del payload
+        if not folded:
+            continue
+        attach_lineup_blocks(folded["machines"])
+        for machine in folded["machines"]:
+            if isinstance(machine, dict):
+                machine.pop("units", None)
+        for island in folded["islands"]:
+            if isinstance(island, dict):
+                island.pop("units", None)
+        machines.extend(folded["machines"])
+        islands.extend(folded["islands"])
+        digits.extend(folded["digits"])
+        if folded["hall_name"]:
+            halls.append(folded["hall_name"])
+        unit_count += int(folded["unit_count"] or 0)
+        judged_at = max(judged_at, folded["judged_at"])
+        fetched_at = max(fetched_at, folded["fetched_at"])
+        del folded
+    if not found:
+        return {}
+    digits.sort(key=lambda board: str(board.get("hall_name") or ""))
+    view = {
+        "judged_at": judged_at or None,
+        "fetched_at": fetched_at or None,
+        "machines": machines,
+        "halls": halls,
+        "hall_digit_summaries": digits,
+        "machine_count": len(machines),
+        "unit_count": unit_count,
+        "count": len(machines),
+        "juggler": summarize_juggler_islands(islands),
+        "lineup_ready": True,
+    }
+    return _finish_synced(view, analyze=False)
+
+
 def _build(prefecture: str) -> None:
-    from src.dashboard.app import _empty_payload, _events_mtime, _finish_synced, public_judgment_view
+    from src.dashboard.app import _empty_payload, _events_mtime
     from src.dashboard.judgment_store import (
         drop_durable_prefecture,
         hall_source_stamps,
         save_prefecture_snapshot,
     )
-    from src.dashboard.judgment_sync import assemble_prefecture
 
     started = time.perf_counter()
     stamp = hall_source_stamps().get(prefecture, "0:0")
-    synced = assemble_prefecture(prefecture)
-    if synced:
-        view = public_judgment_view(_finish_synced(synced, lineup="now"))
-    else:
-        view = _empty_payload()
-    view["snapshot_status"] = "ready"
-    view["prefecture"] = prefecture
-    payload = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
+    view: dict | None = None
+    payload = ""
+    try:
+        view = _compile_view(prefecture) or _empty_payload()
+        view["snapshot_status"] = "ready"
+        view["prefecture"] = prefecture
+        payload = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
+        judged_at = str(view.get("judged_at") or "")
+        fetched_at = str(view.get("fetched_at") or "")
+        events_updated_at = str(view.get("events_updated_at") or "")
+        machine_count = int(view.get("machine_count") or 0)
+        unit_count = int(view.get("unit_count") or 0)
+        lineup_ready = bool(view.get("lineup_ready"))
+    finally:
+        if view is not None:
+            view.clear()
+        _release_memory()
     build_ms = int((time.perf_counter() - started) * 1000)
     saved = save_prefecture_snapshot(
         prefecture,
         source_stamp=stamp,
         events_mtime=_events_mtime(),
-        judged_at=str(view.get("judged_at") or ""),
-        fetched_at=str(view.get("fetched_at") or ""),
-        events_updated_at=str(view.get("events_updated_at") or ""),
-        machine_count=int(view.get("machine_count") or 0),
-        unit_count=int(view.get("unit_count") or 0),
-        lineup_ready=bool(view.get("lineup_ready")),
+        judged_at=judged_at,
+        fetched_at=fetched_at,
+        events_updated_at=events_updated_at,
+        machine_count=machine_count,
+        unit_count=unit_count,
+        lineup_ready=lineup_ready,
         payload=payload,
         build_ms=build_ms,
     )
     drop_durable_prefecture(prefecture)
     if not saved:
         raise RuntimeError("snapshot was not stored")
-    with _LOCK:
-        _SERVED[prefecture] = (stamp, float(_events_mtime()), payload)
+    _remember_served(prefecture, stamp, float(_events_mtime()), payload)
     size_kb = max(1, len(payload.encode("utf-8")) // 1024)
     print(
-        f"県の完成品を保存しました: {prefecture} {int(view.get('machine_count') or 0)}機種 {size_kb}KB {build_ms}ms",
+        f"県の完成品を保存しました: {prefecture} {machine_count}機種 {size_kb}KB {build_ms}ms",
         flush=True,
     )

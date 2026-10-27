@@ -1025,7 +1025,7 @@ def _attach_reflection_status(payload: dict, status: dict) -> None:
         payload["failed_hall_count"] = int(status.get("failed_count") or 0)
 
 
-def _finish_synced(payload: dict, *, lineup: str = "background") -> dict:
+def _finish_synced(payload: dict, *, lineup: str = "background", analyze: bool = True) -> dict:
     payload.setdefault("machines", [])
     payload.setdefault("results", [])
     machines = payload["machines"]
@@ -1038,7 +1038,7 @@ def _finish_synced(payload: dict, *, lineup: str = "background") -> dict:
     payload.setdefault("early_alert_count", sum(1 for row in machines if row.get("is_early_alert") or row.get("status") == "EARLY_ALERT"))
     payload.setdefault("halls", [])
     _apply_hall_catalog(payload)
-    return _with_events(payload, lineup=lineup)
+    return _with_events(payload, lineup=lineup, analyze=analyze)
 
 
 def _build_judgments(latest) -> dict:
@@ -1119,11 +1119,15 @@ def _schedule_lineup(payload: dict) -> None:
     threading.Thread(target=run, name="lineup-blocks", daemon=True).start()
 
 
-def _with_events(payload: dict, *, lineup: str = "background") -> dict:
+def _with_events(payload: dict, *, lineup: str = "background", analyze: bool = True) -> dict:
     """本日のイベントと、合同系列の有力機種を判定結果に足す。"""
     # 県別の画面はここを通る。島を付けないとジャグラーモードの全6・全56・全456が空になる。
-    attach_juggler_view(payload)
-    if lineup == "now":
+    # 完成品の組み立ては、店舗ごとに島と並びを済ませてから analyze=False で入る。
+    if analyze:
+        attach_juggler_view(payload)
+    if not analyze:
+        payload["lineup_ready"] = True
+    elif lineup == "now":
         try:
             from src.analyzer.lineup import attach_lineup_blocks
 

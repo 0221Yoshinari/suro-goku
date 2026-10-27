@@ -84,9 +84,12 @@ def _engine():
         return _ENGINE
     from sqlalchemy import create_engine
 
+    # 無料枠は 512MB。接続を溜めると、県の組み立てと同時にメモリを押す。
     _ENGINE = create_engine(
         _normalize_postgres_url(url),
         pool_pre_ping=True,
+        pool_size=2,
+        max_overflow=1,
         connect_args={"connect_timeout": 5},
     )
     return _ENGINE
@@ -260,6 +263,108 @@ def load_durable(prefecture: str) -> list[dict[str, Any]]:
             payloads.append(loaded)
     _remember_prefecture(wanted, payloads)
     return payloads
+
+
+def iter_durable_payloads(prefecture: str):
+    """県の原本を1店舗ずつ返す。全店舗を同時には持たない。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return
+    try:
+        if not _ensure():
+            return
+        from sqlalchemy import text
+
+        engine = _engine()
+        statement = text(
+            """
+            SELECT payload FROM hall_judgments
+            WHERE prefecture = :prefecture
+            ORDER BY hall_name
+            """
+        )
+        with engine.connect() as connection:
+            result = connection.execution_options(yield_per=1).execute(
+                statement,
+                {"prefecture": wanted},
+            )
+            for row in result.mappings():
+                try:
+                    loaded = json.loads(row["payload"])
+                except (TypeError, json.JSONDecodeError):
+                    continue
+                if isinstance(loaded, dict) and str(loaded.get("hall_name") or "").strip():
+                    yield loaded
+    except Exception as exc:
+        print(f"判定の分割読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return
+
+
+_RECEIPT_SQL = """
+SELECT hall_name,
+       CASE
+         WHEN jsonb_typeof(payload::jsonb -> 'machines') = 'array'
+         THEN jsonb_array_length(payload::jsonb -> 'machines')
+         ELSE 0
+       END AS machine_count,
+       COALESCE(payload::jsonb ->> 'fetched_at', '') AS fetched_at
+FROM hall_judgments
+WHERE prefecture = :prefecture
+ORDER BY hall_name
+"""
+
+_RECEIPT_NAMES_SQL = """
+SELECT hall_name
+FROM hall_judgments
+WHERE prefecture = :prefecture
+ORDER BY hall_name
+"""
+
+
+def receipt_counts(prefecture: str) -> dict[str, Any] | None:
+    """件数だけ返す。台明細のJSONはアプリのメモリに載らない。"""
+    wanted = (prefecture or "").strip().lower()
+    if not wanted or not _postgres_url():
+        return None
+    try:
+        if not _ensure():
+            return None
+        from sqlalchemy import text
+
+        engine = _engine()
+        with engine.connect() as connection:
+            try:
+                rows = connection.execute(text(_RECEIPT_SQL), {"prefecture": wanted}).mappings().all()
+                exact = True
+            except Exception:
+                connection.rollback()
+                rows = connection.execute(text(_RECEIPT_NAMES_SQL), {"prefecture": wanted}).mappings().all()
+                exact = False
+    except Exception as exc:
+        print(f"判定件数の読み込みに失敗しました: {type(exc).__name__}", flush=True)
+        return None
+    halls: list[str] = []
+    machine_count = 0
+    fetched_at = ""
+    for row in rows:
+        name = str(row.get("hall_name") or "").strip()
+        if name:
+            halls.append(name)
+        if exact:
+            machine_count += int(row.get("machine_count") or 0)
+            fetched_at = max(fetched_at, str(row.get("fetched_at") or ""))
+    if not exact:
+        machine_count = len(halls)
+    return {
+        "ok": True,
+        "prefecture": wanted,
+        "machine_count": machine_count,
+        "hall_count": len(halls),
+        "halls": halls,
+        "fetched_at": fetched_at or None,
+        "durable": True,
+        "durable_halls": len(halls),
+    }
 
 
 def load_hall_payload(hall_name: str) -> dict[str, Any] | None:

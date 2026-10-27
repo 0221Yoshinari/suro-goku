@@ -15,6 +15,9 @@ services:
         value: "0"
       - key: X_MONITOR_DISABLE
         value: "1"
+      # 使い終わったメモリを OS に返す。返さないと無料枠の 512MB で再起動する。
+      - key: MALLOC_ARENA_MAX
+        value: "2"
       - key: DASHBOARD_URL
         sync: false
       - key: DASHBOARD_PASSWORD

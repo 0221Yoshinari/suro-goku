@@ -96,7 +96,14 @@ class PrefectureSnapshotTest(unittest.TestCase):
             saved.update(kwargs)
             return True
 
-        with unittest.mock.patch("src.dashboard.judgment_sync.assemble_prefecture", return_value=synced):
+        def halls(_prefecture: str, output_dir=None):
+            yield {
+                "hall_name": "テスト店",
+                "judged_at": "2026-10-23T00:00:00+09:00",
+                "machines": synced["machines"],
+            }
+
+        with unittest.mock.patch("src.dashboard.judgment_sync.iter_source_halls", side_effect=halls):
             with unittest.mock.patch("src.dashboard.judgment_store.hall_source_stamps", return_value={"fukuoka": "1:10"}):
                 with unittest.mock.patch("src.dashboard.judgment_store.drop_durable_prefecture"):
                     with unittest.mock.patch("src.dashboard.judgment_store.save_prefecture_snapshot", side_effect=capture):
@@ -110,6 +117,21 @@ class PrefectureSnapshotTest(unittest.TestCase):
         self.assertNotIn("units", view["machines"][0])
         self.assertEqual(view["machines"][0]["unit_count"], 1)
         self.assertTrue(view["lineup_ready"])
+        islands = (view.get("juggler") or {}).get("islands") or []
+        for island in islands:
+            self.assertNotIn("units", island)
+
+    def test_served_cache_keeps_only_two_prefectures(self) -> None:
+        from src.dashboard.prefecture_snapshot import _SERVED, _remember_served
+
+        _SERVED.clear()
+        try:
+            _remember_served("fukuoka", "1", 1.0, "a")
+            _remember_served("tokyo", "1", 1.0, "b")
+            _remember_served("osaka", "1", 1.0, "c")
+            self.assertEqual(list(_SERVED), ["tokyo", "osaka"])
+        finally:
+            _SERVED.clear()
 
 
 if __name__ == "__main__":

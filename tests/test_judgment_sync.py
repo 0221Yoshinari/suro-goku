@@ -6,7 +6,7 @@ import unittest.mock
 from pathlib import Path
 
 from src.dashboard import judgment_store
-from src.dashboard.judgment_sync import _digit_boards, assemble_prefecture, store_hall_payload, token_matches
+from src.dashboard.judgment_sync import _digit_boards, assemble_prefecture, judgment_receipt, store_hall_payload, token_matches
 
 
 class JudgmentSyncTest(unittest.TestCase):
@@ -82,6 +82,31 @@ class JudgmentSyncTest(unittest.TestCase):
             )
         finally:
             judgment_store.clear_durable_cache()
+
+    def test_receipt_does_not_load_hall_json(self) -> None:
+        counted = {
+            "ok": True,
+            "prefecture": "tokyo",
+            "machine_count": 3,
+            "hall_count": 1,
+            "halls": ["テスト店"],
+            "fetched_at": None,
+            "durable": True,
+            "durable_halls": 1,
+        }
+        with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
+            with unittest.mock.patch("src.dashboard.judgment_store.receipt_counts", return_value=counted):
+                with unittest.mock.patch(
+                    "src.dashboard.judgment_sync.assemble_prefecture",
+                    side_effect=AssertionError("assembled"),
+                ):
+                    body = judgment_receipt("tokyo")
+        self.assertEqual(body["machine_count"], 3)
+        self.assertEqual(body["halls"], ["テスト店"])
+
+    def test_receipt_sql_leaves_the_payload_on_the_database(self) -> None:
+        self.assertNotIn("SELECT payload", judgment_store._RECEIPT_SQL)
+        self.assertIn("jsonb_array_length", judgment_store._RECEIPT_SQL)
 
     def test_digit_summary_is_reused_for_the_same_hall(self) -> None:
         payload = {

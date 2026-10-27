@@ -535,32 +535,41 @@ def build_juggler_islands(
         _island_from_members(hall, families[family_id], members)
         for (hall, family_id), members in grouped.items()
     ]
-    islands.sort(
-        key=lambda item: (
-            _BADGE_RANK.get(str(item.get("badge")), 9),
-            -int(item.get("score") or 0),
-            -(item.get("avg_games") or 0),
-            str(item.get("hall_name") or ""),
-            str(item.get("family_label") or ""),
-        )
-    )
+    islands.sort(key=_island_sort_key)
     return islands
 
 
-def attach_juggler_view(payload: dict[str, Any]) -> dict[str, Any]:
-    """判定ペイロードにジャグラー島の分析を足す。"""
-    islands = build_juggler_islands(payload.get("machines") or [], payload.get("results") or [])
-    all6 = sum(1 for item in islands if item.get("badge") == "all6")
-    high56 = sum(1 for item in islands if item.get("badge") == "high56")
-    high456 = sum(1 for item in islands if item.get("badge") == "high456")
-    payload["juggler"] = {
-        "island_count": len(islands),
-        "hot_count": sum(1 for item in islands if item.get("hot")),
+def _island_sort_key(item: dict[str, Any]) -> tuple:
+    return (
+        _BADGE_RANK.get(str(item.get("badge")), 9),
+        -int(item.get("score") or 0),
+        -(item.get("avg_games") or 0),
+        str(item.get("hall_name") or ""),
+        str(item.get("family_label") or ""),
+    )
+
+
+def summarize_juggler_islands(islands: list[dict[str, Any]]) -> dict[str, Any]:
+    """島の一覧を、画面用の集計にまとめる。並びは全県で同じ基準。"""
+    ranked = list(islands)
+    ranked.sort(key=_island_sort_key)
+    all6 = sum(1 for item in ranked if item.get("badge") == "all6")
+    high56 = sum(1 for item in ranked if item.get("badge") == "high56")
+    high456 = sum(1 for item in ranked if item.get("badge") == "high456")
+    return {
+        "island_count": len(ranked),
+        "hot_count": sum(1 for item in ranked if item.get("hot")),
         "all6_count": all6,
         "high56_count": high56,
         "high456_count": high456,
         "zentai_count": all6,
         "high_count": high56,
-        "islands": islands,
+        "islands": ranked,
     }
+
+
+def attach_juggler_view(payload: dict[str, Any]) -> dict[str, Any]:
+    """判定ペイロードにジャグラー島の分析を足す。"""
+    islands = build_juggler_islands(payload.get("machines") or [], payload.get("results") or [])
+    payload["juggler"] = summarize_juggler_islands(islands)
     return payload
