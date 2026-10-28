@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -20,6 +21,7 @@ import os
 import re
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -41,7 +43,16 @@ load_dotenv()
 
 logger = logging.getLogger("surogoku.billing")
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+@asynccontextmanager
+async def _lifespan(_app):
+    from src.marketing.daily_report import start_daily_report
+
+    start_daily_report()
+    yield
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=_lifespan)
 
 _EMAIL_RE = re.compile(
     r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$"
@@ -804,6 +815,20 @@ async def square_webhook(request: Request) -> Response:
     return Response(status_code=200)
 
 
+@app.post("/internal/daily-report")
+async def internal_daily_report(request: Request) -> JSONResponse:
+    """23:50 の起動用。秘密が一致したときだけ、運営グループへレポートを送る。"""
+    secret = (os.getenv("REPORT_CRON_SECRET") or "").strip()
+    provided = (request.headers.get("authorization") or "").strip()
+    expected = f"Bearer {secret}" if secret else ""
+    if not secret or len(provided) != len(expected) or not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401)
+    from src.marketing.daily_report import send_scheduled
+
+    sent = await asyncio.to_thread(send_scheduled)
+    return JSONResponse({"ok": bool(sent)})
+
+
 @app.post("/webhook")
 async def webhook(request: Request) -> Response:
     body = await request.body()
@@ -817,11 +842,20 @@ async def webhook(request: Request) -> Response:
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=400) from None
+    from src.marketing.daily_report import ingest_line_event
+    from src.marketing.daily_report import is_multi_party_event
+
     for event in payload.get("events") or []:
         if not isinstance(event, dict):
             continue
-        source = event.get("source") or {}
-        user_id = str(source.get("userId") or "") if isinstance(source, dict) else ""
+        if is_multi_party_event(event):
+            ingest_line_event(event)
+            continue
+        outcome = ingest_line_event(event)
+        if outcome.consume:
+            continue
+        source = event.get("source") if isinstance(event.get("source"), dict) else {}
+        user_id = str(source.get("userId") or "")
         reply_token = str(event.get("replyToken") or "")
         if not user_id or not reply_token:
             continue

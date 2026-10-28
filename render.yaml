@@ -68,6 +68,12 @@ services:
         sync: false
       - key: LINE_CHANNEL_SECRET
         sync: false
+      # 運営LINEグループ。空なら最初のグループ参加・メッセージで台帳に記録する。
+      - key: TARGET_LINE_GROUP_ID
+        sync: false
+      # 無料枠がスリープしていても 23:50 に起こすための共有秘密。cron と同じ値にする。
+      - key: REPORT_CRON_SECRET
+        sync: false
       - key: SQUARE_APPLICATION_ID
         sync: false
       - key: SQUARE_ACCESS_TOKEN
@@ -86,3 +92,17 @@ services:
         sync: false
       - key: SQUARE_MEMBER_DB
         sync: false
+  # 23:50 JST = 14:50 UTC。スリープ中の請求サーバーを起こしてレポートを送らせる。
+  - type: cron
+    name: suro-goku-daily-report
+    runtime: python
+    schedule: "50 14 * * *"
+    buildCommand: python -c "import sys; print(sys.version)"
+    startCommand: python scripts/wake_daily_report.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: REPORT_CRON_SECRET
+        sync: false
+      - key: BILLING_REPORT_URL
+        value: https://suro-goku-billing.onrender.com/internal/daily-report

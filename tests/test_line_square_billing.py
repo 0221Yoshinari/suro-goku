@@ -184,6 +184,21 @@ class BillingMemberAdminTest(unittest.TestCase):
 
 class WebhookTest(unittest.TestCase):
     def setUp(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.env = mock.patch.dict(
+            os.environ,
+            {
+                "SQUARE_MEMBER_DB": str(Path(self.tmp.name) / "square.sqlite"),
+                "DATABASE_URL": "",
+                "TARGET_LINE_GROUP_ID": "",
+            },
+        )
+        self.env.start()
+        self.addCleanup(self.env.stop)
         self.client = TestClient(main.app)
 
     def test_rejects_bad_signature(self) -> None:
