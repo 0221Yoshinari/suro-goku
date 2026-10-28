@@ -135,7 +135,10 @@ def send_scheduled(now: datetime | None = None) -> bool:
 
 
 def send_daily_report(at: datetime, *, mark: bool = True) -> bool:
-    """過去24時間と前日同時間帯の差分を、運営グループへだけ送る。"""
+    """過去24時間と前日同時間帯の差分を、運営グループへだけ送る。
+
+    インプレッションの入力が無くても送る。その欄は「未入力」になる。
+    """
     target = target_group_id()
     if not target:
         _log_skip(at)
@@ -267,7 +270,10 @@ def collect_metrics(at: datetime) -> dict:
 def build_report(metrics: dict, at: datetime) -> str:
     day = _as_jst(at).strftime("%Y/%m/%d")
     follows = int(metrics["follows"])
+    emails = int(metrics["emails"])
     paid = int(metrics["paid"])
+    email_rate = _step_rate(emails, follows)
+    pay_rate = _step_rate(paid, emails)
     lines = [
         "［スロ極 デイリーマーケティングレポート］",
         f"📅 日付: {day}",
@@ -280,8 +286,17 @@ def build_report(metrics: dict, at: datetime) -> str:
         _people_line("ブロック数", int(metrics["blocks"]), int(metrics["blocks_prev"])),
         "",
         "■ Webアプリ (スロ極)",
-        _people_line("メアド登録数", int(metrics["emails"]), int(metrics["emails_prev"])),
-        _paid_line(paid, int(metrics["paid_prev"]), follows),
+        _people_line("メアド登録数", emails, int(metrics["emails_prev"])),
+        _people_line("カード決済(課金)", paid, int(metrics["paid_prev"])),
+        _SEPARATOR,
+        "■ ステップ別",
+        _rate_line("LINE → メアド登録率", email_rate),
+        _rate_line("LINE → メアド登録の離脱率", _drop_rate(email_rate)),
+        _rate_line("メアド登録 → 決済率", pay_rate),
+        _rate_line("メアド登録 → 決済の離脱率", _drop_rate(pay_rate)),
+        _SEPARATOR,
+        "■ 診断",
+        *_diagnosis(email_rate, pay_rate),
         _SEPARATOR,
         "本日もお疲れ様でした！",
     ]
@@ -430,7 +445,7 @@ def _impression_on(day: str) -> int | None:
 
 def _impression_line(current: int | None, previous: int | None) -> str:
     if current is None:
-        return "・インプレッション数: 未取得 (前日比: —)"
+        return "・インプレッション数: 未入力"
     shown = f"{int(current):,}"
     if previous is None:
         return f"・インプレッション数: {shown} (前日比: —)"
@@ -441,13 +456,51 @@ def _people_line(label: str, current: int, previous: int) -> str:
     return f"・{label}: {current:,}人 (前日比: {_delta(current, previous, '人')})"
 
 
-def _paid_line(paid: int, previous: int, follows: int) -> str:
-    """CVR は、その24時間の課金者数を新規友だち追加数で割った値。"""
-    if follows <= 0:
-        cvr = "—"
+def _step_rate(part: int, whole: int) -> float | None:
+    """分母が 0 のステップは判定しない。表示と同じ小数第1位で返す。"""
+    if whole <= 0:
+        return None
+    return round((part * 100) / whole, 1)
+
+
+def _drop_rate(rate: float | None) -> float | None:
+    if rate is None:
+        return None
+    return round(100 - rate, 1)
+
+
+def _percent(rate: float | None) -> str:
+    if rate is None:
+        return "—"
+    return f"{rate:.1f}%"
+
+
+def _rate_line(label: str, rate: float | None) -> str:
+    return f"・{label}: {_percent(rate)}"
+
+
+def _diagnosis(email_rate: float | None, pay_rate: float | None) -> list[str]:
+    """登録率 30% 未満は案内の見直し、決済率 20% 以上は好調、と出す。"""
+    notes: list[str] = []
+    if email_rate is None:
+        pass
+    elif email_rate < 30:
+        notes.append(
+            f"⚠️ LINEからアプリ登録への離脱率が{_percent(_drop_rate(email_rate))}と高めです。LINE案内文言の改善を推奨します。"
+        )
     else:
-        cvr = f"{(paid * 100) / follows:.1f}%"
-    return f"・カード決済(課金): {paid:,}人 (前日比: {_delta(paid, previous, '人')} / CVR: {cvr})"
+        notes.append(f"✅ LINEからメアド登録への転換率は{_percent(email_rate)}です。")
+    if pay_rate is None:
+        pass
+    elif pay_rate >= 20:
+        notes.append(f"✅ メアド登録からの決済率は{_percent(pay_rate)}で好調です。")
+    else:
+        notes.append(
+            f"⚠️ メアド登録からの決済離脱率は{_percent(_drop_rate(pay_rate))}です。登録後の決済案内を見直してください。"
+        )
+    if not notes:
+        notes.append("自動取得の母数が足りないため、ステップ診断は見送りました。")
+    return notes
 
 
 def _delta(current: int, previous: int, unit: str = "") -> str:

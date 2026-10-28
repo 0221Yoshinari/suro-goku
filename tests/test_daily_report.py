@@ -79,7 +79,17 @@ class ReportFormatTest(unittest.TestCase):
                     "",
                     "■ Webアプリ (スロ極)",
                     "・メアド登録数: 45人 (前日比: +8人)",
-                    "・カード決済(課金): 12人 (前日比: +3人 / CVR: 10.0%)",
+                    "・カード決済(課金): 12人 (前日比: +3人)",
+                    "------------------------------",
+                    "■ ステップ別",
+                    "・LINE → メアド登録率: 37.5%",
+                    "・LINE → メアド登録の離脱率: 62.5%",
+                    "・メアド登録 → 決済率: 26.7%",
+                    "・メアド登録 → 決済の離脱率: 73.3%",
+                    "------------------------------",
+                    "■ 診断",
+                    "✅ LINEからメアド登録への転換率は37.5%です。",
+                    "✅ メアド登録からの決済率は26.7%で好調です。",
                     "------------------------------",
                     "本日もお疲れ様でした！",
                 ]
@@ -102,9 +112,37 @@ class ReportFormatTest(unittest.TestCase):
             },
             AT,
         )
-        self.assertIn("・インプレッション数: 未取得 (前日比: —)", text)
-        self.assertIn("・カード決済(課金): 0人 (前日比: +0人 / CVR: —)", text)
+        self.assertIn("・インプレッション数: 未入力", text)
+        self.assertNotIn("未取得", text)
+        self.assertIn("・カード決済(課金): 0人 (前日比: +0人)", text)
+        self.assertIn("・LINE → メアド登録率: —", text)
+        self.assertIn("・メアド登録 → 決済率: —", text)
+        self.assertIn("ステップ診断は見送りました。", text)
         self.assertIn("・ブロック数: 0人 (前日比: -1人)", text)
+
+    def test_low_registration_and_weak_payment_get_warnings(self) -> None:
+        text = build_report(
+            {
+                "impressions": None,
+                "impressions_prev": None,
+                "follows": 100,
+                "follows_prev": 80,
+                "blocks": 4,
+                "blocks_prev": 4,
+                "emails": 20,
+                "emails_prev": 40,
+                "paid": 2,
+                "paid_prev": 8,
+            },
+            AT,
+        )
+        self.assertIn("・インプレッション数: 未入力", text)
+        self.assertIn("・LINE → メアド登録率: 20.0%", text)
+        self.assertIn("・LINE → メアド登録の離脱率: 80.0%", text)
+        self.assertIn("・メアド登録 → 決済率: 10.0%", text)
+        self.assertIn("・メアド登録 → 決済の離脱率: 90.0%", text)
+        self.assertIn("⚠️ LINEからアプリ登録への離脱率が80.0%と高めです。LINE案内文言の改善を推奨します。", text)
+        self.assertIn("⚠️ メアド登録からの決済離脱率は90.0%です。登録後の決済案内を見直してください。", text)
 
     def test_impression_command_accepts_commas(self) -> None:
         self.assertEqual(parse_impressions("インプ 350000"), 350_000)
@@ -228,6 +266,18 @@ class StoreTest(unittest.TestCase):
             self.assertTrue(send_daily_report(AT, mark=True))
             self.assertFalse(send_daily_report(AT, mark=True))
         self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_args.kwargs["json"]["to"], OPS)
+
+    def test_missing_impressions_still_sends_the_automatic_counts(self) -> None:
+        os.environ["TARGET_LINE_GROUP_ID"] = OPS
+        with mock.patch("src.marketing.daily_report.httpx.post") as post:
+            post.return_value.status_code = 200
+            self.assertTrue(send_daily_report(AT, mark=True))
+        body = post.call_args.kwargs["json"]["messages"][0]["text"]
+        self.assertIn("・インプレッション数: 未入力", body)
+        self.assertIn("・新規友だち追加:", body)
+        self.assertIn("・メアド登録数:", body)
+        self.assertIn("・カード決済(課金):", body)
         self.assertEqual(post.call_args.kwargs["json"]["to"], OPS)
 
     def _member(self, member_id: str, email: str, registered_at: int, paid_at: int | None, source: str) -> None:
