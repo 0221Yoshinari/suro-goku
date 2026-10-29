@@ -9,6 +9,7 @@ import json
 import os
 import sqlite3
 import tempfile
+import time
 import unittest
 from datetime import datetime
 from datetime import timedelta
@@ -27,8 +28,10 @@ from src.marketing.daily_report import build_report
 from src.marketing.daily_report import collect_metrics
 from src.marketing.daily_report import ingest_line_event
 from src.marketing.daily_report import is_target_group
+from src.marketing.daily_report import notify_ops_of_x_post
 from src.marketing.daily_report import parse_impressions
 from src.marketing.daily_report import push_text
+from src.marketing.daily_report import x_post_notice
 from src.marketing.daily_report import remember_group_id
 from src.marketing.daily_report import report_loop_enabled
 from src.marketing.daily_report import scheduled_end
@@ -161,6 +164,29 @@ class ReportFormatTest(unittest.TestCase):
     def test_loop_stays_off_while_pytest_is_loaded(self) -> None:
         self.assertFalse(report_loop_enabled())
 
+    def test_x_post_notice_uses_periods_and_no_emoji(self) -> None:
+        url = "https://x.com/i/web/status/1234567890"
+        text = x_post_notice(url)
+        self.assertEqual(
+            text,
+            "\n".join(
+                [
+                    "［X自動投稿完了のお知らせ］",
+                    "",
+                    "新しいXの投稿が完了しました。",
+                    "以下のリンクより引用投稿および拡散のご協力をお願いします。",
+                    "",
+                    "投稿リンク:",
+                    url,
+                ]
+            ),
+        )
+        self.assertNotIn("!", text)
+        self.assertNotIn("！", text)
+        self.assertNotRegex(text, r"[\U0001F300-\U0001FAFF]")
+        with self.assertRaises(ReportDeliveryError):
+            x_post_notice("https://example.com/status/1")
+
 
 class StoreTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -258,6 +284,40 @@ class StoreTest(unittest.TestCase):
         sent = post.call_args.kwargs["json"]
         self.assertEqual(sent["to"], OPS)
         self.assertNotIn(OTHER, json.dumps(sent))
+
+    def test_x_post_notice_is_pushed_only_to_the_ops_group(self) -> None:
+        os.environ["TARGET_LINE_GROUP_ID"] = OPS
+        url = "https://x.com/i/web/status/99"
+        with mock.patch("src.marketing.daily_report.httpx.post") as post:
+            post.return_value.status_code = 200
+            self.assertEqual(notify_ops_of_x_post(url), 200)
+        body = post.call_args.kwargs["json"]
+        self.assertEqual(body["to"], OPS)
+        self.assertIn(url, body["messages"][0]["text"])
+        self.assertEqual(post.call_count, 1)
+
+    def test_invalid_env_group_uses_the_ledger_group(self) -> None:
+        self.assertTrue(remember_group_id(OPS))
+        os.environ["TARGET_LINE_GROUP_ID"] = "not-a-group"
+        with mock.patch("src.marketing.daily_report.httpx.post") as post:
+            post.return_value.status_code = 200
+            self.assertTrue(send_daily_report(AT, mark=True))
+        self.assertEqual(post.call_args.kwargs["json"]["to"], OPS)
+
+    def test_stale_send_claim_is_taken_over(self) -> None:
+        os.environ["TARGET_LINE_GROUP_ID"] = OPS
+        daily_report._put_setting("report:2026-10-28", f"sending:{int(time.time()) - 1000}")
+        with mock.patch("src.marketing.daily_report.httpx.post") as post:
+            post.return_value.status_code = 200
+            self.assertTrue(send_daily_report(AT, mark=True))
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_args.kwargs["json"]["to"], OPS)
+
+    def test_x_post_notice_is_not_sent_without_a_target_group(self) -> None:
+        with mock.patch("src.marketing.daily_report.httpx.post") as post:
+            with self.assertRaises(ReportDeliveryError):
+                notify_ops_of_x_post("https://x.com/i/web/status/99")
+        post.assert_not_called()
 
     def test_scheduled_send_goes_out_once(self) -> None:
         os.environ["TARGET_LINE_GROUP_ID"] = OPS
@@ -394,7 +454,7 @@ class WebhookSecurityTest(unittest.TestCase):
                 headers={"Authorization": "Bearer cron-secret"},
             )
         self.assertEqual(allowed.status_code, 200)
-        self.assertEqual(allowed.json(), {"ok": True})
+        self.assertTrue(allowed.json()["ok"])
         send.assert_called_once_with()
 
     def test_direct_impression_command_does_not_enter_the_ledger(self) -> None:

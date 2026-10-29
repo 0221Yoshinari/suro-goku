@@ -27,6 +27,7 @@ logger = logging.getLogger("surogoku.marketing")
 JST = ZoneInfo("Asia/Tokyo")
 _GROUP_KEY = "target_group_id"
 _GROUP_ID_RE = re.compile(r"^[CR][0-9a-fA-F]{32}$")
+_TWEET_URL_RE = re.compile(r"^https://(?:x|twitter)\.com/\S+/status/[0-9]+$")
 _IMPRESSION_RE = re.compile(r"^(?:インプレッション|インプ)\s*[:：]?\s*([0-9][0-9,]*)\s*$")
 _MAX_IMPRESSIONS = 1_000_000_000_000
 _SEPARATOR = "-" * 30
@@ -129,7 +130,9 @@ def send_scheduled(now: datetime | None = None) -> bool:
     end = scheduled_end(current)
     if end is None:
         return False
-    if _day_key(end) in _SENT:
+    day = _day_key(end)
+    if day in _SENT:
+        _note_once(day, "sent")
         return False
     return send_daily_report(end, mark=True)
 
@@ -165,6 +168,37 @@ def send_daily_report(at: datetime, *, mark: bool = True) -> bool:
     return True
 
 
+def x_post_notice(url: str) -> str:
+    """X投稿完了の運営向け文面。絵文字と感嘆符は入れない。"""
+    link = (url or "").strip()
+    if not _TWEET_URL_RE.fullmatch(link):
+        raise ReportDeliveryError("投稿リンクを確認できません")
+    return "\n".join(
+        [
+            "［X自動投稿完了のお知らせ］",
+            "",
+            "新しいXの投稿が完了しました。",
+            "以下のリンクより引用投稿および拡散のご協力をお願いします。",
+            "",
+            "投稿リンク:",
+            link,
+        ]
+    )
+
+
+def notify_ops_of_x_post(url: str) -> int:
+    """投稿URLを運営グループだけへ送る。未設定や別IDには送らない。"""
+    text = x_post_notice(url)
+    target = target_group_id()
+    if not target:
+        raise ReportDeliveryError("運営グループが未設定のため、投稿完了を通知しません")
+    status = push_text(target, text)
+    if status >= 400:
+        raise ReportDeliveryError("運営グループへの通知に失敗しました")
+    print("X投稿完了を運営グループへ通知しました", flush=True)
+    return status
+
+
 def push_text(group_id: str, text: str) -> int:
     """TARGET_LINE_GROUP_ID と一致するときだけ LINE へ push する。"""
     target = target_group_id()
@@ -184,15 +218,15 @@ def push_text(group_id: str, text: str) -> int:
 
 
 def target_group_id() -> str:
-    """環境変数が正しければそれを優先し、台帳へ写す。空なら台帳の値。"""
+    """環境変数が正しければそれを優先し、台帳へ写す。空や不正なら台帳の値。"""
     raw = _env_raw()
-    if raw:
-        if not _GROUP_ID_RE.fullmatch(raw):
-            return ""
+    if raw and _GROUP_ID_RE.fullmatch(raw):
         stored = _db_group_id()
         if stored.casefold() != raw.casefold():
             _put_setting(_GROUP_KEY, raw)
         return raw
+    if raw:
+        _note_once("env", "bad-env")
     return _db_group_id()
 
 
@@ -517,6 +551,7 @@ def _claim(day: str) -> bool:
     current = _setting(key)
     if current == "sent":
         _SENT.add(day)
+        _note_once(day, "sent")
         return False
     if current.startswith("sending:"):
         try:
@@ -524,8 +559,11 @@ def _claim(day: str) -> bool:
         except ValueError:
             started = 0
         if now - started < _CLAIM_STALE_SEC:
+            _note_once(day, "sending")
             return False
-        return _replace_setting(key, current, f"sending:{now}")
+        if _replace_setting(key, current, f"sending:{now}"):
+            return True
+    _note_once(day, "claim")
     return False
 
 
@@ -540,16 +578,28 @@ def _release(day: str) -> None:
     )
 
 
+def _note_once(day: str, code: str) -> None:
+    key = f"{day}:{code}"
+    if key in _SKIP_LOGGED:
+        return
+    _SKIP_LOGGED.add(key)
+    messages = {
+        "sent": f"デイリーレポートは送信済みです ({day})",
+        "sending": f"デイリーレポートは送信処理中です ({day})",
+        "claim": f"デイリーレポートの送信予約に失敗しました ({day})",
+        "bad-env": "TARGET_LINE_GROUP_ID の形式が不正なため、台帳のグループIDを使います。",
+    }
+    text = messages.get(code, "")
+    if text:
+        print(text, flush=True)
+
+
 def _log_skip(at: datetime) -> None:
     day = _day_key(at)
     if day in _SKIP_LOGGED:
         return
     _SKIP_LOGGED.add(day)
-    raw = _env_raw()
-    if raw and not _GROUP_ID_RE.fullmatch(raw):
-        print("TARGET_LINE_GROUP_ID の形式が不正なため、デイリーレポートを送りません。", flush=True)
-        return
-    print("TARGET_LINE_GROUP_ID が未設定のため、デイリーレポートを送りません。", flush=True)
+    print("運営グループが未設定のため、デイリーレポートを送りません。", flush=True)
 
 
 def _env_raw() -> str:
@@ -618,29 +668,28 @@ def _put_setting(key: str, value: str) -> None:
 
 
 def _insert_new(key: str, value: str) -> bool:
-    return (
-        _rowcount(
-            """
-            INSERT INTO marketing_settings (key, value) VALUES (:key, :value)
-            ON CONFLICT (key) DO NOTHING
-            """,
-            {"key": key, "value": value},
-        )
-        == 1
+    # Postgres の rowcount は成功しても -1 になることがある。RETURNING で判定する。
+    rows = _returning(
+        """
+        INSERT INTO marketing_settings (key, value) VALUES (:key, :value)
+        ON CONFLICT (key) DO NOTHING
+        RETURNING key
+        """,
+        {"key": key, "value": value},
     )
+    return len(rows) == 1
 
 
 def _replace_setting(key: str, expected: str, value: str) -> bool:
-    return (
-        _rowcount(
-            """
-            UPDATE marketing_settings SET value = :value
-            WHERE key = :key AND value = :expected
-            """,
-            {"key": key, "value": value, "expected": expected},
-        )
-        == 1
+    rows = _returning(
+        """
+        UPDATE marketing_settings SET value = :value
+        WHERE key = :key AND value = :expected
+        RETURNING key
+        """,
+        {"key": key, "value": value, "expected": expected},
     )
+    return len(rows) == 1
 
 
 def _count(sql: str, params: dict) -> int:
@@ -685,6 +734,25 @@ def _rows(sql: str, params: dict) -> list[tuple]:
 
 def _write(sql: str, params: dict) -> None:
     _rowcount(sql, params)
+
+
+def _returning(sql: str, params: dict) -> list[tuple]:
+    kind, target = _prepare()
+    statement = " ".join(sql.split())
+    if kind == "postgres":
+        from sqlalchemy import text
+
+        engine = _engine(str(target))
+        with engine.begin() as connection:
+            found = connection.execute(text(statement), params).all()
+        return [tuple(row) for row in found]
+    connection = sqlite3.connect(str(target), timeout=5)
+    try:
+        found = connection.execute(statement, params).fetchall()
+        connection.commit()
+    finally:
+        connection.close()
+    return [tuple(row) for row in found]
 
 
 def _rowcount(sql: str, params: dict) -> int:
