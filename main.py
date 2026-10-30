@@ -823,8 +823,11 @@ async def internal_daily_report(request: Request) -> JSONResponse:
     expected = f"Bearer {secret}" if secret else ""
     if not secret or len(provided) != len(expected) or not hmac.compare_digest(provided, expected):
         raise HTTPException(status_code=401)
+    from src.marketing.daily_report import daily_reports_enabled
     from src.marketing.daily_report import send_scheduled
 
+    if not daily_reports_enabled():
+        return JSONResponse({"ok": True, "skipped": True})
     sent = await asyncio.to_thread(send_scheduled)
     return JSONResponse({"ok": bool(sent)})
 

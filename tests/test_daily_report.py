@@ -33,9 +33,11 @@ from src.marketing.daily_report import parse_impressions
 from src.marketing.daily_report import push_text
 from src.marketing.daily_report import x_post_notice
 from src.marketing.daily_report import remember_group_id
+from src.marketing.daily_report import daily_reports_enabled
 from src.marketing.daily_report import report_loop_enabled
 from src.marketing.daily_report import scheduled_end
 from src.marketing.daily_report import send_daily_report
+from src.marketing.daily_report import send_scheduled
 from src.marketing import daily_report
 
 JST = ZoneInfo("Asia/Tokyo")
@@ -162,7 +164,14 @@ class ReportFormatTest(unittest.TestCase):
         self.assertIsNone(scheduled_end(datetime(2026, 10, 29, 6, 0, tzinfo=JST)))
 
     def test_loop_stays_off_while_pytest_is_loaded(self) -> None:
+        self.assertFalse(daily_reports_enabled())
         self.assertFalse(report_loop_enabled())
+
+    def test_scheduled_send_stays_off_until_enabled(self) -> None:
+        os.environ.pop("DAILY_REPORT_ENABLED", None)
+        with mock.patch("src.marketing.daily_report.httpx.post") as post:
+            self.assertFalse(send_scheduled(AT))
+        post.assert_not_called()
 
     def test_x_post_notice_uses_periods_and_no_emoji(self) -> None:
         url = "https://x.com/i/web/status/1234567890"
@@ -446,8 +455,16 @@ class WebhookSecurityTest(unittest.TestCase):
 
     def test_cron_trigger_requires_the_shared_secret(self) -> None:
         os.environ["REPORT_CRON_SECRET"] = "cron-secret"
+        os.environ.pop("DAILY_REPORT_ENABLED", None)
         denied = self.client.post("/internal/daily-report", headers={"Authorization": "Bearer nope"})
         self.assertEqual(denied.status_code, 401)
+        paused = self.client.post(
+            "/internal/daily-report",
+            headers={"Authorization": "Bearer cron-secret"},
+        )
+        self.assertEqual(paused.status_code, 200)
+        self.assertTrue(paused.json()["skipped"])
+        os.environ["DAILY_REPORT_ENABLED"] = "1"
         with mock.patch("src.marketing.daily_report.send_scheduled", return_value=True) as send:
             allowed = self.client.post(
                 "/internal/daily-report",
@@ -456,6 +473,7 @@ class WebhookSecurityTest(unittest.TestCase):
         self.assertEqual(allowed.status_code, 200)
         self.assertTrue(allowed.json()["ok"])
         send.assert_called_once_with()
+        os.environ.pop("DAILY_REPORT_ENABLED", None)
 
     def test_direct_impression_command_does_not_enter_the_ledger(self) -> None:
         os.environ["TARGET_LINE_GROUP_ID"] = OPS

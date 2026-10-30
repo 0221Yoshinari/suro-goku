@@ -80,7 +80,15 @@ class IngestResult:
     reply: str = ""
 
 
+def daily_reports_enabled() -> bool:
+    """自動配信は DAILY_REPORT_ENABLED が on のときだけ。未設定は停止。"""
+    flag = (os.getenv("DAILY_REPORT_ENABLED") or "").strip().lower()
+    return flag in {"1", "true", "yes", "on"}
+
+
 def report_loop_enabled() -> bool:
+    if not daily_reports_enabled():
+        return False
     flag = (os.getenv("MARKETING_REPORT_LOOP") or "").strip().lower()
     if flag in {"0", "false", "no", "off"}:
         return False
@@ -126,6 +134,9 @@ def scheduled_end(now: datetime) -> datetime | None:
 
 
 def send_scheduled(now: datetime | None = None) -> bool:
+    if not daily_reports_enabled():
+        _note_once("report", "paused")
+        return False
     current = _as_jst(now or datetime.now(JST))
     end = scheduled_end(current)
     if end is None:
@@ -338,6 +349,9 @@ def build_report(metrics: dict, at: datetime) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if not daily_reports_enabled():
+        print("デイリーレポートの自動送信は停止中です。", flush=True)
+        return 0
     args = list(sys.argv[1:] if argv is None else argv)
     now = datetime.now(JST)
     if "--if-due" in args:
@@ -587,6 +601,7 @@ def _note_once(day: str, code: str) -> None:
         "sent": f"デイリーレポートは送信済みです ({day})",
         "sending": f"デイリーレポートは送信処理中です ({day})",
         "claim": f"デイリーレポートの送信予約に失敗しました ({day})",
+        "paused": "デイリーレポートの自動送信は停止中です。",
         "bad-env": "TARGET_LINE_GROUP_ID の形式が不正なため、台帳のグループIDを使います。",
     }
     text = messages.get(code, "")
