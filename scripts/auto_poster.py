@@ -18,9 +18,8 @@
 同じ日・時間帯・店は output/post_ledger.json に記録し、二度投稿しない。
 対象日とスロットは日本時間。11:50、14:00、17:00、19:00、21:00 だけ実行する。
 朝のエリア宣言・ターゲットホール投稿は行わない。
-各スロットは、大阪・東京・福岡の登録店から全台系・末尾・並びの一番見栄えがいい1件を出す。
-強い数値が無いときは、末尾0〜9の相対差だけでも1件出す（断定は弱めの文面）。
-それも無ければ投稿しない。
+各スロットはジャグラーモードの TOP4 を、ダッシュボード截图4枚＋1本文で出す。
+島が無いときは投稿しない。
 Webhook は DISCORD_WEBHOOK_URL、未設定なら config/discord.json を使う。
 """
 
@@ -49,7 +48,7 @@ from src.poster.chase import (
     offhours_reason,
     scheduled_slot,
 )
-from src.poster.day_flow import area_targets, best_material
+from src.poster.juggler_pickup_flow import JugglerPickupArgs, juggler_pickup_dir, run_juggler_pickup
 from src.poster.copy import compose_chase, compose_morning_areas, compose_post
 from src.poster.discord_preview import DiscordPreviewError, send_x_preview, should_preview
 from src.poster.events import resolve_events
@@ -71,6 +70,8 @@ DEFAULT_EVENTS = PROJECT_ROOT / "data" / "events" / "todays_events.json"
 DEFAULT_IMAGE = PROJECT_ROOT / "output" / "summary.png"
 DEFAULT_TEXT = PROJECT_ROOT / "output" / "post.txt"
 DEFAULT_META = PROJECT_ROOT / "output" / "post.json"
+DEFAULT_JUGGLER_DIR = PROJECT_ROOT / "output" / "juggler-pickup"
+JUGGLER_SLOTS = frozenset({"pickup", "midday", "afternoon", "evening", "night"})
 JST = ZoneInfo("Asia/Tokyo")
 
 
@@ -104,6 +105,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Discordへ、5分後に投稿する予告と本文を送る。Xへは出さない前提で --discord と使う",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="ledger に同日スロットのジャグラー投稿があっても再投稿する",
+    )
+    parser.add_argument(
+        "--skip-capture",
+        action="store_true",
+        help="ジャグラー用。保存済みの output/juggler-pickup/<日>/<slot>/*.png を使う",
+    )
     args = parser.parse_args(argv)
     now = now_jst()
     if not args.allow_off_hours:
@@ -114,6 +125,9 @@ def main(argv: list[str] | None = None) -> int:
     slot = _resolve_slot(args, now)
     if slot == "morning":
         return _skip_morning(args)
+    if slot not in JUGGLER_SLOTS:
+        print(f"未対応のスロットです: {slot}", file=sys.stderr)
+        return 2
     if not args.dry_run and not args.discord:
         try:
             assert_write_access()
@@ -121,38 +135,8 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
-    try:
-        halls, _unreadable = load_judgment_halls(args.halls, on_progress=_progress)
-    except JudgmentSourceError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-
-    events = resolve_events(_event_rows(args.events), args.date)
     print(f"対象日 {args.date} / {slot} / 日本時間 {now.strftime('%Y-%m-%d %H:%M')}", file=sys.stderr)
-    targets = area_targets(events, args.date)
-    if targets:
-        meta_path = ledger_path(args.meta)
-        if posted_entry(load_ledger(meta_path), args.date, slot, "ジャグラーTOP4"):
-            print(f"{slot} はジャグラー投稿済みのため、数値投稿をスキップします。", file=sys.stderr)
-            _write_json(args.meta, {"ok": True, "posted": True, "skipped": "juggler_midday", "date": args.date})
-            return 0
-        hit = best_material(halls, targets, args.date)
-        if hit is not None:
-            chosen = ChaseTarget(hit.hall_name, "", hit.score, hit.event_titles, 0.0, 0.0, hit)
-            return _run_chase([chosen], slot, args)
-        _clear(args.image)
-        _clear(args.text)
-        print("全台系・末尾・並びが出ていないので投稿しません。", file=sys.stderr)
-        _heads_up_skip(args, slot)
-        _write_json(args.meta, {"ok": False, "posted": False, "text": "", "pick": None, "date": args.date})
-        return 0
-
-    _clear(args.image)
-    _clear(args.text)
-    _write_json(args.meta, {"ok": False, "posted": False, "text": "", "pick": None, "date": args.date})
-    print(f"{display_name(args.date)} は投稿できるホールがありません。", file=sys.stderr)
-    _heads_up_skip(args, slot)
-    return 2
+    return _post_juggler_pickup(args, slot, now=now)
 
 
 def _resolve_slot(args, now: datetime) -> str:
@@ -161,6 +145,52 @@ def _resolve_slot(args, now: datetime) -> str:
     if args.slot == "auto":
         return scheduled_slot(now) or ""
     return args.slot
+
+
+def _post_juggler_pickup(args, slot: str, *, now: datetime) -> int:
+    _clear(args.image)
+    flow = JugglerPickupArgs(
+        halls=args.halls,
+        date=args.date,
+        slot=slot,
+        out_dir=juggler_pickup_dir(DEFAULT_JUGGLER_DIR, args.date, slot),
+        meta=args.meta,
+        text=args.text,
+        dashboard=args.dashboard or "",
+        dry_run=args.dry_run,
+        discord=args.discord,
+        heads_up=getattr(args, "heads_up", False),
+        skip_capture=getattr(args, "skip_capture", False),
+        force=getattr(args, "force", False),
+    )
+    code, meta = run_juggler_pickup(flow, now=now)
+    _write_json(args.meta, meta)
+    text = str(meta.get("text") or "")
+    if text:
+        _print_post(text, "")
+        print("---")
+    else:
+        _clear(args.text)
+    if meta.get("posted") and meta.get("url"):
+        print(f"投稿しました: {meta['url']}")
+        notice = _notify_ops_line(str(meta["url"]))
+        if notice:
+            print(notice, file=sys.stderr)
+            return 1
+    elif meta.get("skipped") == "already_posted":
+        tid = meta.get("tweet_id", "")
+        print(f"投稿済みのため飛ばします: ジャグラーTOP4 https://x.com/i/web/status/{tid}", file=sys.stderr)
+    elif not meta.get("ok", True):
+        err = meta.get("error") or "ジャグラー投稿に失敗しました"
+        print(err, file=sys.stderr)
+    elif not text and not meta.get("discord_preview"):
+        print("ジャグラー島が無いので投稿しません。", file=sys.stderr)
+        _heads_up_skip(args, slot, juggler=True)
+    if args.dry_run or args.discord:
+        print("Xへは投稿していません")
+    if meta.get("discord_preview"):
+        print(f"Discordへプレビューを送りました (HTTP {meta.get('preview_http', '')})")
+    return code
 
 
 def _skip_morning(args) -> int:
@@ -614,7 +644,7 @@ def _heads_up_text(args, text: str) -> str:
     return f"5分後に投稿します。\n\n{text.strip()}"
 
 
-def _heads_up_skip(args, slot: str) -> None:
+def _heads_up_skip(args, slot: str, *, juggler: bool = False) -> None:
     if not getattr(args, "heads_up", False) or not args.discord:
         return
     when = {
@@ -625,11 +655,13 @@ def _heads_up_skip(args, slot: str) -> None:
         "evening": "19:00",
         "night": "21:00",
     }.get(slot, slot)
+    reason = (
+        f"5分後の{when}は、ジャグラー島が無いので投稿しません。"
+        if juggler
+        else f"5分後の{when}は、全台系・末尾・並びが出ていないので投稿しません。"
+    )
     try:
-        status = send_x_preview(
-            f"5分後の{when}は、全台系・末尾・並びが出ていないので投稿しません。",
-            label="【投稿予告】",
-        )
+        status = send_x_preview(reason, label="【投稿予告】")
     except DiscordPreviewError as exc:
         print(str(exc), file=sys.stderr)
         return

@@ -353,83 +353,58 @@ class EventResolveTest(unittest.TestCase):
 
 
 class CommandTest(unittest.TestCase):
-    def test_command_writes_image_and_text(self) -> None:
+    def test_afternoon_slot_uses_juggler_top4_dry_run(self) -> None:
+        poster = _load_auto_poster()
+        island = {
+            "hall_name": "テストホール",
+            "family_label": "マイジャグラーV",
+            "badge_label": "全6",
+            "synthetic_probability": 171.0,
+            "rb_probability": 320.0,
+            "score": 80,
+            "badge": "all6",
+        }
+        png = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+            b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
-            halls = base / "halls"
-            good = halls / "good"
-            bad = halls / "bad"
-            broken = halls / "broken"
-            good.mkdir(parents=True)
-            bad.mkdir()
-            broken.mkdir()
-            (good / "latest.json").write_text(
-                json.dumps(
-                    _hall(
-                        "ゾーン姪浜",
-                        [
-                            _machine("マイジャグラーV", diff=7000, all_high=True, unit_rows=_units([("8", 4000)])),
-                            _machine("スマスロ番長", diff=3000),
-                        ],
-                    ),
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
-            (bad / "latest.json").write_text(
-                json.dumps(_hall("出さない店", _pair("スマスロ番長", -5000)), ensure_ascii=False),
-                encoding="utf-8",
-            )
-            (broken / "latest.json").write_text("{", encoding="utf-8")
-            events = base / "events.json"
-            events.write_text(
-                json.dumps(
-                    {"events": [{"date": DATE, "event_type": "特定日", "event_title": "7のつく日", "hall_names": ["ゾーン姪浜"]}]},
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
-            image = base / "summary.png"
+            out_dir = base / "juggler" / DATE / "afternoon"
+            out_dir.mkdir(parents=True)
+            (out_dir / "01.png").write_bytes(png)
             text_path = base / "post.txt"
             meta = base / "post.json"
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(ROOT / "scripts" / "auto_poster.py"),
-                    "--halls",
-                    str(halls),
-                    "--events",
-                    str(events),
-                    "--date",
-                    DATE,
-                    "--image",
-                    str(image),
-                    "--text",
-                    str(text_path),
-                    "--meta",
-                    str(meta),
-                    "--dry-run",
-                    "--allow-off-hours",
-                    "--slot",
-                    "midday",
-                    "--image-source",
-                    "card",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            argv = [
+                "--halls",
+                str(base / "halls"),
+                "--date",
+                DATE,
+                "--image",
+                str(base / "summary.png"),
+                "--text",
+                str(text_path),
+                "--meta",
+                str(meta),
+                "--dry-run",
+                "--allow-off-hours",
+                "--slot",
+                "afternoon",
+                "--skip-capture",
+            ]
+            with (
+                mock.patch.object(poster, "DEFAULT_JUGGLER_DIR", base / "juggler"),
+                mock.patch("src.poster.juggler_pickup_flow.rank_juggler_islands", return_value=[island]),
+            ):
+                code = poster.main(argv)
+            self.assertEqual(code, 0)
             body = text_path.read_text(encoding="utf-8")
-            self.assertIn("ゾーン姪浜", body)
-            self.assertNotIn("出さない店", body)
-            self.assertNotIn("差枚", body)
-            self.assertNotIn("目印なし", body)
-            with Image.open(image) as opened:
-                self.assertEqual(opened.format, "PNG")
-                self.assertGreater(opened.size[0], 100)
+            self.assertIn("ジャグラーモード", body)
+            self.assertIn("テストホール", body)
+            self.assertNotIn("全台系挙動", body)
             payload = json.loads(meta.read_text(encoding="utf-8"))
-            self.assertTrue(payload["ok"])
+            self.assertEqual(payload.get("mode"), "juggler_top4")
             self.assertFalse(payload["posted"])
 
     def test_morning_slot_is_skipped(self) -> None:
@@ -481,12 +456,8 @@ class CommandTest(unittest.TestCase):
     def test_command_removes_stale_promo_when_nothing_qualifies(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
-            halls = base / "halls" / "cold"
+            halls = base / "halls"
             halls.mkdir(parents=True)
-            (halls / "latest.json").write_text(
-                json.dumps(_hall("低調店", [_machine("A", diff=10, games=20000), _machine("B", diff=10, games=20000)]), ensure_ascii=False),
-                encoding="utf-8",
-            )
             image = base / "summary.png"
             text_path = base / "post.txt"
             image.write_bytes(b"stale")
@@ -509,6 +480,8 @@ class CommandTest(unittest.TestCase):
                     str(base / "post.json"),
                     "--dry-run",
                     "--allow-off-hours",
+                    "--slot",
+                    "afternoon",
                 ],
                 check=False,
                 capture_output=True,
@@ -518,8 +491,9 @@ class CommandTest(unittest.TestCase):
             self.assertFalse(image.exists())
             self.assertFalse(text_path.exists())
             payload = json.loads((base / "post.json").read_text(encoding="utf-8"))
-            self.assertFalse(payload["ok"])
-            self.assertIn("投稿しません", result.stderr)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload.get("skipped"), "no_juggler")
+            self.assertIn("ジャグラー島が無い", result.stderr)
 
 
 class PublishGateTest(unittest.TestCase):
