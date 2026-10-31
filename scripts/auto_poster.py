@@ -16,9 +16,9 @@
 どちらも付けない本番は X へ投稿し、同じ内容を Discord へ【X投稿済み】として残す。
 投稿に成功した直後、運営LINEグループへ投稿URLを送る。
 同じ日・時間帯・店は output/post_ledger.json に記録し、二度投稿しない。
-対象日とスロットは日本時間。10:00、11:50、14:00、17:00、19:00、21:00 だけ実行する。
-10:00 は大阪・東京・福岡エリア全店を追う宣言にする。数値は付けない。公式LINEの返信は付けない。
-それ以外は、上記3エリアの登録店から全台系・末尾・並びの一番見栄えがいい1件を出す。
+対象日とスロットは日本時間。11:50、14:00、17:00、19:00、21:00 だけ実行する。
+朝のエリア宣言・ターゲットホール投稿は行わない。
+各スロットは、大阪・東京・福岡の登録店から全台系・末尾・並びの一番見栄えがいい1件を出す。
 強い数値が無いときは、末尾0〜9の相対差だけでも1件出す（断定は弱めの文面）。
 それも無ければ投稿しない。
 Webhook は DISCORD_WEBHOOK_URL、未設定なら config/discord.json を使う。
@@ -111,6 +111,9 @@ def main(argv: list[str] | None = None) -> int:
         if reason:
             print(reason, file=sys.stderr)
             return 0
+    slot = _resolve_slot(args, now)
+    if slot == "morning":
+        return _skip_morning(args)
     if not args.dry_run and not args.discord:
         try:
             assert_write_access()
@@ -125,17 +128,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     events = resolve_events(_event_rows(args.events), args.date)
-    if args.allow_off_hours:
-        slot = chase_slot(now.hour) if args.slot == "auto" else args.slot
-    elif args.slot == "auto":
-        slot = scheduled_slot(now) or ""
-    else:
-        slot = args.slot
     print(f"対象日 {args.date} / {slot} / 日本時間 {now.strftime('%Y-%m-%d %H:%M')}", file=sys.stderr)
     targets = area_targets(events, args.date)
-    if targets and slot == "morning":
-        return _post_morning(targets, args)
-    if targets and slot != "morning":
+    if targets:
         meta_path = ledger_path(args.meta)
         if posted_entry(load_ledger(meta_path), args.date, slot, "ジャグラーTOP4"):
             print(f"{slot} はジャグラー投稿済みのため、数値投稿をスキップします。", file=sys.stderr)
@@ -158,6 +153,36 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{display_name(args.date)} は投稿できるホールがありません。", file=sys.stderr)
     _heads_up_skip(args, slot)
     return 2
+
+
+def _resolve_slot(args, now: datetime) -> str:
+    if args.allow_off_hours:
+        return chase_slot(now.hour) if args.slot == "auto" else args.slot
+    if args.slot == "auto":
+        return scheduled_slot(now) or ""
+    return args.slot
+
+
+def _skip_morning(args) -> int:
+    """朝のエリア宣言は出さない。launchd の morning が残っていても安全に終了する。"""
+    print("朝のターゲット投稿は停止しています。スキップします。", file=sys.stderr)
+    _clear(args.image)
+    _clear(args.text)
+    _write_json(
+        args.meta,
+        {"ok": True, "posted": False, "skipped": "morning_disabled", "date": args.date},
+    )
+    if getattr(args, "heads_up", False) and args.discord:
+        try:
+            status = send_x_preview(
+                "5分後の10:00は、朝のエリア宣言は行いません。",
+                label="【投稿予告】",
+            )
+        except DiscordPreviewError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"Discordへ見送り予告を送りました (HTTP {status})")
+    return 0
 
 
 def _post_morning(targets, args) -> int:

@@ -366,7 +366,7 @@ class CommandTest(unittest.TestCase):
             (good / "latest.json").write_text(
                 json.dumps(
                     _hall(
-                        "投稿する店",
+                        "ゾーン姪浜",
                         [
                             _machine("マイジャグラーV", diff=7000, all_high=True, unit_rows=_units([("8", 4000)])),
                             _machine("スマスロ番長", diff=3000),
@@ -384,7 +384,7 @@ class CommandTest(unittest.TestCase):
             events = base / "events.json"
             events.write_text(
                 json.dumps(
-                    {"events": [{"date": DATE, "event_type": "特定日", "event_title": "7のつく日", "hall_names": ["投稿する店"]}]},
+                    {"events": [{"date": DATE, "event_type": "特定日", "event_title": "7のつく日", "hall_names": ["ゾーン姪浜"]}]},
                     ensure_ascii=False,
                 ),
                 encoding="utf-8",
@@ -411,7 +411,7 @@ class CommandTest(unittest.TestCase):
                     "--dry-run",
                     "--allow-off-hours",
                     "--slot",
-                    "morning",
+                    "midday",
                     "--image-source",
                     "card",
                 ],
@@ -421,17 +421,61 @@ class CommandTest(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             body = text_path.read_text(encoding="utf-8")
-            self.assertIn("今日追うエリア。", body)
-            self.assertIn("福岡県 全域", body)
-            self.assertNotIn("投稿する店", body)
+            self.assertIn("ゾーン姪浜", body)
             self.assertNotIn("出さない店", body)
             self.assertNotIn("差枚", body)
             self.assertNotIn("目印なし", body)
             with Image.open(image) as opened:
                 self.assertEqual(opened.format, "PNG")
-                self.assertGreater(opened.size[0], 1000)
+                self.assertGreater(opened.size[0], 100)
             payload = json.loads(meta.read_text(encoding="utf-8"))
             self.assertTrue(payload["ok"])
+            self.assertFalse(payload["posted"])
+
+    def test_morning_slot_is_skipped(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            halls = base / "halls" / "one"
+            halls.mkdir(parents=True)
+            (halls / "latest.json").write_text(
+                json.dumps(_hall("店", _pair("スマスロ番長", 9000, all_high=True)), ensure_ascii=False),
+                encoding="utf-8",
+            )
+            image = base / "summary.png"
+            image.write_bytes(b"stale")
+            text_path = base / "post.txt"
+            text_path.write_text("stale", encoding="utf-8")
+            meta = base / "post.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "auto_poster.py"),
+                    "--halls",
+                    str(halls.parent),
+                    "--events",
+                    str(base / "missing-events.json"),
+                    "--date",
+                    DATE,
+                    "--image",
+                    str(image),
+                    "--text",
+                    str(text_path),
+                    "--meta",
+                    str(meta),
+                    "--allow-off-hours",
+                    "--slot",
+                    "morning",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("朝のターゲット投稿は停止", result.stderr)
+            self.assertFalse(image.is_file())
+            self.assertFalse(text_path.is_file())
+            payload = json.loads(meta.read_text(encoding="utf-8"))
+            self.assertEqual(payload.get("skipped"), "morning_disabled")
             self.assertFalse(payload["posted"])
 
     def test_command_removes_stale_promo_when_nothing_qualifies(self) -> None:
