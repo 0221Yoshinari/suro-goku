@@ -97,39 +97,22 @@ def compose_juggler_pickup_post(
 
 
 def pick_juggler_closing(*, now: datetime | None = None, slot: str = "") -> str:
-    """断定しない。投稿タイミングに合わせた締め。"""
+    """運用の宣言。読者への命令口調や内部用語は使わない。"""
     clock = (now or datetime.now(tz=JST)).astimezone(JST)
     hour = clock.hour
-    if slot in {"evening", "night"}:
+    base = "良さそうなところ見つかれば、随時ピックアップしてポストしていきます。"
+    if slot in {"evening", "night"} or hour >= 17 or hour < 2:
         pool = (
-            "夕方からジャグラー打ちに行く方は、参考までに。",
-            "夜にジャグラーへ行く前の、候補メモくらいで。",
+            base,
+            "良さそうなところ見つかれば、随時ピックアップしてポストしていきます。夜ジャグラー前の参考にも。",
         )
     elif slot in {"pickup", "morning"}:
         pool = (
-            "店選びで迷ってる方は、ありかも？",
-            "寄る店を決める前に、軽く見といてもらえれば。",
-        )
-    elif slot in {"midday", "afternoon"}:
-        pool = (
-            "このあとも随時出していくので、要チェック。",
-            "追って反応店を上げていくので、流れで見といてください。",
-        )
-    elif hour >= 17 or hour < 2:
-        pool = (
-            "夕方からジャグラー打ちに行く方は、参考までに。",
-            "夜ジャグラー前に、候補として見てもらえれば。",
-        )
-    elif 11 <= hour < 17:
-        pool = (
-            "このあとも随時出していくので、要チェック。",
-            "店選びで迷ってる方は、ありかも？",
+            base,
+            "良さそうなところ見つかれば、随時ピックアップしてポストしていきます。店選びの参考にも。",
         )
     else:
-        pool = (
-            "店選びで迷ってる方は、ありかも？",
-            "気になった店だけ、画像と見比べてみてください。",
-        )
+        pool = (base,)
     seed = f"{clock.date().isoformat()}-{hour:02d}-{slot or 'auto'}"
     return _soft_choice(seed, pool)
 

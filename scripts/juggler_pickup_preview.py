@@ -38,6 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--skip-capture", action="store_true", help="保存済み画像をそのまま使う")
     parser.add_argument("--slot", default="midday", help="ledger 用スロット名")
     parser.add_argument("--date", default="", help="ledger 用 YYYY-MM-DD。未設定なら当日")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="ledger に同日スロットがあっても再投稿する",
+    )
     args = parser.parse_args(argv)
 
     if args.limit < 1 or args.limit > 4:
@@ -92,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.publish:
         prior = posted_entry(ledger, date, args.slot, hall_key)
-        if prior:
+        if prior and not args.force:
             print(f"投稿済み: https://x.com/i/web/status/{prior['tweet_id']}", file=sys.stderr)
             return 0
         try:

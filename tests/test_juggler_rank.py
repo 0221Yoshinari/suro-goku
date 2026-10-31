@@ -39,7 +39,8 @@ class JugglerPickupCopyTest(unittest.TestCase):
             now=datetime(2026, 10, 31, 14, 0, tzinfo=JST),
             slot="afternoon",
         )
-        self.assertTrue("要チェック" in afternoon or "流れで見といて" in afternoon)
+        self.assertIn("随時ピックアップ", afternoon)
+        self.assertNotIn("反応店", afternoon)
 
 
 if __name__ == "__main__":
