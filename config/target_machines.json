@@ -110,13 +110,6 @@
       "patterns": ["ジャグラーガールズ"]
     },
     {
-      "id": "bakemonogatari",
-      "display_name": "化物語",
-      "type": "AT",
-      "master_ids": ["bakemonogatari"],
-      "patterns": ["化物語", "傷物語"]
-    },
-    {
       "id": "miracle-juggler",
       "display_name": "ウルトラミラクルジャグラー",
       "type": "A",
