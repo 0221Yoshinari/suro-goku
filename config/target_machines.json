@@ -84,7 +84,7 @@
       "id": "sengoku-otome",
       "display_name": "戦国乙女",
       "type": "AT",
-      "master_ids": ["sengoku-otome-5", "sengoku-otome-4"],
+      "master_ids": ["sengoku-otome-4"],
       "patterns": ["戦国乙女"]
     },
     {
@@ -157,6 +157,76 @@
       "type": "AT",
       "master_ids": ["magia-record"],
       "patterns": ["マギアレコード", "マギレコ"]
+    },
+    {
+      "id": "jashin-chan",
+      "display_name": "L邪神ちゃんドロップキック",
+      "type": "AT",
+      "master_ids": ["jashin-chan"],
+      "patterns": ["邪神ちゃんドロップキック", "邪神ちゃん"]
+    },
+    {
+      "id": "shinuchi-yoshimune",
+      "display_name": "L真打吉宗",
+      "type": "AT",
+      "master_ids": ["shinuchi-yoshimune"],
+      "patterns": ["真打吉宗"]
+    },
+    {
+      "id": "sengoku-otome-5",
+      "display_name": "L戦国乙女5 業火を穿つ宿焔の双刃",
+      "type": "AT",
+      "master_ids": ["sengoku-otome-5"],
+      "patterns": ["戦国乙女5", "業火を穿つ宿焔の双刃"]
+    },
+    {
+      "id": "godzilla-eva-2",
+      "display_name": "Lパチスロ ゴジラ対エヴァンゲリオン 2",
+      "type": "AT",
+      "master_ids": ["godzilla-eva-2"],
+      "patterns": ["ゴジラ対エヴァンゲリオン2", "ゴジラ対エヴァンゲリオン２", "ゴジエヴァ2", "ゴジエヴァ２"]
+    },
+    {
+      "id": "mh-sunbreak",
+      "display_name": "スマスロ モンスターハンターライズ：サンブレイク",
+      "type": "AT",
+      "master_ids": ["mh-sunbreak"],
+      "patterns": ["モンスターハンターライズ：サンブレイク", "モンハンサンブレイク"]
+    },
+    {
+      "id": "lycoris-recoil",
+      "display_name": "スマスロ リコリス・リコイル",
+      "type": "AT",
+      "master_ids": ["lycoris-recoil"],
+      "patterns": ["リコリス・リコイル", "リコリスリコイル", "リコリコ"]
+    },
+    {
+      "id": "aobuta",
+      "display_name": "L青春ブタ野郎はバニーガール先輩の夢を見ない",
+      "type": "AT",
+      "master_ids": ["aobuta"],
+      "patterns": ["青春ブタ野郎", "バニーガール先輩"]
+    },
+    {
+      "id": "ghost-in-the-shell",
+      "display_name": "スマスロ 攻殻機動隊",
+      "type": "AT",
+      "master_ids": ["ghost-in-the-shell"],
+      "patterns": ["攻殻機動隊"]
+    },
+    {
+      "id": "saint-seiya-gold",
+      "display_name": "L聖闘士星矢 黄金十二宮",
+      "type": "AT",
+      "master_ids": ["saint-seiya-gold"],
+      "patterns": ["黄金十二宮", "黄金12宮"]
+    },
+    {
+      "id": "juou",
+      "display_name": "スマスロ 獣王",
+      "type": "AT",
+      "master_ids": ["juou"],
+      "patterns": ["獣王"]
     }
   ]
 }

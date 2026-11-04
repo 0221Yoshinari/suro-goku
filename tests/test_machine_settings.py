@@ -9,7 +9,9 @@ from src.analyzer.judgment import (
     _classify,
     judge_record,
     load_masters,
+    match_machine,
 )
+from src.scraper.targets import load_targets, match_target
 
 
 class MachineSettingsTest(unittest.TestCase):
@@ -665,6 +667,47 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertFalse(machine["is_all_high"])
         self.assertFalse(machine["is_high_56"])
         self.assertFalse(machine["is_high_base"])
+
+    def test_added_machines_keep_published_first_hit_only(self) -> None:
+        expected = {
+            "jashin-chan": (606.2, {1, 2, 3, 4, 5, 6}),
+            "shinuchi-yoshimune": (354.9, {1, 2, 3, 4, 5, 6}),
+            "sengoku-otome-5": (262.9, {1, 2, 3, 4, 5, 6}),
+            "godzilla-eva-2": (355.5, {1, 2, 3, 4, 5, 6}),
+            "mh-sunbreak": (242.3, {1, 2, 3, 4, 5, 6}),
+            "lycoris-recoil": (256.7, {1, 2, 3, 4, 5, 6}),
+            "aobuta": (207.8, {2, 3, 4, 5, 6}),
+            "ghost-in-the-shell": (278.0, {1, 2, 3, 4, 5, 6}),
+            "saint-seiya-gold": (310.5, {1, 2, 3, 4, 5, 6}),
+            "juou": (279.7, {1, 2, 4, 5, 6}),
+        }
+        by_id = {item.id: item for item in self.masters}
+        for machine_id, (setting6, levels) in expected.items():
+            machine = by_id[machine_id]
+            self.assertEqual(set(machine.settings), levels)
+            self.assertEqual(machine.settings[6].synthetic, setting6)
+        self.assertEqual(by_id["jashin-chan"].settings[1].synthetic, 758.2)
+        self.assertEqual(by_id["shinuchi-yoshimune"].settings[4].synthetic, 398.1)
+        self.assertEqual(by_id["aobuta"].settings[2].synthetic, 350.8)
+        self.assertNotIn(1, by_id["aobuta"].settings)
+        self.assertNotIn(3, by_id["juou"].settings)
+
+        sunbreak = match_machine("スマスロ モンスターハンターライズ：サンブレイク", self.masters)
+        rise = match_machine("スマスロ モンスターハンターライズ", self.masters)
+        self.assertEqual(sunbreak.id, "mh-sunbreak")
+        self.assertEqual(rise.id, "mh-rise")
+        otome5 = match_machine("L戦国乙女5 業火を穿つ宿焔の双刃", self.masters)
+        otome4 = match_machine("L戦国乙女４　戦乱に閃く炯眼の軍師", self.masters)
+        self.assertEqual(otome5.id, "sengoku-otome-5")
+        self.assertEqual(otome4.id, "sengoku-otome-4")
+
+        targets = load_targets()
+        self.assertEqual(match_target("Lパチスロ ゴジラ対エヴァンゲリオン 2", targets).id, "godzilla-eva-2")
+        self.assertIsNone(match_target("スマスロ ゴジラ対エヴァンゲリオン", targets))
+        self.assertEqual(match_target("スマスロ モンスターハンターライズ：サンブレイク", targets).id, "mh-sunbreak")
+        self.assertEqual(match_target("スマスロ モンスターハンターライズ", targets).id, "mh-rise")
+        self.assertEqual(match_target("L聖闘士星矢 黄金十二宮", targets).id, "saint-seiya-gold")
+        self.assertEqual(by_id["saint-seiya-gold"].settings[1].synthetic, 364.2)
 
 
 if __name__ == "__main__":

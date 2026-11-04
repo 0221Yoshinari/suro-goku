@@ -1097,32 +1097,45 @@
       "id": "shinuchi-yoshimune",
       "name": "L真打吉宗",
       "series": "スマスロ",
-      "maker": "",
+      "maker": "大都技研",
       "aliases": [
         "スマスロ真打吉宗",
         "真打吉宗",
-        "Lスマスロ真打吉宗"
+        "Lスマスロ真打吉宗",
+        "真打 吉宗"
       ],
       "published": {
         "first_hit_denominator": 354.9,
-        "comment": "設定6 AT初当たり 1/354.9"
+        "comment": "AT初当りの公表値。設定1〜6は 1/488.9 / 1/471.5 / 1/438.5 / 1/398.1 / 1/377.0 / 1/354.9。設定6以外の比率算出は使わない。"
       },
       "criteria": {
         "min_games": 3000,
         "synthetic_probability_threshold": 354.9,
         "early_min_games": 300,
         "settings": {
+          "1": {
+            "synthetic": 488.9,
+            "first_hit": 488.9
+          },
+          "2": {
+            "synthetic": 471.5,
+            "first_hit": 471.5
+          },
+          "3": {
+            "synthetic": 438.5,
+            "first_hit": 438.5
+          },
+          "4": {
+            "synthetic": 398.1,
+            "first_hit": 398.1
+          },
+          "5": {
+            "synthetic": 377.0,
+            "first_hit": 377.0
+          },
           "6": {
             "synthetic": 354.9,
             "first_hit": 354.9
-          },
-          "5": {
-            "synthetic": 379.7,
-            "first_hit": 379.7
-          },
-          "4": {
-            "synthetic": 411.7,
-            "first_hit": 411.7
           }
         }
       },
@@ -1130,8 +1143,14 @@
       "hit_source": "rb",
       "target_count": "cz",
       "setting_6": 354.9,
-      "setting_5": 379.7,
-      "setting_4": 411.7
+      "setting_5": 377.0,
+      "setting_4": 398.1,
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "setting_1": 488.9,
+      "setting_2": 471.5,
+      "setting_3": 438.5
     },
     {
       "id": "tokyo-ghoul",
@@ -1351,39 +1370,59 @@
       "id": "sengoku-otome-5",
       "name": "L戦国乙女5 業火を穿つ宿焔の双刃",
       "series": "スマスロ",
-      "maker": "",
+      "maker": "オリンピア",
       "aliases": [
-        "戦国乙女5"
+        "戦国乙女5",
+        "L戦国乙女5",
+        "業火を穿つ宿焔の双刃"
       ],
       "published": {
-        "first_hit_denominator": 319.7,
-        "comment": "設定6 AT初当たりの解析概算"
+        "first_hit_denominator": 262.9,
+        "comment": "AT初当りの公表値。設定1〜6は 1/359.5 / 1/350.8 / 1/332.5 / 1/302.8 / 1/281.0 / 1/262.9。解析概算1/319.7は使わない。"
       },
       "criteria": {
         "min_games": 3000,
-        "synthetic_probability_threshold": 319.7,
+        "synthetic_probability_threshold": 262.9,
         "early_min_games": 300,
         "settings": {
-          "6": {
-            "synthetic": 319.7,
-            "first_hit": 319.7
+          "1": {
+            "synthetic": 359.5,
+            "first_hit": 359.5
           },
-          "5": {
-            "synthetic": 342.1,
-            "first_hit": 342.1
+          "2": {
+            "synthetic": 350.8,
+            "first_hit": 350.8
+          },
+          "3": {
+            "synthetic": 332.5,
+            "first_hit": 332.5
           },
           "4": {
-            "synthetic": 370.9,
-            "first_hit": 370.9
+            "synthetic": 302.8,
+            "first_hit": 302.8
+          },
+          "5": {
+            "synthetic": 281.0,
+            "first_hit": 281.0
+          },
+          "6": {
+            "synthetic": 262.9,
+            "first_hit": 262.9
           }
         }
       },
       "type": "AT",
       "hit_source": "rb",
       "target_count": "cz",
-      "setting_6": 319.7,
-      "setting_5": 342.1,
-      "setting_4": 370.9
+      "setting_6": 262.9,
+      "setting_5": 281.0,
+      "setting_4": 302.8,
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "setting_1": 359.5,
+      "setting_2": 350.8,
+      "setting_3": 332.5
     },
     {
       "id": "sao-2",
@@ -1800,41 +1839,61 @@
     },
     {
       "id": "jashin-chan",
-      "name": "邪神ちゃんドロップキック",
+      "name": "L邪神ちゃんドロップキック",
       "series": "スマスロ",
-      "maker": "",
+      "maker": "サンスリー",
       "aliases": [
-        "邪神ちゃん"
+        "邪神ちゃんドロップキック",
+        "邪神ちゃん",
+        "L邪神ちゃん"
       ],
       "published": {
-        "first_hit_denominator": 280.0,
-        "comment": "設定6 AT初当たりの仮置き 1/280"
+        "first_hit_denominator": 606.2,
+        "comment": "AT初当りの公表値。設定1〜6は 1/758.2 / 1/746.3 / 1/722.8 / 1/655.9 / 1/615.9 / 1/606.2。仮置き1/280から算出した値は使わない。"
       },
       "criteria": {
         "min_games": 3000,
-        "synthetic_probability_threshold": 280.0,
+        "synthetic_probability_threshold": 606.2,
         "early_min_games": 300,
         "settings": {
-          "6": {
-            "synthetic": 280.0,
-            "first_hit": 280.0
+          "1": {
+            "synthetic": 758.2,
+            "first_hit": 758.2
           },
-          "5": {
-            "synthetic": 299.6,
-            "first_hit": 299.6
+          "2": {
+            "synthetic": 746.3,
+            "first_hit": 746.3
+          },
+          "3": {
+            "synthetic": 722.8,
+            "first_hit": 722.8
           },
           "4": {
-            "synthetic": 324.8,
-            "first_hit": 324.8
+            "synthetic": 655.9,
+            "first_hit": 655.9
+          },
+          "5": {
+            "synthetic": 615.9,
+            "first_hit": 615.9
+          },
+          "6": {
+            "synthetic": 606.2,
+            "first_hit": 606.2
           }
         }
       },
       "type": "AT",
       "hit_source": "rb",
       "target_count": "cz",
-      "setting_6": 280.0,
-      "setting_5": 299.6,
-      "setting_4": 324.8
+      "setting_6": 606.2,
+      "setting_5": 615.9,
+      "setting_4": 655.9,
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "setting_1": 758.2,
+      "setting_2": 746.3,
+      "setting_3": 722.8
     },
     {
       "id": "yajikita",
@@ -2205,39 +2264,59 @@
       "id": "ghost-in-the-shell",
       "name": "スマスロ 攻殻機動隊",
       "series": "スマスロ",
-      "maker": "",
+      "maker": "サミー",
       "aliases": [
-        "攻殻機動隊"
+        "攻殻機動隊",
+        "L攻殻機動隊",
+        "スマスロ攻殻機動隊"
       ],
       "published": {
-        "first_hit_denominator": 280.0,
-        "comment": "設定6 AT初当たりの仮置き 1/280"
+        "first_hit_denominator": 278.0,
+        "comment": "AT初当りの公表値。設定1〜6は 1/336.3 / 1/332.0 / 1/319.6 / 1/298.7 / 1/285.8 / 1/278.0。仮置き1/280から算出した値は使わない。"
       },
       "criteria": {
         "min_games": 3000,
-        "synthetic_probability_threshold": 280.0,
+        "synthetic_probability_threshold": 278.0,
         "early_min_games": 300,
         "settings": {
-          "6": {
-            "synthetic": 280.0,
-            "first_hit": 280.0
+          "1": {
+            "synthetic": 336.3,
+            "first_hit": 336.3
           },
-          "5": {
-            "synthetic": 299.6,
-            "first_hit": 299.6
+          "2": {
+            "synthetic": 332.0,
+            "first_hit": 332.0
+          },
+          "3": {
+            "synthetic": 319.6,
+            "first_hit": 319.6
           },
           "4": {
-            "synthetic": 324.8,
-            "first_hit": 324.8
+            "synthetic": 298.7,
+            "first_hit": 298.7
+          },
+          "5": {
+            "synthetic": 285.8,
+            "first_hit": 285.8
+          },
+          "6": {
+            "synthetic": 278.0,
+            "first_hit": 278.0
           }
         }
       },
       "type": "AT",
       "hit_source": "rb",
       "target_count": "cz",
-      "setting_6": 280.0,
-      "setting_5": 299.6,
-      "setting_4": 324.8
+      "setting_6": 278.0,
+      "setting_5": 285.8,
+      "setting_4": 298.7,
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "setting_1": 336.3,
+      "setting_2": 332.0,
+      "setting_3": 319.6
     },
     {
       "id": "god-eater-resurrection",
@@ -3642,6 +3721,362 @@
       "setting_6": 280.0,
       "setting_5": 299.6,
       "setting_4": 324.8
+    },
+    {
+      "id": "godzilla-eva-2",
+      "name": "Lパチスロ ゴジラ対エヴァンゲリオン 2",
+      "series": "スマスロ",
+      "maker": "ビスティ",
+      "aliases": [
+        "ゴジラ対エヴァンゲリオン2",
+        "ゴジラ対エヴァンゲリオン２",
+        "ゴジエヴァ2",
+        "ゴジエヴァ２",
+        "Lゴジラ対エヴァンゲリオン2"
+      ],
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "published": {
+        "first_hit_denominator": 355.5,
+        "comment": "AT初当りの公表値。設定1〜6は 1/460.5 / 1/446.5 / 1/425.5 / 1/390.4 / 1/374.2 / 1/355.5。ボーナス初当りは別指標なので使わない。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "synthetic_probability_threshold": 355.5,
+        "settings": {
+          "1": {
+            "synthetic": 460.5,
+            "first_hit": 460.5
+          },
+          "2": {
+            "synthetic": 446.5,
+            "first_hit": 446.5
+          },
+          "3": {
+            "synthetic": 425.5,
+            "first_hit": 425.5
+          },
+          "4": {
+            "synthetic": 390.4,
+            "first_hit": 390.4
+          },
+          "5": {
+            "synthetic": 374.2,
+            "first_hit": 374.2
+          },
+          "6": {
+            "synthetic": 355.5,
+            "first_hit": 355.5
+          }
+        }
+      },
+      "setting_1": 460.5,
+      "setting_2": 446.5,
+      "setting_3": 425.5,
+      "setting_4": 390.4,
+      "setting_5": 374.2,
+      "setting_6": 355.5
+    },
+    {
+      "id": "mh-sunbreak",
+      "name": "スマスロ モンスターハンターライズ：サンブレイク",
+      "series": "スマスロ",
+      "maker": "アデリオン",
+      "aliases": [
+        "モンスターハンターライズ：サンブレイク",
+        "モンハンサンブレイク",
+        "サンブレイク"
+      ],
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "published": {
+        "first_hit_denominator": 242.3,
+        "comment": "AT初当りの公表値。設定1〜6は 1/349.9 / 1/337.0 / 1/319.8 / 1/283.6 / 1/264.0 / 1/242.3。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "synthetic_probability_threshold": 242.3,
+        "settings": {
+          "1": {
+            "synthetic": 349.9,
+            "first_hit": 349.9
+          },
+          "2": {
+            "synthetic": 337.0,
+            "first_hit": 337.0
+          },
+          "3": {
+            "synthetic": 319.8,
+            "first_hit": 319.8
+          },
+          "4": {
+            "synthetic": 283.6,
+            "first_hit": 283.6
+          },
+          "5": {
+            "synthetic": 264.0,
+            "first_hit": 264.0
+          },
+          "6": {
+            "synthetic": 242.3,
+            "first_hit": 242.3
+          }
+        }
+      },
+      "setting_1": 349.9,
+      "setting_2": 337.0,
+      "setting_3": 319.8,
+      "setting_4": 283.6,
+      "setting_5": 264.0,
+      "setting_6": 242.3
+    },
+    {
+      "id": "lycoris-recoil",
+      "name": "スマスロ リコリス・リコイル",
+      "series": "スマスロ",
+      "maker": "サミー",
+      "aliases": [
+        "リコリス・リコイル",
+        "リコリスリコイル",
+        "リコリコ",
+        "Lスマスロ リコリス・リコイル"
+      ],
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "published": {
+        "first_hit_denominator": 256.7,
+        "comment": "AT初当りの公表値。設定1〜6は 1/328.8 / 1/323.4 / 1/312.1 / 1/288.3 / 1/271.6 / 1/256.7。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "synthetic_probability_threshold": 256.7,
+        "settings": {
+          "1": {
+            "synthetic": 328.8,
+            "first_hit": 328.8
+          },
+          "2": {
+            "synthetic": 323.4,
+            "first_hit": 323.4
+          },
+          "3": {
+            "synthetic": 312.1,
+            "first_hit": 312.1
+          },
+          "4": {
+            "synthetic": 288.3,
+            "first_hit": 288.3
+          },
+          "5": {
+            "synthetic": 271.6,
+            "first_hit": 271.6
+          },
+          "6": {
+            "synthetic": 256.7,
+            "first_hit": 256.7
+          }
+        }
+      },
+      "setting_1": 328.8,
+      "setting_2": 323.4,
+      "setting_3": 312.1,
+      "setting_4": 288.3,
+      "setting_5": 271.6,
+      "setting_6": 256.7
+    },
+    {
+      "id": "aobuta",
+      "name": "L青春ブタ野郎はバニーガール先輩の夢を見ない",
+      "series": "スマスロ",
+      "maker": "オリンピア",
+      "aliases": [
+        "青春ブタ野郎はバニーガール先輩の夢を見ない",
+        "青春ブタ野郎",
+        "青ブタ"
+      ],
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "published": {
+        "first_hit_denominator": 207.8,
+        "comment": "青春BONUS初当りの公表値。設定2〜6は 1/350.8 / 1/336.5 / 1/295.1 / 1/274.6 / 1/207.8。設定1は非公表なので入れない。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "synthetic_probability_threshold": 207.8,
+        "settings": {
+          "2": {
+            "synthetic": 350.8,
+            "first_hit": 350.8
+          },
+          "3": {
+            "synthetic": 336.5,
+            "first_hit": 336.5
+          },
+          "4": {
+            "synthetic": 295.1,
+            "first_hit": 295.1
+          },
+          "5": {
+            "synthetic": 274.6,
+            "first_hit": 274.6
+          },
+          "6": {
+            "synthetic": 207.8,
+            "first_hit": 207.8
+          }
+        },
+        "published_levels": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "setting_2": 350.8,
+      "setting_3": 336.5,
+      "setting_4": 295.1,
+      "setting_5": 274.6,
+      "setting_6": 207.8
+    },
+    {
+      "id": "saint-seiya-gold",
+      "name": "L聖闘士星矢 黄金十二宮",
+      "series": "スマスロ",
+      "maker": "サンスリー",
+      "aliases": [
+        "聖闘士星矢 黄金十二宮",
+        "黄金十二宮",
+        "黄金12宮",
+        "L聖闘士星矢黄金十二宮"
+      ],
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "published": {
+        "first_hit_denominator": 310.5,
+        "comment": "AT初当りの公表値。設定1〜6は 1/364.2 / 1/356.1 / 1/345.6 / 1/322.3 / 1/313.7 / 1/310.5。発表資料の設定1は約1/364。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "synthetic_probability_threshold": 310.5,
+        "settings": {
+          "1": {
+            "synthetic": 364.2,
+            "first_hit": 364.2
+          },
+          "2": {
+            "synthetic": 356.1,
+            "first_hit": 356.1
+          },
+          "3": {
+            "synthetic": 345.6,
+            "first_hit": 345.6
+          },
+          "4": {
+            "synthetic": 322.3,
+            "first_hit": 322.3
+          },
+          "5": {
+            "synthetic": 313.7,
+            "first_hit": 313.7
+          },
+          "6": {
+            "synthetic": 310.5,
+            "first_hit": 310.5
+          }
+        }
+      },
+      "setting_1": 364.2,
+      "setting_2": 356.1,
+      "setting_3": 345.6,
+      "setting_4": 322.3,
+      "setting_5": 313.7,
+      "setting_6": 310.5
+    },
+    {
+      "id": "juou",
+      "name": "スマスロ 獣王",
+      "series": "スマスロ",
+      "maker": "サミー",
+      "aliases": [
+        "獣王",
+        "L獣王",
+        "L獣王XZ"
+      ],
+      "type": "AT",
+      "hit_source": "rb",
+      "target_count": "cz",
+      "probability_source": "rb",
+      "enabled": true,
+      "is_disabled": false,
+      "published": {
+        "first_hit_denominator": 279.7,
+        "comment": "サバンナチャンス初当りの公表値。設定1・2・4・5・6は 1/326.5 / 1/321.6 / 1/295.8 / 1/287.6 / 1/279.7。設定3は非搭載、設定Lは非公表なので入れない。"
+      },
+      "criteria": {
+        "min_games": 3000,
+        "early_min_games": 300,
+        "synthetic_probability_threshold": 279.7,
+        "settings": {
+          "1": {
+            "synthetic": 326.5,
+            "first_hit": 326.5
+          },
+          "2": {
+            "synthetic": 321.6,
+            "first_hit": 321.6
+          },
+          "4": {
+            "synthetic": 295.8,
+            "first_hit": 295.8
+          },
+          "5": {
+            "synthetic": 287.6,
+            "first_hit": 287.6
+          },
+          "6": {
+            "synthetic": 279.7,
+            "first_hit": 279.7
+          }
+        },
+        "published_levels": [
+          1,
+          2,
+          4,
+          5,
+          6
+        ]
+      },
+      "setting_1": 326.5,
+      "setting_2": 321.6,
+      "setting_4": 295.8,
+      "setting_5": 287.6,
+      "setting_6": 279.7
     }
   ],
   "schema": {
