@@ -326,8 +326,17 @@ _MEMBER_TOOL_PATHS = _OPEN_TOOL_PATHS
 _BILLING_PATHS = {"/billing", "/checkout"}
 
 
+def staging_service() -> bool:
+    """ステージングの Render サービスだけを判定する。本番の suro-goku は含めない。"""
+    name = (os.getenv("RENDER_SERVICE_NAME") or "").strip()
+    url = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().lower()
+    return name == "suro-goku-staging" or "suro-goku-staging.onrender.com" in url
+
+
 def open_tool_mode() -> bool:
-    """確認用。DASHBOARD_OPEN=1 のときだけ、ログインなしでツール画面を開く。"""
+    """確認用。DASHBOARD_OPEN=1、またはステージングサービスではログインなしでツールを開く。"""
+    if staging_service():
+        return True
     flag = (os.getenv("DASHBOARD_OPEN") or "").strip().lower()
     return flag in {"1", "true", "yes", "on"}
 

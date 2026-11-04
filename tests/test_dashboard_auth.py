@@ -121,6 +121,35 @@ class DashboardAuthTest(unittest.TestCase):
             self.assertEqual(status, 401)
             self.assertEqual(json.loads(body)["detail"], "ログインが必要です")
 
+    def test_staging_service_opens_the_tool_without_login(self) -> None:
+        staging = {
+            "RENDER": "true",
+            "DASHBOARD_OPEN": "",
+            "RENDER_SERVICE_NAME": "suro-goku-staging",
+            "RENDER_EXTERNAL_URL": "https://suro-goku-staging.onrender.com",
+        }
+        with mock.patch.dict(os.environ, staging, clear=False):
+            status, _headers, body, _cookies = self.call("GET", "/")
+            self.assertEqual(status, 200)
+            self.assertIn("店舗別ダッシュボード", body)
+            self.assertNotIn("ライセンスキー / パスワード", body)
+            status, _headers, body, _cookies = self.call("GET", "/api/judgments")
+            self.assertEqual(status, 200)
+            status, headers, _body, _cookies = self.call("GET", "/master-panel-x7k3q9")
+            self.assertEqual(status, 303)
+            self.assertIn("/login", headers["location"])
+        production = {
+            "RENDER": "true",
+            "DASHBOARD_OPEN": "",
+            "RENDER_SERVICE_NAME": "suro-goku",
+            "RENDER_EXTERNAL_URL": "https://suro-goku.onrender.com",
+        }
+        with mock.patch.dict(os.environ, production, clear=False):
+            status, headers, body, _cookies = self.call("GET", "/")
+            self.assertEqual(status, 303)
+            self.assertIn("/login", headers["location"])
+            self.assertNotIn("店舗別ダッシュボード", body)
+
     def test_render_link_stays_behind_login_until_open_mode(self) -> None:
         with mock.patch.dict(os.environ, {"RENDER": "true", "DASHBOARD_OPEN": ""}, clear=False):
             status, headers, body, _cookies = self.call("GET", "/")
