@@ -262,6 +262,24 @@ def load_durable(prefecture: str) -> list[dict[str, Any]]:
     return payloads
 
 
+def _read_hall_row(hall_name: str) -> dict[str, Any] | None:
+    from sqlalchemy import text
+
+    engine = _engine()
+    with engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT payload FROM hall_judgments WHERE hall_name = :hall_name"),
+            {"hall_name": hall_name},
+        ).mappings().first()
+    if row is None:
+        return None
+    try:
+        loaded = json.loads(row["payload"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
 def load_hall_payload(hall_name: str) -> dict[str, Any] | None:
     """1店舗の原本だけ読む。県全体は組み立てない。"""
     name = (hall_name or "").strip()
@@ -270,24 +288,53 @@ def load_hall_payload(hall_name: str) -> dict[str, Any] | None:
     try:
         if not _ensure():
             return None
-        from sqlalchemy import text
-
-        engine = _engine()
-        with engine.connect() as connection:
-            row = connection.execute(
-                text("SELECT payload FROM hall_judgments WHERE hall_name = :hall_name"),
-                {"hall_name": name},
-            ).mappings().first()
+        if _staging_snapshot():
+            staged = _read_hall_row(f"{name}|staging")
+            if staged is not None:
+                return staged
+        return _read_hall_row(name)
     except Exception as exc:
         print(f"店舗判定の読み込みに失敗しました: {type(exc).__name__}", flush=True)
         return None
-    if row is None:
-        return None
+
+
+def save_staging_hall_detail(payload: dict[str, Any]) -> bool:
+    """台明細の確認用。県の集計キーには入れないので、本番の完成品は作り直さない。"""
+    if not _staging_snapshot() or not _postgres_url():
+        return False
+    name = str(payload.get("hall_name") or "").strip()
+    if not name:
+        return False
     try:
-        loaded = json.loads(row["payload"])
-    except (TypeError, json.JSONDecodeError):
-        return None
-    return loaded if isinstance(loaded, dict) else None
+        if not _ensure():
+            return False
+        from sqlalchemy import text
+
+        engine = _engine()
+        body = dict(payload)
+        body.pop("results", None)
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO hall_judgments (hall_name, prefecture, payload, updated_at)
+                    VALUES (:hall_name, '', :payload, :updated_at)
+                    ON CONFLICT (hall_name) DO UPDATE SET
+                      prefecture = '',
+                      payload = EXCLUDED.payload,
+                      updated_at = EXCLUDED.updated_at
+                    """
+                ),
+                {
+                    "hall_name": f"{name}|staging",
+                    "payload": json.dumps(body, ensure_ascii=False, separators=(",", ":")),
+                    "updated_at": int(time.time()),
+                },
+            )
+    except Exception as exc:
+        print(f"ステージング店舗の保存に失敗しました: {type(exc).__name__}", flush=True)
+        return False
+    return True
 
 
 def hall_source_stamps() -> dict[str, str]:

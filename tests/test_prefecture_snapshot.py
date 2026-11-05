@@ -112,6 +112,37 @@ class PrefectureSnapshotTest(unittest.TestCase):
         self.assertEqual(view["machines"][0]["unit_count"], 1)
         self.assertTrue(view["lineup_ready"])
 
+    def test_splice_replaces_one_hall_and_drops_unit_rows(self) -> None:
+        from src.dashboard.prefecture_snapshot import splice_hall_into_view
+
+        view = splice_hall_into_view(
+            {
+                "machines": [
+                    {"hall_name": "他店", "machine_name": "既存", "unit_count": 3, "status": "NOT_HIGH"},
+                    {"hall_name": "玉屋∞本店", "machine_name": "古い", "unit_count": 4, "status": "EXCLUDED"},
+                ],
+                "unit_count": 7,
+                "halls": ["他店", "玉屋∞本店"],
+                "hall_digit_summaries": [{"hall_name": "玉屋∞本店", "digits": []}],
+            },
+            "玉屋∞本店",
+            [
+                {
+                    "hall_name": "玉屋∞本店",
+                    "machine_name": "L邪神ちゃんドロップキック",
+                    "unit_count": 2,
+                    "status": "NOT_HIGH",
+                    "units": [{"dai_no": "1"}],
+                }
+            ],
+            [{"hall_name": "玉屋∞本店", "digits": [{"digit": 1}]}],
+        )
+        names = [(row["hall_name"], row["machine_name"]) for row in view["machines"]]
+        self.assertEqual(names, [("他店", "既存"), ("玉屋∞本店", "L邪神ちゃんドロップキック")])
+        self.assertNotIn("units", view["machines"][1])
+        self.assertEqual(view["unit_count"], 5)
+        self.assertEqual(view["hall_digit_summaries"], [{"hall_name": "玉屋∞本店", "digits": [{"digit": 1}]}])
+
     def test_staging_snapshot_key_does_not_replace_production(self) -> None:
         from src.dashboard.judgment_store import _snapshot_name
 

@@ -713,6 +713,16 @@ async def receive_hall_judgment(request: Request) -> JSONResponse:
 
         store_reflection_status(body)
         return JSONResponse({"ok": True, "note": body.get("note")})
+    if body.get("snapshot_only"):
+        from src.dashboard.auth import staging_service
+        from src.dashboard.prefecture_snapshot import overlay_hall_snapshot
+
+        if not staging_service():
+            return JSONResponse({"detail": "この差し込みはステージングだけです"}, status_code=403)
+        try:
+            return JSONResponse(overlay_hall_snapshot(body))
+        except ValueError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=400)
     try:
         store_hall_payload(body)
     except ValueError as exc:

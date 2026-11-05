@@ -225,3 +225,120 @@ def _build(prefecture: str) -> None:
         f"県の完成品を保存しました: {prefecture} {int(view.get('machine_count') or 0)}機種 {size_kb}KB {build_ms}ms",
         flush=True,
     )
+
+
+def splice_hall_into_view(
+    view: dict[str, Any],
+    hall_name: str,
+    machines: list[dict[str, Any]],
+    digits: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """1店舗の機種行だけを差し替える。台明細は完成品に残さない。"""
+    hall = (hall_name or "").strip()
+    incoming: list[dict[str, Any]] = []
+    added_units = 0
+    for row in machines:
+        if not isinstance(row, dict):
+            continue
+        item = dict(row)
+        item.pop("units", None)
+        item.pop("results", None)
+        item["hall_name"] = hall
+        incoming.append(item)
+        added_units += int(row.get("unit_count") or 0)
+    if not hall or not incoming:
+        raise ValueError("hall_name と machines が必要です")
+    old = [row for row in (view.get("machines") or []) if isinstance(row, dict)]
+    removed_units = sum(int(row.get("unit_count") or 0) for row in old if str(row.get("hall_name") or "") == hall)
+    kept: list[dict[str, Any]] = []
+    inserted = False
+    for row in old:
+        if str(row.get("hall_name") or "") == hall:
+            if not inserted:
+                kept.extend(incoming)
+                inserted = True
+            continue
+        kept.append(row)
+    if not inserted:
+        kept.extend(incoming)
+    updated = dict(view)
+    updated["machines"] = kept
+    updated["machine_count"] = len(kept)
+    updated["count"] = len(kept)
+    updated["all_high_count"] = sum(1 for row in kept if row.get("is_all_high") or row.get("status") == "ALL_HIGH")
+    updated["high_56_count"] = sum(1 for row in kept if row.get("is_high_56") or row.get("status") == "HIGH_56")
+    updated["high_base_count"] = sum(1 for row in kept if row.get("is_high_base") or row.get("status") == "HIGH_BASE")
+    updated["early_alert_count"] = sum(1 for row in kept if row.get("is_early_alert") or row.get("status") == "EARLY_ALERT")
+    updated["unit_count"] = max(0, int(updated.get("unit_count") or 0) - removed_units + added_units)
+    boards = [
+        row
+        for row in (updated.get("hall_digit_summaries") or [])
+        if not isinstance(row, dict) or str(row.get("hall_name") or "") != hall
+    ]
+    for board in digits or []:
+        if isinstance(board, dict) and str(board.get("hall_name") or "") == hall:
+            boards.append(board)
+    updated["hall_digit_summaries"] = boards
+    halls = [str(name) for name in (updated.get("halls") or []) if str(name) != hall]
+    if hall not in halls:
+        halls.append(hall)
+    updated["halls"] = halls
+    return updated
+
+
+def overlay_hall_snapshot(body: dict[str, Any]) -> dict[str, Any]:
+    """ステージングの県完成品へ1店舗だけ載せる。共有の店舗原本は更新しない。"""
+    hall = str(body.get("hall_name") or "").strip()
+    prefecture = str(body.get("prefecture") or "fukuoka").strip().lower() or "fukuoka"
+    machines = body.get("machines") if isinstance(body.get("machines"), list) else []
+    from src.dashboard.judgment_store import (
+        load_prefecture_snapshot,
+        save_prefecture_snapshot,
+        save_staging_hall_detail,
+    )
+
+    stored = load_prefecture_snapshot(prefecture)
+    if not stored:
+        raise ValueError("県の完成品がまだありません")
+    view = json.loads(stored["payload"])
+    if not isinstance(view, dict):
+        raise ValueError("県の完成品を読めません")
+    digits = body.get("hall_digit_summaries") if isinstance(body.get("hall_digit_summaries"), list) else []
+    view = splice_hall_into_view(view, hall, machines, digits)
+    if body.get("fetched_at"):
+        view["fetched_at"] = body.get("fetched_at")
+    if body.get("judged_at"):
+        view["judged_at"] = body.get("judged_at")
+    payload = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
+    saved = save_prefecture_snapshot(
+        prefecture,
+        source_stamp=str(stored.get("source_stamp") or ""),
+        events_mtime=float(stored.get("events_mtime") or 0),
+        judged_at=str(view.get("judged_at") or ""),
+        fetched_at=str(view.get("fetched_at") or ""),
+        events_updated_at=str(view.get("events_updated_at") or ""),
+        machine_count=int(view.get("machine_count") or 0),
+        unit_count=int(view.get("unit_count") or 0),
+        lineup_ready=bool(view.get("lineup_ready")),
+        payload=payload,
+        build_ms=0,
+    )
+    if not saved:
+        raise ValueError("完成品を保存できませんでした")
+    with _LOCK:
+        _SERVED[prefecture] = (str(stored.get("source_stamp") or ""), float(stored.get("events_mtime") or 0), payload)
+    save_staging_hall_detail(
+        {
+            "hall_name": hall,
+            "fetched_at": body.get("fetched_at"),
+            "judged_at": body.get("judged_at"),
+            "machines": machines,
+        }
+    )
+    return {
+        "ok": True,
+        "snapshot_only": True,
+        "hall_name": hall,
+        "prefecture": prefecture,
+        "machine_count": len(machines),
+    }
