@@ -709,6 +709,36 @@ class MachineSettingsTest(unittest.TestCase):
         self.assertEqual(match_target("L聖闘士星矢 黄金十二宮", targets).id, "saint-seiya-gold")
         self.assertEqual(by_id["saint-seiya-gold"].settings[1].synthetic, 364.2)
 
+    def test_hidden_otome_is_judged_with_published_rate(self) -> None:
+        from src.analyzer.judgment import reveal_staged_machines
+
+        otome = {
+            "hall_name": "ブーム天神",
+            "machine_name": "L戦国乙女5",
+            "status": "EXCLUDED",
+            "judgment_excluded": True,
+            "unit_count": 2,
+            "total_games": 6000,
+            "rb_count": 20,
+            "criteria": {
+                "id": "sengoku-otome-5",
+                "enabled": True,
+                "settings": {"6": {"synthetic": 319.7, "first_hit": 319.7}},
+            },
+        }
+        other = {
+            "machine_name": "ミリオンゴッド",
+            "status": "EXCLUDED",
+            "judgment_excluded": True,
+            "criteria": {"id": "million-god-kiseki"},
+        }
+        reveal_staged_machines([otome, other])
+        self.assertFalse(otome["judgment_excluded"])
+        self.assertEqual(otome["status"], "HIGH_BASE")
+        self.assertEqual(otome["criteria"]["settings"]["6"]["first_hit"], 262.9)
+        self.assertTrue(other["judgment_excluded"])
+        self.assertEqual(other["status"], "EXCLUDED")
+
 
 if __name__ == "__main__":
     unittest.main()

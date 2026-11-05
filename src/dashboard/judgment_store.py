@@ -322,6 +322,20 @@ def hall_source_stamps() -> dict[str, str]:
     return stamps
 
 
+def _staging_snapshot() -> bool:
+    """ステージングの完成品は別キーにする。本番の県の行は上書きしない。"""
+    name = (os.getenv("RENDER_SERVICE_NAME") or "").strip()
+    url = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().lower()
+    return name == "suro-goku-staging" or "suro-goku-staging.onrender.com" in url
+
+
+def _snapshot_name(prefecture: str) -> str:
+    wanted = (prefecture or "").strip().lower()
+    if wanted and _staging_snapshot():
+        return f"{wanted}|staging"
+    return wanted
+
+
 def save_prefecture_snapshot(
     prefecture: str,
     *,
@@ -375,7 +389,7 @@ def save_prefecture_snapshot(
                     """
                 ),
                 {
-                    "prefecture": wanted,
+                    "prefecture": _snapshot_name(wanted),
                     "source_stamp": source_stamp,
                     "events_mtime": float(events_mtime),
                     "judged_at": judged_at,
@@ -416,7 +430,7 @@ def load_prefecture_snapshot(prefecture: str) -> dict[str, Any] | None:
                     WHERE prefecture = :prefecture
                     """
                 ),
-                {"prefecture": wanted},
+                {"prefecture": _snapshot_name(wanted)},
             ).mappings().first()
     except Exception as exc:
         print(f"県の完成品の読み込みに失敗しました: {type(exc).__name__}", flush=True)
@@ -453,7 +467,7 @@ def load_prefecture_snapshot_meta(prefecture: str) -> dict[str, Any] | None:
                     WHERE prefecture = :prefecture
                     """
                 ),
-                {"prefecture": wanted},
+                {"prefecture": _snapshot_name(wanted)},
             ).mappings().first()
     except Exception:
         return None
@@ -486,11 +500,20 @@ def snapshot_source_stamps() -> dict[str, str]:
             ).mappings().all()
     except Exception:
         return {}
-    return {
-        str(row["prefecture"] or ""): str(row["source_stamp"] or "")
-        for row in rows
-        if str(row["prefecture"] or "")
-    }
+    stamps: dict[str, str] = {}
+    staging = _staging_snapshot()
+    for row in rows:
+        key = str(row["prefecture"] or "")
+        if not key:
+            continue
+        if staging:
+            if not key.endswith("|staging"):
+                continue
+            key = key[: -len("|staging")]
+        elif key.endswith("|staging"):
+            continue
+        stamps[key] = str(row["source_stamp"] or "")
+    return stamps
 
 
 def list_prefecture_snapshot_meta() -> list[dict[str, Any]]:
@@ -515,14 +538,24 @@ def list_prefecture_snapshot_meta() -> list[dict[str, Any]]:
             ).mappings().all()
     except Exception:
         return []
-    return [
-        {
-            "prefecture": str(row["prefecture"] or ""),
-            "machine_count": int(row["machine_count"] or 0),
-            "unit_count": int(row["unit_count"] or 0),
-            "payload_bytes": int(row["payload_bytes"] or 0),
-            "build_ms": int(row["build_ms"] or 0),
-            "generated_at": int(row["generated_at"] or 0),
-        }
-        for row in rows
-    ]
+    staging = _staging_snapshot()
+    listed = []
+    for row in rows:
+        key = str(row["prefecture"] or "")
+        if staging:
+            if not key.endswith("|staging"):
+                continue
+            key = key[: -len("|staging")]
+        elif key.endswith("|staging"):
+            continue
+        listed.append(
+            {
+                "prefecture": key,
+                "machine_count": int(row["machine_count"] or 0),
+                "unit_count": int(row["unit_count"] or 0),
+                "payload_bytes": int(row["payload_bytes"] or 0),
+                "build_ms": int(row["build_ms"] or 0),
+                "generated_at": int(row["generated_at"] or 0),
+            }
+        )
+    return listed

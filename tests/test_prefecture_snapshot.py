@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 import unittest.mock
 
@@ -102,7 +103,7 @@ class PrefectureSnapshotTest(unittest.TestCase):
                     with unittest.mock.patch("src.dashboard.judgment_store.save_prefecture_snapshot", side_effect=capture):
                         _build("fukuoka")
         self.assertEqual(saved["prefecture"], "fukuoka")
-        self.assertEqual(saved["source_stamp"], "1:10|20261026-digit")
+        self.assertEqual(saved["source_stamp"], "1:10|20261106-reveal")
         self.assertGreaterEqual(saved["build_ms"], 0)
         view = json.loads(saved["payload"])
         self.assertEqual(view["snapshot_status"], "ready")
@@ -110,6 +111,18 @@ class PrefectureSnapshotTest(unittest.TestCase):
         self.assertNotIn("units", view["machines"][0])
         self.assertEqual(view["machines"][0]["unit_count"], 1)
         self.assertTrue(view["lineup_ready"])
+
+    def test_staging_snapshot_key_does_not_replace_production(self) -> None:
+        from src.dashboard.judgment_store import _snapshot_name
+
+        with unittest.mock.patch.dict(os.environ, {"RENDER_SERVICE_NAME": "suro-goku-staging"}, clear=False):
+            self.assertEqual(_snapshot_name("fukuoka"), "fukuoka|staging")
+        with unittest.mock.patch.dict(
+            os.environ,
+            {"RENDER_SERVICE_NAME": "suro-goku", "RENDER_EXTERNAL_URL": "https://suro-goku.onrender.com"},
+            clear=False,
+        ):
+            self.assertEqual(_snapshot_name("fukuoka"), "fukuoka")
 
 
 if __name__ == "__main__":

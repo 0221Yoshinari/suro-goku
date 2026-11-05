@@ -1037,6 +1037,109 @@ def _sum_exact(values: list[int | None]) -> int | None:
     return sum(int(value) for value in values)
 
 
+# ステージングで追加した機種。保存済み判定が除外のままでも、画面では公表値で出し直す。
+STAGED_MACHINE_IDS = frozenset(
+    {
+        "jashin-chan",
+        "shinuchi-yoshimune",
+        "sengoku-otome-5",
+        "godzilla-eva-2",
+        "mh-sunbreak",
+        "lycoris-recoil",
+        "aobuta",
+        "ghost-in-the-shell",
+        "saint-seiya-gold",
+        "juou",
+    }
+)
+
+
+def _pooled_counts(row: dict[str, Any]) -> tuple[int | None, int | None, int]:
+    units = [unit for unit in (row.get("units") or []) if isinstance(unit, dict)]
+    if units:
+        games = _sum_exact(
+            [_as_int(unit.get("real_normal_games")) or _as_int(unit.get("total_games")) for unit in units]
+        )
+        hits = _sum_optional([_as_int(unit.get("rb_count")) for unit in units])
+        return games, hits, len(units)
+    return _as_int(row.get("total_games")), _as_int(row.get("rb_count")), int(row.get("unit_count") or 0)
+
+
+def reveal_staged_machines(machines: list[dict[str, Any]]) -> None:
+    """追加機種を、連チャン未分離の除外フラグで隠さない。確率は今の公表値で付け直す。"""
+    if not machines:
+        return
+    masters = load_masters()
+    for row in machines:
+        if not isinstance(row, dict):
+            continue
+        master = match_machine(str(row.get("machine_name") or ""), masters)
+        if master is None or master.id not in STAGED_MACHINE_IDS or not master.enabled:
+            continue
+        criteria = dict(row.get("criteria") or {})
+        criteria.update(master.to_summary())
+        row["criteria"] = criteria
+        row["judgment_type"] = master.type
+        row["series"] = row.get("series") or master.raw.get("series")
+        games, hits, unit_count = _pooled_counts(row)
+        if unit_count:
+            row["unit_count"] = unit_count
+        synthetic = _ratio_from_counts(games, hits)
+        row["total_games"] = games
+        row["rb_count"] = hits
+        row["first_hit_count"] = hits
+        row["synthetic_probability"] = synthetic
+        avg = (games / unit_count) if games is not None and unit_count else None
+        sample_games = int(avg) if avg is not None else None
+        compare_as = master.type or "AT"
+        meets6 = _meets_setting6(
+            compare_as,
+            synthetic,
+            None,
+            master.settings.get(6),
+            master.settings.get(5),
+            sample_games=avg,
+        )
+        meets5 = _meets_setting5(
+            compare_as,
+            synthetic,
+            None,
+            master.settings.get(5),
+            master.settings.get(4),
+            sample_games=avg,
+        )
+        meets4 = _meets_setting(compare_as, synthetic, None, master.settings.get(4))
+        if sample_games is not None and sample_games < master.early_min_games:
+            meets6 = False
+            meets5 = False
+            meets4 = False
+        row["checks"] = {
+            "games_enough": sample_games >= master.min_games if sample_games is not None else None,
+            "early_enough": sample_games >= master.early_min_games if sample_games is not None else None,
+            "meets_setting_6": meets6,
+            "meets_setting_5": meets5,
+            "meets_setting_4": meets4,
+        }
+        if sample_games is None or synthetic is None or None in (meets6, meets5, meets4):
+            status = STATUS_INCOMPLETE
+        else:
+            status = _classify(sample_games, master, bool(meets6), bool(meets5), bool(meets4))
+        row["status"] = status
+        row["status_label"] = STATUS_LABELS[status]
+        row["judgment_excluded"] = False
+        row["is_all_high"] = status == STATUS_ALL_HIGH
+        row["is_high_56"] = status == STATUS_HIGH_56
+        row["is_high_base"] = status == STATUS_HIGH_BASE
+        row["is_early_alert"] = status == STATUS_EARLY_ALERT
+        row["estimated_setting"] = estimate_setting_level(
+            compare_as,
+            synthetic,
+            None,
+            master.settings,
+            sample_games=avg,
+        )
+
+
 def aggregate_machine_groups(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """同一店舗・同一機種の台を合算し、全台系判定を機種単位で付け直す。"""
     from src.analyzer.extras import digit_judgments

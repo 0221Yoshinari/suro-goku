@@ -26,7 +26,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
-from src.analyzer.judgment import DEFAULT_OUTPUT_DIR, PROJECT_ROOT, judge_all
+from src.analyzer.judgment import DEFAULT_OUTPUT_DIR, PROJECT_ROOT, judge_all, reveal_staged_machines
 from src.analyzer.juggler import attach_juggler_view
 from src.analyzer.overrides import OverrideError
 from src.dashboard.admin import clear_master_edit, create_master, inspection_rows, list_master_rows, save_master_edit
@@ -1032,13 +1032,21 @@ def _finish_synced(payload: dict, *, lineup: str = "background") -> dict:
     payload.setdefault("machines", [])
     payload.setdefault("results", [])
     machines = payload["machines"]
-    payload.setdefault("machine_count", len(machines))
+    if isinstance(machines, list):
+        reveal_staged_machines(machines)
+    payload["machine_count"] = len(machines) if isinstance(machines, list) else 0
     payload.setdefault("unit_count", payload.get("unit_count") or 0)
-    payload.setdefault("count", payload.get("machine_count") or 0)
-    payload.setdefault("all_high_count", sum(1 for row in machines if row.get("is_all_high")))
-    payload.setdefault("high_56_count", sum(1 for row in machines if row.get("is_high_56") or row.get("status") == "HIGH_56"))
-    payload.setdefault("high_base_count", sum(1 for row in machines if row.get("is_high_base") or row.get("status") == "HIGH_BASE"))
-    payload.setdefault("early_alert_count", sum(1 for row in machines if row.get("is_early_alert") or row.get("status") == "EARLY_ALERT"))
+    payload["count"] = payload["machine_count"]
+    payload["all_high_count"] = sum(1 for row in machines if isinstance(row, dict) and row.get("is_all_high"))
+    payload["high_56_count"] = sum(
+        1 for row in machines if isinstance(row, dict) and (row.get("is_high_56") or row.get("status") == "HIGH_56")
+    )
+    payload["high_base_count"] = sum(
+        1 for row in machines if isinstance(row, dict) and (row.get("is_high_base") or row.get("status") == "HIGH_BASE")
+    )
+    payload["early_alert_count"] = sum(
+        1 for row in machines if isinstance(row, dict) and (row.get("is_early_alert") or row.get("status") == "EARLY_ALERT")
+    )
     payload.setdefault("halls", [])
     _apply_hall_catalog(payload)
     return _with_events(payload, lineup=lineup)
