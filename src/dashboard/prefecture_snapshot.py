@@ -102,7 +102,7 @@ def health_snapshot() -> dict[str, Any]:
         error = errors.get(str(row.get("prefecture") or ""))
         if error:
             row["last_error"] = error
-    return {"enabled": True, "building": building, "waiting": waiting, "ready": ready}
+    return {"enabled": True, "building": building, "waiting": waiting, "ready": ready, "hall_overlay": True}
 
 
 def _refresh_if_events_moved(prefecture: str, stored_mtime: float) -> None:
@@ -291,11 +291,13 @@ def overlay_hall_snapshot(body: dict[str, Any]) -> dict[str, Any]:
     hall = str(body.get("hall_name") or "").strip()
     prefecture = str(body.get("prefecture") or "fukuoka").strip().lower() or "fukuoka"
     machines = body.get("machines") if isinstance(body.get("machines"), list) else []
+    from src.dashboard.app import _events_mtime
     from src.dashboard.judgment_store import (
         load_prefecture_snapshot,
         save_prefecture_snapshot,
         save_staging_hall_detail,
     )
+    events_mtime = float(_events_mtime())
 
     stored = load_prefecture_snapshot(prefecture)
     if not stored:
@@ -313,7 +315,7 @@ def overlay_hall_snapshot(body: dict[str, Any]) -> dict[str, Any]:
     saved = save_prefecture_snapshot(
         prefecture,
         source_stamp=str(stored.get("source_stamp") or ""),
-        events_mtime=float(stored.get("events_mtime") or 0),
+        events_mtime=events_mtime,
         judged_at=str(view.get("judged_at") or ""),
         fetched_at=str(view.get("fetched_at") or ""),
         events_updated_at=str(view.get("events_updated_at") or ""),
@@ -326,7 +328,7 @@ def overlay_hall_snapshot(body: dict[str, Any]) -> dict[str, Any]:
     if not saved:
         raise ValueError("完成品を保存できませんでした")
     with _LOCK:
-        _SERVED[prefecture] = (str(stored.get("source_stamp") or ""), float(stored.get("events_mtime") or 0), payload)
+        _SERVED[prefecture] = (str(stored.get("source_stamp") or ""), events_mtime, payload)
     save_staging_hall_detail(
         {
             "hall_name": hall,
