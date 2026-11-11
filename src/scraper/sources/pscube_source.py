@@ -16,7 +16,11 @@ class PscubeSource(DataSource):
     display_name = "P'sCUBE"
 
     async def fetch(self) -> FetchResult:
-        return fetch_pscube_data(halls_for_source(self.source_id))
+        import asyncio
+
+        # 403 の待ちがイベントループを止めると、他ソースの巡回まで進まなくなる。
+        halls = halls_for_source(self.source_id)
+        return await asyncio.to_thread(fetch_pscube_data, halls)
 
     def ingest(self, path: Path | None = None) -> list[dict[str, Any]]:
         cfg = load_config()

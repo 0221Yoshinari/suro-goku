@@ -304,6 +304,27 @@ class DashboardAuthTest(unittest.TestCase):
             self.assertNotIn("dashboard_session", self.cookies)
             self.assertNotIn("店舗別ダッシュボード", body)
 
+    def test_owner_email_opens_the_tool_without_a_subscription(self) -> None:
+        from src.dashboard.square_members import email_access
+
+        access = email_access("Yoshinari.Koba0221@gmail.com")
+        self.assertTrue(access["allowed"])
+        self.assertEqual(access["email"], "yoshinari.koba0221@gmail.com")
+        self.assertEqual(access["status"], "active")
+        with mock.patch.dict(os.environ, {"MEMBER_DISABLE_SHARED_PASSWORD": "1"}):
+            status, headers, _body, _cookies = self.call(
+                "POST",
+                "/login",
+                data={"email": "yoshinari.koba0221@gmail.com", "password": "expired", "next": "/"},
+            )
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["location"], "/")
+        status, _headers, body, _cookies = self.call("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertIn("店舗別ダッシュボード", body)
+        status, _headers, _body, _cookies = self.call("GET", "/api/judgments")
+        self.assertEqual(status, 200)
+
     def test_wrong_password_does_not_open_dashboard(self) -> None:
         status, _headers, body, set_cookies = self.call("POST", "/login", data={"password": "nope", "next": "/"})
         self.assertEqual(status, 200)

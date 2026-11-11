@@ -16,7 +16,10 @@ class MaruhanSource(DataSource):
     display_name = "マルハンアプリ"
 
     async def fetch(self) -> FetchResult:
-        return fetch_maruhan_data(halls_for_source(self.source_id))
+        import asyncio
+
+        halls = halls_for_source(self.source_id)
+        return await asyncio.to_thread(fetch_maruhan_data, halls)
 
     def ingest(self, path: Path | None = None) -> list[dict[str, Any]]:
         cfg = load_config()

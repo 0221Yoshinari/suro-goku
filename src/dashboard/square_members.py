@@ -31,6 +31,8 @@ _READY: set[str] = set()
 _ENGINES: dict[str, object] = {}
 _ID_RE = re.compile(r"^sm_[0-9a-f]{16}$")
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$")
+# サブスク期限に関係なくツールを開ける運用アカウント。台帳は更新しない。
+OWNER_ACCESS_EMAIL = "yoshinari.koba0221@gmail.com"
 _STATUSES = {"pending", "trialing", "active", "canceled", "past_due", "suspended"}
 _FILTERS = {"all", "pending", "trialing", "active", "canceled", "hold"}
 _SORTS = {
@@ -316,6 +318,9 @@ def tool_access(line_user_id: str, now: int | None = None) -> dict:
 
 def email_access(email: str, now: int | None = None) -> dict:
     """ログインに使ったメールアドレスで台帳を引く。手元に無ければ請求サーバーへ聞く。"""
+    cleaned = _clean_email(email)
+    if cleaned == OWNER_ACCESS_EMAIL:
+        return _access_view(True, "ok", "active", "", cleaned)
     from src.dashboard.square_sync import ensure_square_members
     from src.dashboard.square_sync import needs_square_restore
 
@@ -450,6 +455,8 @@ def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:
     current = int(time.time() if now is None else now)
     user_id = _clean_token(line_user_id, 100)
     cleaned = _clean_email(email)
+    if cleaned == OWNER_ACCESS_EMAIL:
+        return _access_view(True, "ok", "active", user_id, cleaned)
     if not user_id and not cleaned:
         return _access_view(False, "unregistered", "", "", "")
     with _LOCK:
@@ -458,6 +465,14 @@ def _access_for(*, line_user_id: str, email: str, now: int | None) -> dict:
     identity = cleaned or user_id
     if member is None:
         return _access_view(False, "unregistered", "", user_id, cleaned)
+    if _clean_email(str(member.get("email") or "")) == OWNER_ACCESS_EMAIL:
+        return _access_view(
+            True,
+            "ok",
+            "active",
+            user_id or str(member.get("line_user_id") or ""),
+            OWNER_ACCESS_EMAIL,
+        )
     status = str(member.get("status") or "")
     if status == "canceled":
         until = _optional_int(member.get("access_until"))
