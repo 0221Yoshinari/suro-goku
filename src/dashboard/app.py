@@ -1008,6 +1008,19 @@ def get_judgments(prefecture: str = "") -> Union[dict, Response]:
             headers={"X-Snapshot": "hit"},
         )
     if durable_enabled():
+        from src.dashboard.judgment_store import load_prefecture_snapshot
+
+        row = load_prefecture_snapshot(selected)
+        schedule(selected, delay=5 if row else 0)
+        if row:
+            return Response(
+                content=str(row["payload"]),
+                media_type="application/json",
+                headers={"X-Snapshot": "stale"},
+            )
+        view = public_judgment_view(_full_judgments(selected))
+        if view.get("machines"):
+            return view
         schedule(selected, delay=0)
         return _building_payload(selected)
     return public_judgment_view(_full_judgments(selected))

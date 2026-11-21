@@ -1,3 +1,4 @@
+import importlib
 import json
 import unittest
 import unittest.mock
@@ -6,6 +7,8 @@ from fastapi.responses import Response
 
 from src.dashboard import judgment_store
 from src.dashboard.app import get_judgments, get_machine_units
+
+_DASHBOARD_MODULE = importlib.import_module("src.dashboard.app")
 from src.dashboard.prefecture_snapshot import _build
 
 
@@ -40,18 +43,16 @@ class PrefectureSnapshotTest(unittest.TestCase):
         self.assertEqual(body["machine_count"], 1)
         self.assertNotIn("units", body["machines"][0])
 
-    def test_open_does_not_assemble_while_the_snapshot_is_missing(self) -> None:
+    def test_open_falls_back_to_live_view_when_snapshot_is_missing(self) -> None:
+        live = {"machines": [{"hall_name": "テスト店", "unit_count": 1}], "machine_count": 1}
         with unittest.mock.patch("src.dashboard.prefecture_snapshot.served_snapshot", return_value=None):
             with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
-                with unittest.mock.patch("src.dashboard.prefecture_snapshot.schedule") as schedule:
-                    with unittest.mock.patch(
-                        "src.dashboard.judgment_sync.assemble_prefecture",
-                        side_effect=AssertionError("assembled"),
-                    ):
-                        body = get_judgments("tokyo")
-        schedule.assert_called_once_with("tokyo", delay=0)
-        self.assertEqual(body["snapshot_status"], "building")
-        self.assertEqual(body["machines"], [])
+                with unittest.mock.patch("src.dashboard.judgment_store.load_prefecture_snapshot", return_value=None):
+                    with unittest.mock.patch("src.dashboard.prefecture_snapshot.schedule") as schedule:
+                        with unittest.mock.patch.object(_DASHBOARD_MODULE, "_full_judgments", return_value=live):
+                            body = get_judgments("tokyo")
+        schedule.assert_called()
+        self.assertEqual(body["machine_count"], 1)
 
     def test_machine_units_read_one_hall(self) -> None:
         hall = {

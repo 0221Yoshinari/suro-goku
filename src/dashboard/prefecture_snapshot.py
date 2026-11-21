@@ -40,8 +40,14 @@ def schedule(prefecture: str, *, delay: float = 5.0) -> None:
         if due < retry_at:
             due = retry_at
         current = _DIRTY.get(wanted)
-        if delay > 0 or current is None or due < current:
+        if current is None:
             _DIRTY[wanted] = due
+        elif delay <= 0:
+            # 画面を開いたときは、待ち行列を前に進める。
+            _DIRTY[wanted] = min(current, due)
+        else:
+            # 店舗の連続保存のあいだは打ち切らず、最後の1件から delay 秒後に1回だけ組む。
+            _DIRTY[wanted] = max(current, due)
         _ensure_thread()
     _EVENT.set()
 
