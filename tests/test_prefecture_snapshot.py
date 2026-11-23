@@ -54,6 +54,16 @@ class PrefectureSnapshotTest(unittest.TestCase):
         schedule.assert_called()
         self.assertEqual(body["machine_count"], 1)
 
+    def test_open_never_returns_building_when_live_view_is_empty(self) -> None:
+        live = {"machines": [], "machine_count": 0}
+        with unittest.mock.patch("src.dashboard.prefecture_snapshot.served_snapshot", return_value=None):
+            with unittest.mock.patch("src.dashboard.judgment_store.durable_enabled", return_value=True):
+                with unittest.mock.patch("src.dashboard.judgment_store.load_prefecture_snapshot", return_value=None):
+                    with unittest.mock.patch("src.dashboard.prefecture_snapshot.schedule"):
+                        with unittest.mock.patch.object(_DASHBOARD_MODULE, "_full_judgments", return_value=live):
+                            body = get_judgments("tokyo")
+        self.assertNotEqual(body.get("snapshot_status"), "building")
+
     def test_machine_units_read_one_hall(self) -> None:
         hall = {
             "hall_name": "テスト店",

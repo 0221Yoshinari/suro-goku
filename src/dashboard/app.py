@@ -1019,10 +1019,9 @@ def get_judgments(prefecture: str = "") -> Union[dict, Response]:
                 headers={"X-Snapshot": "stale"},
             )
         view = public_judgment_view(_full_judgments(selected))
-        if view.get("machines"):
-            return view
-        schedule(selected, delay=0)
-        return _building_payload(selected)
+        if not view.get("machines"):
+            schedule(selected, delay=0)
+        return view
     return public_judgment_view(_full_judgments(selected))
 
 

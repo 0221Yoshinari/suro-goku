@@ -3444,8 +3444,22 @@ let judgmentsInFlight = null;
 let judgmentsLoaded = false;
 let snapshotTimer = 0;
 let waitingForSnapshot = false;
+let snapshotRetryCount = 0;
+const SNAPSHOT_RETRY_LIMIT = 8;
 
 function scheduleSnapshotRetry() {
+  snapshotRetryCount += 1;
+  if (snapshotRetryCount >= SNAPSHOT_RETRY_LIMIT) {
+    waitingForSnapshot = false;
+    setJudgmentLoading(false);
+    judgmentsLoaded = true;
+    if (!Array.isArray(payload.machines)) {
+      payload.machines = [];
+    }
+    render();
+    showError("判定の完成データを待っています。数十秒後に再読み込みしてください。");
+    return;
+  }
   window.clearTimeout(snapshotTimer);
   snapshotTimer = window.setTimeout(() => {
     snapshotTimer = 0;
@@ -3671,6 +3685,7 @@ async function loadJudgmentsNow(force) {
       return;
     }
     waitingForSnapshot = false;
+    snapshotRetryCount = 0;
     window.clearTimeout(snapshotTimer);
     const incoming = Array.isArray(next.machines) ? next.machines : [];
     const current = Array.isArray(payload.machines) ? payload.machines : [];
